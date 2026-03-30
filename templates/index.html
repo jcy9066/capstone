@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 순찰 관제 센터</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+    <div class="system-status-bar">
+        <span>CPU USAGE/TEMP: <span id="sys-cpu-usage">0.0</span>% /
+        <span><span id="sys-cpu-temp">0.0</span>°C</span></span>
+        <span>RAM USAGE: <span id="sys-ram">0.0</span>%</span>
+        <span>BATTERY: <span id="sys-battery">100</span>%</span>
+        <span>PING: <span id="sys-internet">0</span></span>
+    </div>
+
+    <header>
+        <div class="live-badge">LIVE</div>
+        <h1>AI 순찰 로봇 관제 센터</h1>
+    </header>
+
+    <div class="dashboard-container">
+        
+        <div class="card" id="camera-card">
+            <div class="card-header">
+                <h2 class="card-title">실시간 카메라 (YOLO11x-pose)</h2>
+            </div>
+            
+            <div class="screen-content" id="video-wrapper">
+                <div id="no-camera-msg" class="no-camera-bg" style="display: none;">연결된 카메라가 없습니다</div>
+                <img id="camera-stream" src="{{ url_for('video_feed') }}" alt="" onerror="handleCameraError()">
+                
+                <div class="overlay-controls top-left" id="camera-controls">
+                    <button class="icon-btn" onclick="captureScreen()">캡쳐</button>
+                    <button class="icon-btn" onclick="toggleFullscreen('video-wrapper')">전체화면</button>
+                </div>
+
+                <div class="overlay-datetime" id="camera-datetime">0000-00-00 00:00:00</div>
+                
+                <div class="overlay-detection-vertical" id="detection-data">
+                    <span class="detection-title">--Now Object List--</span>
+                    <span class="detection-tag"><span class="dot detected"></span> Person (98%)</span>
+                    <span class="detection-tag"><span class="dot detected"></span> Vehicle (77%)</span>
+                </div>
+
+                <div class="minimap-overlay">
+                    <div style="width:100%; height:100%; background: #2c3e50; display:flex; align-items:center; justify-content:center; color:#7f8c8d; font-size:10px;">MAP AREA</div>
+                    <div class="minimap-marker"></div> </div>
+            </div>
+
+            <div class="map-bookmark-panel">
+                <button class="mb-btn" onclick="openModal('bookmarkModal')">북마크 보기</button>
+                <button class="mb-btn">북마크 기록</button>
+                <button class="mb-btn" onclick="openModal('galleryModal')">갤러리</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            
+            <div class="card alert-card">
+                <div class="card-header">
+                    <h2 class="card-title text-danger">⚠️ 실시간 위험/경고 알림</h2>
+                    <button class="clear-btn" onclick="clearAlerts()">알림 지우기</button>
+                </div>
+                <div class="alert-container" id="alertBox">
+                    <div class="alert-entry alert-info">
+                        <span class="alert-time">시스템</span>
+                        <span class="alert-message">위험 감지 시스템이 활성화되었습니다.</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="control-grid">
+
+                <button class="card action-btn" onclick="openModal('statusModal')">기기 상태 로그</button>
+                <div class="split-btn-container">
+                    <button class="card action-btn action-report" onclick="reportDanger()">🚨 신고</button>
+                    <button class="card action-btn action-warning" onclick="warnTrespasser()">⚠️ 경고</button> 
+                </div>
+                <button class="card action-btn" onclick="openModal('patrolModal')">순찰 기록</button>
+
+                <div class="card action-btn" onclick="togglePatrolMode()" style="flex-direction: row; gap: 12px; cursor: pointer;">
+                    <span id="label-auto" class="mode-text active">🤖 자동 순찰</span>
+                    <div class="toggle-switch" id="mode-switch-ui">
+                        <div class="toggle-slider"></div>
+                    </div>
+                    <span id="label-manual" class="mode-text inactive">🎮 수동 순찰</span>
+                </div>
+                
+                <div class="card d-pad-container disabled" id="d-pad-area">
+                    <div class="d-pad">
+                        <button class="d-btn" onclick="moveRobot('↖')">↖</button>
+                        <button class="d-btn" onclick="moveRobot('↑')">↑</button>
+                        <button class="d-btn" onclick="moveRobot('↗')">↗</button>
+                        <button class="d-btn" onclick="moveRobot('←')">←</button>
+                        <div class="d-center-split">
+                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(반시계)')">↺</button>
+                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(시계)')">↻</button>
+                        </div>
+                        <button class="d-btn" onclick="moveRobot('→')">→</button>
+                        <button class="d-btn" onclick="moveRobot('↙')">↙</button>
+                        <button class="d-btn" onclick="moveRobot('↓')">↓</button>
+                        <button class="d-btn" onclick="moveRobot('↘')">↘</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="commonModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">모달 제목</h2>
+                <span class="close-btn" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalBody" class="modal-body">
+                모달 내용이 여기에 들어갑니다.
+            </div>
+        </div>
+    </div>
+
+    <script src="static/script.js"></script>
+</body>
+</html>
