@@ -1,9 +1,10 @@
-// 시간 포맷 생성 함수
+// ===================================================
+// 시간 유틸리티
+// ===================================================
 function getCurrentTime() {
     return new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
 }
 
-// YYYY-MM-DD HH:MM:SS 형식 반환 함수 (카메라 오버레이용)
 function getFormattedDateTime() {
     const now = new Date();
     const year = now.getFullYear();
@@ -15,12 +16,21 @@ function getFormattedDateTime() {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
+function todayStr() {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+function nowTimeStr() { return new Date().toTimeString().slice(0,8); } // HH:MM:SS
+function startOfDayTimeStr() { return '00:00:00'; }
+
 // 1초마다 카메라 상단 시간 업데이트
 setInterval(() => {
     document.getElementById('camera-datetime').innerText = getFormattedDateTime();
 }, 1000);
 
-// 1초마다 서버에서 로봇 상태 가져오기 (상태 바 업데이트)
+// ===================================================
+// 서버 상태 폴링
+// ===================================================
 function fetchRobotStatus() {
     fetch('/get_status')
         .then(response => response.json())
@@ -35,25 +45,64 @@ function fetchRobotStatus() {
 }
 setInterval(fetchRobotStatus, 1000);
 
+// ===================================================
+// 카메라 에러 처리
+// ===================================================
 function handleCameraError() {
     document.getElementById('camera-stream').style.display = 'none';
     document.getElementById('no-camera-msg').style.display = 'flex';
 }
 
-function captureScreen() { alert("현재 화면이 캡쳐되었습니다."); }
-
+// ===================================================
+// 전체화면
+// ===================================================
 function toggleFullscreen(elementId) {
     const elem = document.getElementById(elementId);
     if (!document.fullscreenElement) {
-        if (elem.requestFullscreen) { elem.requestFullscreen(); } 
-        else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } 
-        else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+        if (elem.requestFullscreen) elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+        else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
     } else {
-        if (document.exitFullscreen) { document.exitFullscreen(); }
+        if (document.exitFullscreen) document.exitFullscreen();
     }
 }
 
-// 알림 지우기 (확인 창 추가)
+// ===================================================
+// 미니맵 확대 토글 (카메라 화면 크기만큼 확장)
+// ===================================================
+let minimapExpanded = false;
+function toggleMinimapExpand() {
+    const minimap = document.getElementById('minimap-overlay');
+    const videoWrapper = document.getElementById('video-wrapper');
+    const btn = document.getElementById('minimapExpandBtn');
+
+    if (!minimapExpanded) {
+        // 카메라 화면 크기 가져오기
+        const wRect = videoWrapper.getBoundingClientRect();
+        minimap.style.width = wRect.width + 'px';
+        minimap.style.height = wRect.height + 'px';
+        minimap.style.bottom = '0';
+        minimap.style.right = '0';
+        minimap.style.borderRadius = '6px';
+        minimap.style.zIndex = '50';
+        btn.textContent = '⊡';
+        btn.title = '미니맵 축소';
+        minimapExpanded = true;
+    } else {
+        minimap.style.width = '';
+        minimap.style.height = '';
+        minimap.style.bottom = '';
+        minimap.style.right = '';
+        minimap.style.zIndex = '';
+        btn.textContent = '⛶';
+        btn.title = '미니맵 확대';
+        minimapExpanded = false;
+    }
+}
+
+// ===================================================
+// 알림 지우기
+// ===================================================
 function clearAlerts() {
     if (confirm("정말 모든 알림 내역을 삭제하시겠습니까?")) {
         document.getElementById('alertBox').innerHTML = `
@@ -64,234 +113,435 @@ function clearAlerts() {
     }
 }
 
-// 랜덤 알림 생성 (더미)
-const dummyAlerts = [
-    { type: 'warning', msg: '전방 2m 앞 미확인 장애물 감지' },
-    { type: 'danger', msg: '외부인 침입 의심 (YOLO_Person_Detect)' },
-    { type: 'warning', msg: '바퀴 모터(우측) 온도 상승' }
-];
+// ===================================================
+// 알림은 실제 서버/AI 감지 데이터만 표시
+// (더미 자동 알림 생성 제거됨)
+// ===================================================
+// 실제 위험 감지 시 서버에서 push 또는 polling으로 받아올 것
+// 예시: 서버에서 /get_alerts 엔드포인트 구현 후 아래처럼 연결
+// function fetchAlerts() { ... }
+// setInterval(fetchAlerts, 3000);
 
-setInterval(() => {
-    if (Math.random() > 0.8) {
-        const alertBox = document.getElementById('alertBox');
-        const alertData = dummyAlerts[Math.floor(Math.random() * dummyAlerts.length)];
-        
-        const newAlert = document.createElement('div');
-        newAlert.className = `alert-entry alert-${alertData.type}`;
-        newAlert.innerHTML = `
-            <span class="alert-time">${getCurrentTime()}</span>
-            <span class="alert-message" style="color: ${alertData.type === 'danger' ? 'var(--danger-color)' : 'var(--warning-color)'}">
-                ${alertData.msg}
-            </span>
-        `;
-        
-        alertBox.appendChild(newAlert);
-        alertBox.scrollTop = alertBox.scrollHeight;
+// ===================================================
+// 모달 상태 (실제 데이터만, 더미 없음)
+// ===================================================
+const modalState = {
+    statusModal:  { allRows: [], filtered: [], timer: null },
+    patrolModal:  { allRows: [], filtered: [], timer: null },
+    bookmarkModal:{ allRows: [], filtered: [], timer: null },
+};
 
-        // [요구사항 2] danger 타입일 경우 자동으로 텔레그램 전송 함수 실행 (팝업 없이)
-        if (alertData.type === 'danger') {
-            reportDanger(true);
+// ===================================================
+// 필터 적용 (초 단위까지 지원)
+// ===================================================
+function applyFilter(type) {
+    const st = modalState[type];
+    const startDate = document.getElementById(`${type}-start-date`)?.value;
+    const endDate   = document.getElementById(`${type}-end-date`)?.value;
+    const startTime = document.getElementById(`${type}-start-time`)?.value;
+    const endTime   = document.getElementById(`${type}-end-time`)?.value;
+
+    const startDT = startDate && startTime ? new Date(`${startDate}T${startTime}`) : null;
+    const endDT   = endDate   && endTime   ? new Date(`${endDate}T${endTime}`)     : null;
+
+    if (startDT && endDT && startDT > endDT) {
+        alert("종료 일시는 시작 일시보다 빠를 수 없습니다. 다시 확인해 주세요.");
+        return;
+    }
+
+    st.filtered = st.allRows.filter(row => {
+        const rowDT = new Date(`${row.date}T${row.time}`);
+        if (startDT && rowDT < startDT) return false;
+        if (endDT   && rowDT > endDT)   return false;
+        return true;
+    });
+    renderTable(type);
+}
+
+function resetFilter(type) {
+    const today = todayStr();
+    document.getElementById(`${type}-start-date`).value = today;
+    document.getElementById(`${type}-end-date`).value   = today;
+    document.getElementById(`${type}-start-time`).value = startOfDayTimeStr();
+    document.getElementById(`${type}-end-time`).value   = nowTimeStr();
+    modalState[type].filtered = [...modalState[type].allRows];
+    renderTable(type);
+}
+
+// ===================================================
+// 테이블 렌더링
+// ===================================================
+function renderTable(type) {
+    const tbody = document.getElementById(`${type}-tbody`);
+    const countEl = document.getElementById(`${type}-count`);
+    if (!tbody) return;
+
+    const rows = modalState[type].filtered;
+    if (countEl) countEl.innerHTML = `총 <span>${rows.length}</span> 건`;
+
+    if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="20"><div class="table-empty">조건에 맞는 데이터가 없습니다</div></td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = rows.slice().reverse().map((row, idx) => {
+        const realIdx = modalState[type].filtered.length - 1 - idx;
+        if (type === 'statusModal') {
+            const cpuClass  = row.cpu_usage > 80 ? 'danger' : row.cpu_usage > 60 ? 'warn' : 'accent';
+            const tempClass = row.cpu_temp  > 80 ? 'danger' : row.cpu_temp  > 65 ? 'warn' : '';
+            const batClass  = row.battery   < 20 ? 'danger' : row.battery   < 40 ? 'warn' : 'success';
+            const pingClass = row.ping > 150 ? 'danger' : row.ping > 100 ? 'warn' : '';
+            return `<tr>
+                <td class="muted">${row.date}</td>
+                <td class="muted">${row.time}</td>
+                <td class="${cpuClass}">${row.cpu_usage}%</td>
+                <td class="${tempClass}">${row.cpu_temp}°C</td>
+                <td class="${row.ram_usage>80?'warn':''}">${row.ram_usage}%</td>
+                <td class="${batClass}">${row.battery}%</td>
+                <td class="${pingClass}">${row.ping}ms</td>
+                <td class="muted">${row.location}</td>
+            </tr>`;
+        } else if (type === 'patrolModal') {
+            const stateClass = row.state==='이상 감지'?'danger':row.state==='장애물 우회'?'warn':row.state==='정상 완료'?'success':'accent';
+            const repClass   = row.reported==='예'?'danger':'muted';
+            return `<tr>
+                <td class="muted">${row.date}</td>
+                <td class="muted">${row.time}</td>
+                <td><span class="status-badge status-${stateClass==='danger'?'danger':stateClass==='warn'?'warning':stateClass==='success'?'normal':'patrol'}">${row.state}</span></td>
+                <td class="muted">${row.location}</td>
+                <td>${row.content}</td>
+                <td class="${repClass}">${row.reported}</td>
+            </tr>`;
+        } else {
+            // bookmarkModal
+            const stClass = row.state==='이상 감지'?'danger':row.state==='경고'?'warning':'normal';
+            return `<tr>
+                <td class="muted">${row.date}</td>
+                <td class="muted">${row.time}</td>
+                <td>${row.location}</td>
+                <td>${row.snapshot || '-'}</td>
+                <td><span class="status-badge status-${stClass}">${row.state}</span></td>
+                <td>
+                    <button class="del-btn" onclick="deleteBookmark(${realIdx})">삭제</button>
+                </td>
+            </tr>`;
         }
+    }).join('');
+}
+
+// ===================================================
+// 북마크 삭제
+// ===================================================
+function deleteBookmark(idx) {
+    if (confirm('이 기록을 삭제하시겠습니까?')) {
+        modalState['bookmarkModal'].allRows.splice(idx, 1);
+        applyFilter('bookmarkModal');
     }
-}, 4000);
+}
 
+// ===================================================
+// 모달 HTML 생성 (시간 필드 초 단위까지 step="1")
+// ===================================================
+function buildModalHTML(type) {
+    const today = todayStr();
+    const now   = nowTimeStr();
 
-// --- 모달 창 제어 로직 ---
-// --- 모달 창 제어 로직 ---
-function openModal(type) {
-    const modal = document.getElementById('commonModal');
-    const title = document.getElementById('modalTitle');
-    const body = document.getElementById('modalBody');
+    const filterBar = `
+    <div class="modal-filter-bar">
+        <label>시작</label>
+        <input type="date" id="${type}-start-date" value="${today}">
+        <input type="time" id="${type}-start-time" value="00:00:00" step="1">
+        <span class="filter-sep">~</span>
+        <label>종료</label>
+        <input type="date" id="${type}-end-date" value="${today}">
+        <input type="time" id="${type}-end-time" value="${now}" step="1">
+        <button class="filter-btn" onclick="applyFilter('${type}')">조회</button>
+        <button class="filter-btn secondary" onclick="resetFilter('${type}')">초기화</button>
+        <span class="filter-count" id="${type}-count">총 <span>0</span> 건</span>
+    </div>`;
 
+    let tableHead = '';
     if (type === 'statusModal') {
-        title.innerText = "기기 상태 로그";
-        body.innerHTML = `
-            <p><strong>최근 점검일시:</strong> ${getFormattedDateTime()}</p>
-            <p><strong>네트워크 지연율(Ping):</strong> 24ms</p>
-            <p><strong>저장소 여유 공간:</strong> 14GB / 32GB</p>
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-            <p style="color: #666; font-size: 13px;">시스템이 안정적으로 작동 중입니다.</p>
-        `;
+        tableHead = `<tr>
+            <th>날짜</th><th>시각</th><th>CPU Usage</th><th>CPU Temp</th>
+            <th>RAM Usage</th><th>Battery</th><th>Ping</th><th>위치 (X,Y,Z)</th>
+        </tr>`;
     } else if (type === 'patrolModal') {
-        title.innerText = "순찰 기록 내역";
-        body.innerHTML = `
-            <ul style="padding-left: 20px; line-height: 1.8;">
-                <li>[13:00] 정문 A구역 순찰 완료 (이상 없음)</li>
-                <li>[12:30] 후문 B구역 순찰 완료 (이상 없음)</li>
-                <li>[11:45] 주차장 C구역 순찰 중 장애물 우회</li>
-                <li>[11:00] 시스템 부팅 및 순찰 개시</li>
-            </ul>
-        `;
-    // [추가된 부분] 북마크 보기 모달
-    } else if (type === 'bookmarkModal') {
-        title.innerText = "저장된 북마크 위치";
-        body.innerHTML = `
-            <ul style="padding-left: 20px; line-height: 1.8;">
-                <li>📍 <strong>공학관 1층 로비</strong> - 어제 15:30 저장</li>
-                <li>📍 <strong>연구실 앞 복도</strong> - 2일 전 저장</li>
-                <li>📍 <strong>야외 주차장 A구역</strong> - 3일 전 저장</li>
-            </ul>
-            <p style="color: #666; font-size: 12px; margin-top: 15px;">※ 목록 클릭 시 해당 위치로 자율주행 경로를 탐색합니다.</p>
-        `;
-    // [추가된 부분] 갤러리 모달
-    } else if (type === 'galleryModal') {
-        title.innerText = "위험 감지 갤러리 (캡쳐)";
-        body.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div style="background: #e2e8f0; height: 100px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b;">이미지 1<br>(11:45 침입자)</div>
-                <div style="background: #e2e8f0; height: 100px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b;">이미지 2<br>(10:20 장애물)</div>
-                <div style="background: #e2e8f0; height: 100px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b;">이미지 3<br>(어제 23:00)</div>
-                <div style="background: #e2e8f0; height: 100px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b;">이미지 4<br>(어제 21:15)</div>
-            </div>
-        `;
+        tableHead = `<tr>
+            <th>날짜</th><th>시각</th><th>상태</th><th>위치 (X,Y,Z)</th>
+            <th>내용</th><th>신고여부</th>
+        </tr>`;
+    } else {
+        tableHead = `<tr>
+            <th>날짜</th><th>시각</th><th>위치</th><th>스냅샷</th><th>저장 당시 상태</th><th>삭제</th>
+        </tr>`;
     }
-    
+
+    return `
+    ${filterBar}
+    <div class="modal-table-wrapper">
+        <table class="data-table">
+            <thead>${tableHead}</thead>
+            <tbody id="${type}-tbody"></tbody>
+        </table>
+    </div>`;
+}
+
+// ===================================================
+// 모달 열기/닫기
+// ===================================================
+function openModal(type) {
+    const modal  = document.getElementById('commonModal');
+    const title  = document.getElementById('modalTitle');
+    const body   = document.getElementById('modalBody');
+
+    const titles = {
+        statusModal:   '기기 상태 로그',
+        patrolModal:   '순찰 기록',
+        bookmarkModal: '북마크 조회',
+        galleryModal:  '위험 감지 갤러리'
+    };
+
+    title.innerText = titles[type] || type;
+
+    if (type === 'galleryModal') {
+        body.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:center; padding:60px 20px; color:var(--text-muted); font-family:var(--mono); font-size:12px; letter-spacing:1px; flex-direction:column; gap:8px;">
+                <span style="font-size:11px; opacity:0.4;">[ 갤러리 비어있음 ]</span>
+                <span>위험 감지 시 캡쳐된 이미지가 여기에 표시됩니다.</span>
+            </div>`;
+        modal.style.display = 'flex';
+        return;
+    }
+
+    modalState[type].filtered = [...modalState[type].allRows];
+    body.innerHTML = buildModalHTML(type);
     modal.style.display = 'flex';
+    renderTable(type);
+
+    // 기기상태 로그는 서버에서 실시간으로 받아오는 구조 (현재는 /get_status 폴링)
+    // 순찰 기록, 북마크는 버튼 누를 때만 추가됨 → 자동 추가 타이머 없음
 }
 
 function closeModal() {
     document.getElementById('commonModal').style.display = 'none';
+    Object.values(modalState).forEach(st => {
+        if (st.timer) { clearInterval(st.timer); st.timer = null; }
+    });
 }
 
-// 모달 바깥 배경 클릭 시 닫기
 window.onclick = function(event) {
     const modal = document.getElementById('commonModal');
-    if (event.target == modal) {
-        modal.style.display = "none";
+    if (event.target == modal) closeModal();
+};
+
+// ===================================================
+// 현재 화면 북마크 기록 (요구사항 8)
+// ===================================================
+function recordBookmark() {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+    const newRow = {
+        date,
+        time,
+        location: '현재 위치',   // 실제 위치 데이터 연동 시 교체
+        snapshot: '화면 기록됨',
+        state: '정상'             // 실제 감지 상태 연동 시 교체
+    };
+
+    modalState['bookmarkModal'].allRows.push(newRow);
+
+    // 짧은 피드백
+    const btn = document.querySelector('.bookmark-record-btn');
+    if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✅ 기록 완료!';
+        btn.style.color = 'var(--success-color)';
+        btn.style.borderColor = 'var(--success-color)';
+        setTimeout(() => {
+            btn.textContent = orig;
+            btn.style.color = '';
+            btn.style.borderColor = '';
+        }, 1500);
     }
 }
 
-// 텔레그램 전송 함수 (isAuto 플래그를 추가하여 자동 전송 시 팝업창 생략)
+// ===================================================
+// 텔레그램 신고
+// ===================================================
 function reportDanger(isAuto = false) {
     let confirmReport = true;
-    
-    // 수동으로 [신고] 버튼을 눌렀을 때만 확인창을 띄움
-    if (!isAuto) {
-        confirmReport = confirm("신고? - Telegram");
-    }
-    
-    if(confirmReport) {
-        // Flask 백엔드로 텔레그램 전송 요청을 보냄
-        fetch('/send_telegram', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.status === 'success') {
-                if(!isAuto) alert("🚨 긴급 알림이 전송되었습니다.");
-                console.log("텔레그램 알림 전송 완료");
-            } else {
-                if(!isAuto) alert("알림 전송에 실패했습니다.");
-            }
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            if(!isAuto) alert("서버 통신 오류로 알림을 보내지 못했습니다.");
-        });
+    if (!isAuto) confirmReport = confirm("신고? - Telegram");
+
+    if (confirmReport) {
+        fetch('/send_telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (!isAuto) alert("🚨 긴급 알림이 전송되었습니다.");
+                    console.log("텔레그램 알림 전송 완료");
+                } else {
+                    if (!isAuto) alert("알림 전송에 실패했습니다.");
+                }
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                if (!isAuto) alert("서버 통신 오류로 알림을 보내지 못했습니다.");
+            });
     }
 }
 
-// [요구사항 1] 알림창에 기록 띄우는 코드 삭제
-function moveRobot(direction) {
-    console.log(`로봇 이동 명령: ${direction}`);
-    
-    // 추후 이곳에 백엔드로 방향 데이터를 전송하는 fetch 로직을 추가하시면 됩니다.
+function warnTrespasser() {
+    alert("⚠️ 경고 방송을 실행합니다.");
 }
 
-// script.js 맨 아래에 추가/수정
+// ===================================================
+// 수동/자동 순찰 모드 토글
+// ===================================================
+let currentPatrolMode = 'auto';
 
-let currentPatrolMode = 'auto'; // 초기 상태는 자동 순찰
-
-// 스위치 클릭 시 모드 변경 (confirm 창 및 텍스트 투명도 처리 포함)
 function togglePatrolMode() {
     const targetMode = currentPatrolMode === 'auto' ? 'manual' : 'auto';
-    const modeName = targetMode === 'auto' ? '자동' : '수동';
-    
-    // confirm 창 띄우기
+    const modeName   = targetMode === 'auto' ? '자동' : '수동';
+
     if (confirm(`${modeName} 순찰 모드로 변경하시겠습니까?`)) {
-        currentPatrolMode = targetMode; // 상태 업데이트
-        
-        const switchUi = document.getElementById('mode-switch-ui');
-        const dPadArea = document.getElementById('d-pad-area');
-        const labelAuto = document.getElementById('label-auto');
+        currentPatrolMode = targetMode;
+
+        const switchUi    = document.getElementById('mode-switch-ui');
+        const dPadArea    = document.getElementById('d-pad-area');
+        const labelAuto   = document.getElementById('label-auto');
         const labelManual = document.getElementById('label-manual');
-        
+
         if (currentPatrolMode === 'auto') {
-            // 스위치 및 방향키 UI 처리
             switchUi.classList.remove('manual');
             dPadArea.classList.add('disabled');
-            
-            // 텍스트 반투명 처리 교차
-            labelAuto.classList.add('active');
-            labelAuto.classList.remove('inactive');
-            labelManual.classList.add('inactive');
-            labelManual.classList.remove('active');
-            
-            console.log("모드 변경: 자동 순찰");
+            labelAuto.classList.add('active');   labelAuto.classList.remove('inactive');
+            labelManual.classList.add('inactive'); labelManual.classList.remove('active');
         } else {
-            // 스위치 및 방향키 UI 처리
             switchUi.classList.add('manual');
             dPadArea.classList.remove('disabled');
-            
-            // 텍스트 반투명 처리 교차
-            labelAuto.classList.add('inactive');
-            labelAuto.classList.remove('active');
-            labelManual.classList.add('active');
-            labelManual.classList.remove('inactive');
-            
-            console.log("모드 변경: 수동 순찰");
+            labelAuto.classList.add('inactive');   labelAuto.classList.remove('active');
+            labelManual.classList.add('active');   labelManual.classList.remove('inactive');
         }
     }
 }
 
-// 기존 moveRobot 함수 덮어쓰기 (수동 모드일 때만 동작하도록 보안 적용)
+// ===================================================
+// 로봇 이동 명령 (요구사항 5: 키보드 방향키 지원)
+// ===================================================
 window.moveRobot = function(direction) {
     if (currentPatrolMode !== 'manual') {
         console.warn("수동 순찰 모드에서만 로봇을 조작할 수 있습니다.");
-        return; 
+        return;
     }
     console.log(`로봇 이동 명령: ${direction}`);
-    
-    // 추후 백엔드(app.py)로 방향 데이터를 전송하는 fetch 로직 삽입
+    // 백엔드 연동 시 아래 주석 해제 후 사용
+    // fetch('/move', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({direction}) });
 };
 
-// 키보드(방향키, WASD) 제어 이벤트 리스너
+// 키보드 방향키 이벤트 (요구사항 5)
+// 상하좌우 단독 → 4방향 / 두 키 동시 → 대각선 4방향
+const pressedKeys = new Set();
+
+// d-pad 버튼 인덱스 (3x3 그리드, rotate 제외)
+// 0:↖  1:↑  2:↗
+// 3:←  4:center(회전들)  5:→
+// 6:↙  7:↓  8:↘
+// querySelectorAll('.d-pad .d-btn:not(.rotate-btn)') 순서와 동일
+
+function getDirectionFromKeys() {
+    const up    = pressedKeys.has('ArrowUp')    || pressedKeys.has('w');
+    const down  = pressedKeys.has('ArrowDown')  || pressedKeys.has('s');
+    const left  = pressedKeys.has('ArrowLeft')  || pressedKeys.has('a');
+    const right = pressedKeys.has('ArrowRight') || pressedKeys.has('d');
+
+    if (up   && left)  return { direction: '↖', btnIndex: 0 };
+    if (up   && right) return { direction: '↗', btnIndex: 2 };
+    if (down && left)  return { direction: '↙', btnIndex: 6 };
+    if (down && right) return { direction: '↘', btnIndex: 8 };
+    if (up)            return { direction: '↑', btnIndex: 1 };
+    if (down)          return { direction: '↓', btnIndex: 7 };
+    if (left)          return { direction: '←', btnIndex: 3 };
+    if (right)         return { direction: '→', btnIndex: 5 };
+    return null;
+}
+
+let keyMoveInterval = null;
+
+function startKeyMove() {
+    if (keyMoveInterval) return;
+    keyMoveInterval = setInterval(() => {
+        if (currentPatrolMode !== 'manual') return;
+        const result = getDirectionFromKeys();
+        if (!result) return;
+
+        moveRobot(result.direction);
+
+        // 해당 버튼 시각적 하이라이트
+        const buttons = document.querySelectorAll('.d-pad .d-btn:not(.rotate-btn)');
+        buttons.forEach(b => b.classList.remove('active-key'));
+        if (result.btnIndex !== -1 && buttons[result.btnIndex]) {
+            buttons[result.btnIndex].classList.add('active-key');
+        }
+    }, 100);
+}
+
+function stopKeyMove() {
+    if (keyMoveInterval) { clearInterval(keyMoveInterval); keyMoveInterval = null; }
+    const buttons = document.querySelectorAll('.d-pad .d-btn:not(.rotate-btn)');
+    buttons.forEach(b => b.classList.remove('active-key'));
+}
+
 document.addEventListener('keydown', (event) => {
-    // 수동 모드가 아니면 키보드 입력 무시
+    const dirKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'];
+    if (!dirKeys.includes(event.key)) return;
+    event.preventDefault();
     if (currentPatrolMode !== 'manual') return;
 
-    let direction = null;
-    let btnIndex = -1; 
+    pressedKeys.add(event.key);
+    startKeyMove();
+});
 
-    switch (event.key) {
-        case 'ArrowUp': case 'w': direction = '↑'; btnIndex = 1; break;
-        case 'ArrowDown': case 's': direction = '↓'; btnIndex = 7; break;
-        case 'ArrowLeft': case 'a': direction = '←'; btnIndex = 3; break;
-        case 'ArrowRight': case 'd': direction = '→'; btnIndex = 5; break;
-    }
-
-    if (direction) {
-        event.preventDefault(); // 방향키 입력 시 화면 스크롤 방지
-        moveRobot(direction);
-
-        // 누른 키에 해당하는 HTML 버튼에 시각적 클릭 효과 주기
-        const buttons = document.querySelectorAll('.d-pad .d-btn:not(.rotate-btn)');
-        if (btnIndex !== -1 && buttons[btnIndex]) {
-            buttons[btnIndex].classList.add('active-key');
-            setTimeout(() => buttons[btnIndex].classList.remove('active-key'), 150);
-        }
+document.addEventListener('keyup', (event) => {
+    pressedKeys.delete(event.key);
+    if (pressedKeys.size === 0 || !['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].some(k => pressedKeys.has(k))) {
+        stopKeyMove();
     }
 });
 
-// script.js 맨 아래에 추가 (초기 UI 완벽 동기화)
+// ===================================================
+// 사이드바 메뉴 (요구사항 7)
+// ===================================================
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+// ===================================================
+// 다크 모드 (요구사항 7)
+// ===================================================
+let darkMode = false;
+function toggleDarkMode() {
+    darkMode = !darkMode;
+    document.body.classList.toggle('dark-mode', darkMode);
+    document.getElementById('darkToggle').classList.toggle('active', darkMode);
+    localStorage.setItem('darkMode', darkMode ? '1' : '0');
+}
+
+// 저장된 다크모드 설정 복원
 window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('darkMode');
+    if (saved === '1') toggleDarkMode();
+
+    // D-Pad 초기 상태 동기화
     const dPadArea = document.getElementById('d-pad-area');
     const switchUi = document.getElementById('mode-switch-ui');
-    
-    // 현재 모드가 수동이 아니라면 무조건 방향키 패드를 시각적/물리적으로 차단
     if (currentPatrolMode !== 'manual') {
         dPadArea.classList.add('disabled');
         switchUi.classList.remove('manual');
