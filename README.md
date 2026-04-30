@@ -113,14 +113,17 @@ http://localhost:21063
 Python 클라이언트는 WebSocket 명령과 OpenCV 카메라 테스트용으로 유지한다.
 
 실제 영상 전송은 `rpicam-vid`가 H.264 스트림을 만들고 `curl`이 GPU 서버로 push한다.
+실시간 스트림은 끝나지 않는 입력이므로 `--data-binary @-` 대신 `-T -`와 chunked upload를 사용한다.
 
 ```bash
-rpicam-vid -t 0 --codec h264 --inline --width 640 --height 480 --framerate 15 -o - | \
+rpicam-vid -t 0 --nopreview --codec h264 --inline --width 640 --height 480 --framerate 15 -o - | \
 curl --http1.1 -v -N -X POST -T - \
   -H "Content-Type: video/H264" \
   -H "Transfer-Encoding: chunked" \
-  "http://10.108.90.21:21063/stream/h264?robot_id=pi-01"
+  "http://10.108.90.21:21063/stream/h264?robot_id=pi-01&infer=true"
 ```
+
+`curl --data-binary @-`는 파일 업로드에는 쓸 수 있지만 `rpicam-vid -t 0` 같은 무한 실시간 스트림에서는 서버에 요청이 늦게 도달하거나 `bytes_received=0`으로 남을 수 있다.
 
 먼저 모델 추론 없이 원본 스트림만 확인하려면 `infer=false`를 붙인다.
 

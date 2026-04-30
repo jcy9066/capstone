@@ -249,7 +249,6 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
     if SAVE_RECEIVED_FRAMES:
         if original_bytes is not None:
             (SAVE_DIR / "latest.jpg").write_bytes(original_bytes)
-        (SAVE_DIR / "latest_result.jpg").write_bytes(frame_bytes)
 
     return result
 
