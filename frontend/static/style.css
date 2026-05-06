@@ -166,12 +166,18 @@ header {
     font-family: var(--mono); letter-spacing: 1px;
     box-shadow: 0 0 14px var(--danger-glow);
     flex-shrink: 0;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.live-badge.offline {
+    background: #9ca3af;
+    box-shadow: none;
 }
 .live-badge::before {
     content: ''; width: 6px; height: 6px;
     background-color: white; border-radius: 50%;
     animation: blink 1s infinite;
 }
+.live-badge.offline::before { animation: none; opacity: 0.75; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
 h1 {
@@ -298,13 +304,34 @@ h1 {
     border: 1px solid var(--border-color);
     display: flex; justify-content: center; align-items: center;
     overflow: hidden; position: relative; flex: 1 1 0; min-height: 0;
+    transition: background-color 0.2s, border-color 0.2s;
 }
-#camera-stream { width: 100%; height: 100%; object-fit: cover; }
+#camera-stream {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: filter 0.2s, opacity 0.2s;
+}
+.screen-content.camera-offline {
+    background-color: #d1d5db;
+    border-color: #9ca3af;
+}
+body.dark-mode .screen-content.camera-offline {
+    background-color: #374151;
+    border-color: #6b7280;
+}
+.screen-content.camera-offline #camera-stream {
+    filter: grayscale(1);
+    opacity: 0.25;
+}
 .no-camera-bg {
-    background-color: #1a1f2e; width: 100%; height: 100%;
+    background-color: rgba(31, 41, 55, 0.76); width: 100%; height: 100%;
     display: flex; justify-content: center; align-items: center;
-    position: absolute; inset: 0; color: #64748b;
+    position: absolute; inset: 0; color: #f8fafc;
     font-family: var(--mono); font-size: 12px; letter-spacing: 2px;
+    font-weight: 700; text-align: center; padding: 20px; box-sizing: border-box;
+    z-index: 18;
+}
+body.dark-mode .no-camera-bg {
+    background-color: rgba(17, 24, 39, 0.82);
 }
 
 /* 오버레이 컨트롤 */

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisc
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.requests import ClientDisconnect
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 PERCEPTION_DIR = ROOT_DIR / "perception"
@@ -27,6 +29,7 @@ from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
 
 load_dotenv(ROOT_DIR / ".env")
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
 app.mount("/static", StaticFiles(directory=ROOT_DIR / "frontend" / "static"), name="static")
@@ -43,6 +46,8 @@ STREAM_HEIGHT = int(os.getenv("STREAM_HEIGHT", "480"))
 STREAM_FPS = int(os.getenv("STREAM_FPS", "15"))
 INFERENCE_ENABLED = os.getenv("INFERENCE_ENABLED", "true").lower() == "true"
 STREAM_INFER_EVERY_N = max(1, int(os.getenv("STREAM_INFER_EVERY_N", "1")))
+CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
+ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
 SAVE_DIR = ROOT_DIR / "received_frames"
 SAVE_DIR.mkdir(exist_ok=True)
 
@@ -50,6 +55,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 state_lock = threading.Lock()
+server_started_at = time.time()
 current_frame = None
 latest_result = {
     "ok": True,
@@ -76,6 +82,7 @@ stream_stats = {
     "connected_at": None,
     "disconnected_at": None,
     "bytes_received": 0,
+    "frames_received": 0,
     "last_byte_at": None,
     "frames_decoded": 0,
     "frames_inferred": 0,
@@ -84,6 +91,7 @@ stream_stats = {
     "ffmpeg_returncode": None,
     "ffmpeg_stderr_tail": [],
 }
+status_frame_cache = {"key": None, "frame": None}
 frame_processor = None
 model_error = None
 processing_lock = threading.Lock()
@@ -236,10 +244,15 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
 
     frame_bytes = buffer.tobytes()
     with state_lock:
+        now = time.time()
         current_frame = frame_bytes
         latest_result = result
+        stream_stats["connected"] = True
+        stream_stats["robot_id"] = robot_id
+        stream_stats["frames_received"] = stream_stats.get("frames_received", 0) + 1
+        stream_stats["last_frame_at"] = now
+        stream_stats["last_error"] = None
         frame_stats["count"] += 1
-        now = time.time()
         if now - frame_stats["last_time"] >= 1.0:
             frame_stats["fps"] = frame_stats["count"]
             print(f"received fps: {frame_stats['fps']}, frame shape: {frame.shape}")
@@ -251,6 +264,117 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
             (SAVE_DIR / "latest.jpg").write_bytes(original_bytes)
 
     return result
+
+
+def build_camera_status(now=None):
+    now = now or time.time()
+    last_frame_at = stream_stats.get("last_frame_at")
+    last_status_at = robot_status.get("updated_at")
+    last_frame_age = None if last_frame_at is None else max(0.0, now - last_frame_at)
+    last_status_age = None if last_status_at is None else max(0.0, now - last_status_at)
+    has_frame = current_frame is not None
+    frame_is_live = last_frame_age is not None and last_frame_age <= CAMERA_TIMEOUT_SEC
+    status_is_live = last_status_age is not None and last_status_age <= ROBOT_STATUS_TIMEOUT_SEC
+    startup_age = now - server_started_at
+    last_error = stream_stats.get("last_error")
+    disconnected_at = stream_stats.get("disconnected_at")
+    stream_is_closed = (
+        disconnected_at is not None
+        and last_frame_at is not None
+        and disconnected_at >= last_frame_at
+        and not stream_stats.get("connected")
+    )
+
+    if not has_frame and startup_age < ROBOT_STATUS_TIMEOUT_SEC:
+        state = "waiting"
+        message = "카메라 신호 대기 중"
+        connected = False
+    elif stream_is_closed or not stream_stats.get("connected"):
+        if status_is_live:
+            state = "camera_disconnected"
+            message = "카메라 연결이 끊겼습니다"
+        else:
+            state = "robot_disconnected"
+            message = "라즈베리 파이와 연결이 끊겼습니다"
+        connected = False
+    elif frame_is_live:
+        state = "live"
+        message = "영상 수신 중"
+        connected = True
+    elif status_is_live:
+        state = "camera_disconnected"
+        message = "카메라 연결이 끊겼습니다"
+        connected = False
+    elif last_error:
+        state = "error"
+        message = "카메라 스트림 오류"
+        connected = False
+    elif not has_frame:
+        state = "robot_disconnected"
+        message = "라즈베리 파이와 연결이 끊겼습니다"
+        connected = False
+    else:
+        state = "robot_disconnected"
+        message = "라즈베리 파이와 연결이 끊겼습니다"
+        connected = False
+
+    return {
+        "camera_state": state,
+        "camera_connected": connected,
+        "message": message,
+        "last_frame_age_sec": last_frame_age,
+        "last_status_age_sec": last_status_age,
+        "camera_timeout_sec": CAMERA_TIMEOUT_SEC,
+        "robot_status_timeout_sec": ROBOT_STATUS_TIMEOUT_SEC,
+    }
+
+
+def build_status_frame(message):
+    key = (STREAM_WIDTH, STREAM_HEIGHT, message)
+    if status_frame_cache["key"] == key and status_frame_cache["frame"] is not None:
+        return status_frame_cache["frame"]
+
+    frame = np.full((STREAM_HEIGHT, STREAM_WIDTH, 3), 209, dtype=np.uint8)
+    panel_w = min(STREAM_WIDTH - 48, 430)
+    panel_h = 116
+    x1 = max(16, (STREAM_WIDTH - panel_w) // 2)
+    y1 = max(16, (STREAM_HEIGHT - panel_h) // 2)
+    x2 = x1 + panel_w
+    y2 = y1 + panel_h
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (90, 96, 106), thickness=-1)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (156, 163, 175), thickness=2)
+
+    title = "CAMERA OFFLINE"
+    detail = "Check Raspberry Pi / camera connection"
+    title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+    detail_size = cv2.getTextSize(detail, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)[0]
+    cv2.putText(
+        frame,
+        title,
+        ((STREAM_WIDTH - title_size[0]) // 2, y1 + 46),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        detail,
+        ((STREAM_WIDTH - detail_size[0]) // 2, y1 + 78),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        (229, 231, 235),
+        1,
+        cv2.LINE_AA,
+    )
+
+    ok, buffer = cv2.imencode(".jpg", frame)
+    if not ok:
+        return None
+    status_frame_cache["key"] = key
+    status_frame_cache["frame"] = buffer.tobytes()
+    return status_frame_cache["frame"]
 
 
 @app.post("/frame")
@@ -383,6 +507,7 @@ async def receive_h264_stream(request: Request):
                 "connected_at": time.time(),
                 "disconnected_at": None,
                 "bytes_received": 0,
+                "frames_received": 0,
                 "last_byte_at": None,
                 "frames_decoded": 0,
                 "frames_inferred": 0,
@@ -417,6 +542,11 @@ async def receive_h264_stream(request: Request):
                     stream_stats["last_error"] = "ffmpeg stdin broken pipe"
                     stream_stats["ffmpeg_returncode"] = proc.poll()
                 break
+    except ClientDisconnect:
+        with state_lock:
+            stream_stats["connected"] = False
+            stream_stats["disconnected_at"] = time.time()
+            stream_stats["ffmpeg_returncode"] = proc.poll()
     finally:
         if proc.stdin is not None:
             try:
@@ -441,10 +571,12 @@ async def receive_h264_stream(request: Request):
 def generate_frames():
     while True:
         with state_lock:
-            frame = current_frame
+            camera_status = build_camera_status()
+            is_live = camera_status["camera_state"] == "live"
+            frame = current_frame if is_live else build_status_frame(camera_status["message"])
         if frame is not None:
             yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
-            time.sleep(0.03)
+            time.sleep(0.03 if is_live else 0.5)
         else:
             time.sleep(0.1)
 
@@ -467,8 +599,9 @@ async def get_latest_result():
 async def get_stream_status():
     with state_lock:
         status = dict(stream_stats)
+        status.update(build_camera_status())
         status["has_current_frame"] = current_frame is not None
-        status["received_fps"] = frame_stats["fps"]
+        status["received_fps"] = frame_stats["fps"] if status["camera_state"] == "live" else 0
         status["stream_width"] = STREAM_WIDTH
         status["stream_height"] = STREAM_HEIGHT
         status["stream_fps"] = STREAM_FPS
@@ -529,4 +662,4 @@ async def get_pipelines():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("server.app:app", host=SERVER_HOST, port=SERVER_PORT, reload=False)
+    uvicorn.run("server.app:app", host=SERVER_HOST, port=SERVER_PORT, reload=False, access_log=False)

@@ -46,11 +46,64 @@ function fetchRobotStatus() {
 setInterval(fetchRobotStatus, 1000);
 
 // ===================================================
+// 카메라 연결 상태 폴링
+// ===================================================
+function setLiveBadge(isLive) {
+    const badge = document.querySelector('.live-badge');
+    if (!badge) return;
+    badge.classList.toggle('offline', !isLive);
+    badge.textContent = isLive ? 'LIVE' : 'OFFLINE';
+}
+
+function showCameraLive() {
+    const videoWrapper = document.getElementById('video-wrapper');
+    const cameraStream = document.getElementById('camera-stream');
+    const messageBox = document.getElementById('no-camera-msg');
+
+    if (videoWrapper) videoWrapper.classList.remove('camera-offline');
+    if (cameraStream) cameraStream.style.display = '';
+    if (messageBox) messageBox.style.display = 'none';
+    setLiveBadge(true);
+}
+
+function showCameraDisconnected(message, hideStream = false) {
+    const videoWrapper = document.getElementById('video-wrapper');
+    const cameraStream = document.getElementById('camera-stream');
+    const messageBox = document.getElementById('no-camera-msg');
+
+    if (videoWrapper) videoWrapper.classList.add('camera-offline');
+    if (cameraStream) cameraStream.style.display = hideStream ? 'none' : '';
+    if (messageBox) {
+        messageBox.innerText = message || '카메라 연결 상태를 확인할 수 없습니다';
+        messageBox.style.display = 'flex';
+    }
+    setLiveBadge(false);
+}
+
+function updateCameraStatus(data) {
+    if (data.camera_state === 'live') {
+        showCameraLive();
+        return;
+    }
+
+    showCameraDisconnected(data.message, true);
+}
+
+function fetchCameraStatus() {
+    fetch('/api/stream_status')
+        .then(response => response.json())
+        .then(updateCameraStatus)
+        .catch(() => showCameraDisconnected('서버와 연결이 끊겼습니다', true));
+}
+
+setInterval(fetchCameraStatus, 1000);
+fetchCameraStatus();
+
+// ===================================================
 // 카메라 에러 처리
 // ===================================================
 function handleCameraError() {
-    document.getElementById('camera-stream').style.display = 'none';
-    document.getElementById('no-camera-msg').style.display = 'flex';
+    showCameraDisconnected('영상 스트림을 불러올 수 없습니다', true);
 }
 
 // ===================================================
