@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 순찰 관제 센터</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/style.css?v=20260506-camera-offline-2">
 </head>
 <body>
 
@@ -58,7 +58,7 @@
             </div>
             
             <div class="screen-content" id="video-wrapper">
-                <div id="no-camera-msg" class="no-camera-bg" style="display: none;">연결된 카메라가 없습니다</div>
+                <div id="no-camera-msg" class="no-camera-bg" style="display: none;">카메라 신호 대기 중</div>
                 <img id="camera-stream" src="{{ url_for('video_feed') }}" alt="" onerror="handleCameraError()">
                 
                 <div class="overlay-controls top-left" id="camera-controls">
@@ -149,6 +149,6 @@
         </div>
     </div>
 
-    <script src="static/script.js"></script>
+    <script src="static/script.js?v=20260506-camera-offline-2"></script>
 </body>
 </html>
