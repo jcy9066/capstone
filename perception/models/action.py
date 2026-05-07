@@ -11,7 +11,8 @@ from mmpose.apis import inference_topdown
 from mmaction.apis import init_recognizer, inference_recognizer
 
 class ActionRecognizer:
-    def __init__(self, device='cuda:0'):
+    def __init__(self, device=None):
+        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         mmpose_base = os.path.dirname(mmpose.__file__)
