@@ -1,3 +1,5 @@
+import os
+
 PIPELINE_OPTIONS = {
     "1": "YOLO11n_ByteTrack_RTMPose_STGCN",
     "2": "YOLO11x_ByteTrack_RTMPose_STGCN",
@@ -24,8 +26,16 @@ def print_pipeline_menu():
     print("9. YOLO26m-Pose - Bot-SORT - (통합) - PoseConv3D")
 
 
-def create_pipeline(choice, device='cuda:0'):
+def resolve_device(device=None):
+    if device:
+        return str(device).strip().lower()
+    cuda_device_index = os.getenv("CUDA_DEVICE_INDEX", "0").strip()
+    return os.getenv("DEVICE", f"cuda:{cuda_device_index}").strip().lower()
+
+
+def create_pipeline(choice, device=None):
     choice = str(choice).strip()
+    device = resolve_device(device)
 
     if choice == "1":
         from .models.detector_yolo import YOLODetector

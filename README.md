@@ -208,7 +208,7 @@ detector.track(frame)
 
 주의:
 
-- 여러 모델 파일은 기본 장치로 `cuda:0`을 사용한다.
+- 여러 모델 파일은 `.env`의 `CUDA_DEVICE_INDEX`로 지정한 GPU를 사용한다. 예를 들어 `CUDA_DEVICE_INDEX=1`이면 서버가 `cuda:1`을 사용한다.
 - Raspberry Pi에서 직접 전체 모델 파이프라인을 돌리는 구조가 아니라, GPU 서버에서 추론하는 구성을 우선한다.
 - 가중치 파일은 `weights/`에 있어야 한다.
 

@@ -2,13 +2,13 @@ from ultralytics import YOLO
 import os
 
 class YOLODetector:
-    def __init__(self, weight, tracker, device='cuda:0'):
+    def __init__(self, weight, tracker, device=None):
         if not os.path.exists(weight):
             raise FileNotFoundError(f"가중치 파일 없음: {weight}")
         self.model = YOLO(weight)
         self.tracker = f"{tracker}.yaml"
         self.target_classes = [0, 34, 43, 76]
-        self.device = device
+        self.device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
 
     def track(self, frame):
         results = self.model.track(
