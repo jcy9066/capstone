@@ -40,12 +40,19 @@ SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "21063"))
 PIPELINE = os.getenv("PIPELINE", "1")
 MODEL_REQUIRED = os.getenv("MODEL_REQUIRED", "false").lower() == "true"
-SAVE_RECEIVED_FRAMES = os.getenv("SAVE_RECEIVED_FRAMES", "true").lower() == "true"
+SAVE_RECEIVED_FRAMES = os.getenv("SAVE_RECEIVED_FRAMES", "false").lower() == "true"
 STREAM_WIDTH = int(os.getenv("STREAM_WIDTH", "640"))
 STREAM_HEIGHT = int(os.getenv("STREAM_HEIGHT", "480"))
 STREAM_FPS = int(os.getenv("STREAM_FPS", "15"))
+STREAM_JPEG_QUALITY = int(os.getenv("STREAM_JPEG_QUALITY", "75"))
+PREVIEW_MAX_FPS = max(1.0, float(os.getenv("PREVIEW_MAX_FPS", str(STREAM_FPS))))
 INFERENCE_ENABLED = os.getenv("INFERENCE_ENABLED", "true").lower() == "true"
 STREAM_INFER_EVERY_N = max(1, int(os.getenv("STREAM_INFER_EVERY_N", "1")))
+INFERENCE_MAX_FPS = max(0.1, float(os.getenv("INFERENCE_MAX_FPS", "5")))
+INFERENCE_MAX_RESULT_AGE_SEC = float(os.getenv("INFERENCE_MAX_RESULT_AGE_SEC", "3.0"))
+INFERENCE_DROP_OLDER_THAN_SEC = float(os.getenv("INFERENCE_DROP_OLDER_THAN_SEC", "2.0"))
+DEVICE = os.getenv("DEVICE", "cuda:0")
+GPU_REQUIRED_FOR_INFERENCE = os.getenv("GPU_REQUIRED_FOR_INFERENCE", "true").lower() == "true"
 CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
 ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
 SAVE_DIR = ROOT_DIR / "received_frames"
@@ -55,8 +62,11 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 state_lock = threading.Lock()
+frame_condition = threading.Condition(state_lock)
 server_started_at = time.time()
 current_frame = None
+current_frame_seq = 0
+active_stream_id = 0
 latest_result = {
     "ok": True,
     "robot_id": SERVER_ROBOT_ID,
@@ -76,6 +86,19 @@ robot_status = {
     "updated_at": None,
 }
 frame_stats = {"last_time": time.time(), "count": 0, "fps": 0}
+decode_stats = {"last_time": time.time(), "count": 0, "fps": 0}
+publish_stats = {"last_time": time.time(), "count": 0, "fps": 0, "last_publish_at": None}
+inference_rate_stats = {"last_time": time.time(), "count": 0, "fps": 0}
+inference_stats = {
+    "requested": 0,
+    "completed": 0,
+    "dropped": 0,
+    "last_ms": None,
+    "last_result_at": None,
+    "last_input_seq": None,
+    "last_started_at": None,
+    "device": DEVICE,
+}
 stream_stats = {
     "connected": False,
     "robot_id": None,
@@ -95,6 +118,15 @@ status_frame_cache = {"key": None, "frame": None}
 frame_processor = None
 model_error = None
 processing_lock = threading.Lock()
+inference_condition = threading.Condition()
+inference_slot = {
+    "frame": None,
+    "robot_id": None,
+    "frame_seq": None,
+    "captured_at": None,
+    "stream_id": None,
+}
+inference_worker_thread = None
 
 
 class RobotConnectionManager:
@@ -134,17 +166,212 @@ class RobotConnectionManager:
 connections = RobotConnectionManager()
 
 
+def cuda_status():
+    status = {
+        "requested_device": DEVICE,
+        "available": False,
+        "gpu_name": None,
+        "gpu_memory_used_mb": None,
+        "error": None,
+    }
+    if not DEVICE.startswith("cuda"):
+        status["available"] = True
+        return status
+    try:
+        import torch
+
+        status["available"] = torch.cuda.is_available()
+        if status["available"]:
+            index = int(DEVICE.split(":", 1)[1]) if ":" in DEVICE else 0
+            status["gpu_name"] = torch.cuda.get_device_name(index)
+            status["gpu_memory_used_mb"] = round(torch.cuda.memory_allocated(index) / (1024 * 1024), 1)
+    except Exception as exc:
+        status["error"] = str(exc)
+    return status
+
+
+def encode_jpeg(frame):
+    ok, buffer = cv2.imencode(
+        ".jpg",
+        frame,
+        [int(cv2.IMWRITE_JPEG_QUALITY), STREAM_JPEG_QUALITY],
+    )
+    if not ok:
+        raise RuntimeError("encode failed")
+    return buffer.tobytes()
+
+
+def update_rate_counter(counter, now):
+    counter["count"] += 1
+    if now - counter["last_time"] >= 1.0:
+        counter["fps"] = counter["count"]
+        counter["count"] = 0
+        counter["last_time"] = now
+
+
+def build_empty_result(robot_id):
+    return {
+        "ok": True,
+        "robot_id": robot_id,
+        "detections": [],
+        "danger": False,
+        "pipeline": latest_result.get("pipeline"),
+        "model_error": model_error,
+    }
+
+
+def publish_preview_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=None):
+    global current_frame, current_frame_seq
+
+    frame_bytes = encode_jpeg(frame)
+    with frame_condition:
+        now = time.time()
+        current_frame = frame_bytes
+        current_frame_seq += 1
+        stream_stats["connected"] = True
+        stream_stats["robot_id"] = robot_id
+        stream_stats["frames_received"] = stream_stats.get("frames_received", 0) + 1
+        stream_stats["last_frame_at"] = now
+        stream_stats["last_error"] = None
+        update_rate_counter(frame_stats, now)
+        update_rate_counter(publish_stats, now)
+        publish_stats["last_publish_at"] = now
+        frame_condition.notify_all()
+        frame_seq = current_frame_seq
+
+    if SAVE_RECEIVED_FRAMES and original_bytes is not None:
+        (SAVE_DIR / "latest.jpg").write_bytes(original_bytes)
+
+    return frame_seq
+
+
+def submit_inference_frame(frame, robot_id, frame_seq, captured_at, stream_id=None):
+    with inference_condition:
+        if inference_slot["frame"] is not None:
+            inference_stats["dropped"] += 1
+        inference_slot.update(
+            {
+                "frame": frame,
+                "robot_id": robot_id,
+                "frame_seq": frame_seq,
+                "captured_at": captured_at,
+                "stream_id": stream_id,
+            }
+        )
+        inference_stats["requested"] += 1
+        inference_condition.notify()
+
+
+def update_latest_result(result, frame_seq=None, input_captured_at=None, elapsed_ms=None):
+    global latest_result
+
+    now = time.time()
+    result["processed_at"] = now
+    if frame_seq is not None:
+        result["source_frame_seq"] = frame_seq
+    if input_captured_at is not None:
+        result["input_age_ms"] = round((now - input_captured_at) * 1000, 1)
+    if elapsed_ms is not None:
+        result["inference_ms"] = round(elapsed_ms, 1)
+
+    with state_lock:
+        latest_result = result
+        inference_stats["completed"] += 1
+        inference_stats["last_ms"] = result.get("inference_ms")
+        inference_stats["last_result_at"] = now
+        inference_stats["last_input_seq"] = frame_seq
+        update_rate_counter(inference_rate_stats, now)
+        stream_stats["frames_inferred"] = stream_stats.get("frames_inferred", 0) + 1
+
+
+def inference_worker():
+    min_interval = 1.0 / INFERENCE_MAX_FPS
+    while True:
+        with inference_condition:
+            while inference_slot["frame"] is None:
+                inference_condition.wait()
+
+            now = time.time()
+            last_started_at = inference_stats.get("last_started_at")
+            if last_started_at is not None:
+                wait_sec = min_interval - (now - last_started_at)
+                if wait_sec > 0:
+                    inference_condition.wait(timeout=wait_sec)
+                    continue
+
+            frame = inference_slot["frame"]
+            robot_id = inference_slot["robot_id"]
+            frame_seq = inference_slot["frame_seq"]
+            captured_at = inference_slot["captured_at"]
+            stream_id = inference_slot["stream_id"]
+            inference_slot.update({"frame": None, "robot_id": None, "frame_seq": None, "captured_at": None, "stream_id": None})
+            inference_stats["last_started_at"] = now
+
+        if stream_id is not None:
+            with state_lock:
+                is_stale_stream = stream_id != active_stream_id
+            if is_stale_stream:
+                inference_stats["dropped"] += 1
+                continue
+
+        if captured_at is not None and time.time() - captured_at > INFERENCE_DROP_OLDER_THAN_SEC:
+            inference_stats["dropped"] += 1
+            continue
+
+        if frame_processor is None:
+            continue
+
+        started = time.time()
+        try:
+            with processing_lock:
+                processed = frame_processor.process(frame)
+            result = build_empty_result(robot_id)
+            result["detections"] = processed["detections"]
+            result["danger"] = processed["danger"]
+            elapsed_ms = (time.time() - started) * 1000
+            update_latest_result(result, frame_seq=frame_seq, input_captured_at=captured_at, elapsed_ms=elapsed_ms)
+        except Exception as exc:
+            with state_lock:
+                stream_stats["last_error"] = str(exc)
+                latest_result["model_error"] = str(exc)
+            print(f"[inference] worker error: {exc}")
+
+
+def start_inference_worker():
+    global inference_worker_thread
+    if inference_worker_thread is not None:
+        return
+    inference_worker_thread = threading.Thread(target=inference_worker, daemon=True)
+    inference_worker_thread.start()
+
+
 @app.on_event("startup")
 async def startup():
     global frame_processor, model_error
+    if INFERENCE_ENABLED and GPU_REQUIRED_FOR_INFERENCE and DEVICE.startswith("cuda"):
+        gpu = cuda_status()
+        if not gpu["available"]:
+            model_error = gpu["error"] or f"GPU device unavailable: {DEVICE}"
+            latest_result["model_error"] = model_error
+            print(f"[model] GPU check failed: {model_error}")
+            if MODEL_REQUIRED:
+                raise RuntimeError(model_error)
+            return
+
+    if not INFERENCE_ENABLED:
+        latest_result["pipeline"] = PIPELINE_OPTIONS.get(str(PIPELINE))
+        print("[model] inference disabled")
+        return
+
     try:
-        pipeline = create_pipeline(PIPELINE)
+        pipeline = create_pipeline(PIPELINE, device=DEVICE)
         frame_processor = FrameProcessor(
             detector=pipeline["detector"],
             action_analyzer=pipeline["action_analyzer"],
         )
         latest_result["pipeline"] = pipeline["name"]
-        print(f"[model] pipeline loaded: {pipeline['name']}")
+        start_inference_worker()
+        print(f"[model] pipeline loaded: {pipeline['name']} device={DEVICE}")
     except Exception as exc:
         model_error = str(exc)
         latest_result["model_error"] = model_error
@@ -219,49 +446,32 @@ async def get_robot(robot_id: str):
 
 
 def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=None, infer=True):
-    global current_frame, latest_result
+    global latest_result
 
     result_frame = frame
-    result = {
-        "ok": True,
-        "robot_id": robot_id,
-        "detections": [],
-        "danger": False,
-        "pipeline": latest_result.get("pipeline"),
-        "model_error": model_error,
-    }
+    result = build_empty_result(robot_id)
 
     if infer and frame_processor is not None:
+        started = time.time()
         with processing_lock:
             processed = frame_processor.process(frame)
         result_frame = processed["frame"]
         result["detections"] = processed["detections"]
         result["danger"] = processed["danger"]
+        result["inference_ms"] = round((time.time() - started) * 1000, 1)
 
-    ok, buffer = cv2.imencode(".jpg", result_frame)
-    if not ok:
-        raise RuntimeError("encode failed")
-
-    frame_bytes = buffer.tobytes()
+    frame_seq = publish_preview_frame(result_frame, robot_id=robot_id, original_bytes=original_bytes)
+    result["source_frame_seq"] = frame_seq
+    result["processed_at"] = time.time()
     with state_lock:
-        now = time.time()
-        current_frame = frame_bytes
         latest_result = result
-        stream_stats["connected"] = True
-        stream_stats["robot_id"] = robot_id
-        stream_stats["frames_received"] = stream_stats.get("frames_received", 0) + 1
-        stream_stats["last_frame_at"] = now
-        stream_stats["last_error"] = None
-        frame_stats["count"] += 1
-        if now - frame_stats["last_time"] >= 1.0:
-            frame_stats["fps"] = frame_stats["count"]
-            print(f"received fps: {frame_stats['fps']}, frame shape: {frame.shape}")
-            frame_stats["count"] = 0
-            frame_stats["last_time"] = now
-
-    if SAVE_RECEIVED_FRAMES:
-        if original_bytes is not None:
-            (SAVE_DIR / "latest.jpg").write_bytes(original_bytes)
+        if infer and frame_processor is not None:
+            inference_stats["completed"] += 1
+            inference_stats["last_ms"] = result.get("inference_ms")
+            inference_stats["last_result_at"] = result["processed_at"]
+            inference_stats["last_input_seq"] = frame_seq
+            update_rate_counter(inference_rate_stats, result["processed_at"])
+            stream_stats["frames_inferred"] = stream_stats.get("frames_inferred", 0) + 1
 
     return result
 
@@ -379,6 +589,8 @@ def build_status_frame(message):
 
 @app.post("/frame")
 async def receive_frame(request: Request, file: UploadFile | None = File(None)):
+    infer_param = request.query_params.get("infer")
+    infer = INFERENCE_ENABLED if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
     if file is not None:
         data = await file.read()
     else:
@@ -394,6 +606,7 @@ async def receive_frame(request: Request, file: UploadFile | None = File(None)):
             frame,
             robot_id=request.query_params.get("robot_id", SERVER_ROBOT_ID),
             original_bytes=data,
+            infer=infer,
         )
     except RuntimeError as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
@@ -411,9 +624,11 @@ def read_exact(stream, size):
     return b"".join(chunks)
 
 
-def h264_decode_loop(proc, robot_id, infer):
+def h264_decode_loop(proc, robot_id, infer, stream_id):
     frame_size = STREAM_WIDTH * STREAM_HEIGHT * 3
     frame_index = 0
+    last_preview_at = 0.0
+    min_preview_interval = 1.0 / PREVIEW_MAX_FPS
     try:
         while True:
             raw_frame = read_exact(proc.stdout, frame_size)
@@ -421,12 +636,20 @@ def h264_decode_loop(proc, robot_id, infer):
                 break
             frame = np.frombuffer(raw_frame, np.uint8).reshape((STREAM_HEIGHT, STREAM_WIDTH, 3))
             frame_index += 1
-            should_infer = infer and (frame_index % STREAM_INFER_EVERY_N == 0)
-            process_and_publish_frame(frame, robot_id=robot_id, infer=should_infer)
+            now = time.time()
+            frame_seq = None
+            if now - last_preview_at >= min_preview_interval:
+                frame_seq = publish_preview_frame(frame, robot_id=robot_id)
+                last_preview_at = now
+            should_infer = infer and frame_processor is not None and (frame_index % STREAM_INFER_EVERY_N == 0)
+            if should_infer:
+                if frame_seq is None:
+                    with state_lock:
+                        frame_seq = current_frame_seq
+                submit_inference_frame(frame, robot_id, frame_seq, now, stream_id=stream_id)
             with state_lock:
                 stream_stats["frames_decoded"] += 1
-                if should_infer:
-                    stream_stats["frames_inferred"] += 1
+                update_rate_counter(decode_stats, time.time())
                 stream_stats["last_frame_at"] = time.time()
                 stream_stats["ffmpeg_returncode"] = proc.poll()
     except Exception as exc:
@@ -455,6 +678,8 @@ def ffmpeg_stderr_loop(proc):
 
 @app.api_route("/stream/h264", methods=["POST", "PUT"])
 async def receive_h264_stream(request: Request):
+    global active_stream_id
+
     robot_id = request.query_params.get("robot_id", SERVER_ROBOT_ID)
     infer_param = request.query_params.get("infer")
     infer = INFERENCE_ENABLED if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
@@ -495,16 +720,33 @@ async def receive_h264_stream(request: Request):
     except FileNotFoundError:
         return JSONResponse({"ok": False, "error": "ffmpeg not found"}, status_code=500)
 
-    reader = threading.Thread(target=h264_decode_loop, args=(proc, robot_id, infer), daemon=True)
-    stderr_reader = threading.Thread(target=ffmpeg_stderr_loop, args=(proc,), daemon=True)
-    reader.start()
-    stderr_reader.start()
+    with inference_condition:
+        inference_slot.update({"frame": None, "robot_id": None, "frame_seq": None, "captured_at": None, "stream_id": None})
     with state_lock:
+        active_stream_id += 1
+        stream_id = active_stream_id
+        now = time.time()
+        frame_stats.update({"last_time": now, "count": 0, "fps": 0})
+        decode_stats.update({"last_time": now, "count": 0, "fps": 0})
+        publish_stats.update({"last_time": now, "count": 0, "fps": 0, "last_publish_at": None})
+        inference_rate_stats.update({"last_time": now, "count": 0, "fps": 0})
+        inference_stats.update(
+            {
+                "requested": 0,
+                "completed": 0,
+                "dropped": 0,
+                "last_ms": None,
+                "last_result_at": None,
+                "last_input_seq": None,
+                "last_started_at": None,
+                "device": DEVICE,
+            }
+        )
         stream_stats.update(
             {
                 "connected": True,
                 "robot_id": robot_id,
-                "connected_at": time.time(),
+                "connected_at": now,
                 "disconnected_at": None,
                 "bytes_received": 0,
                 "frames_received": 0,
@@ -516,8 +758,14 @@ async def receive_h264_stream(request: Request):
                 "ffmpeg_returncode": None,
                 "ffmpeg_stderr_tail": [],
                 "infer": infer,
+                "inference_available": frame_processor is not None,
+                "stream_id": stream_id,
             }
         )
+    reader = threading.Thread(target=h264_decode_loop, args=(proc, robot_id, infer, stream_id), daemon=True)
+    stderr_reader = threading.Thread(target=ffmpeg_stderr_loop, args=(proc,), daemon=True)
+    reader.start()
+    stderr_reader.start()
     print(f"[stream/h264] connected robot_id={robot_id} infer={infer}")
 
     try:
@@ -569,14 +817,29 @@ async def receive_h264_stream(request: Request):
 
 
 def generate_frames():
+    last_sent_seq = 0
+    last_status_sent_at = 0.0
     while True:
-        with state_lock:
+        with frame_condition:
             camera_status = build_camera_status()
             is_live = camera_status["camera_state"] == "live"
-            frame = current_frame if is_live else build_status_frame(camera_status["message"])
+            if is_live:
+                if current_frame is None or current_frame_seq == last_sent_seq:
+                    frame_condition.wait(timeout=1.0)
+                    continue
+                frame = current_frame
+                last_sent_seq = current_frame_seq
+            else:
+                now = time.time()
+                wait_sec = 0.5 - (now - last_status_sent_at)
+                if wait_sec > 0:
+                    frame_condition.wait(timeout=wait_sec)
+                    continue
+                frame = build_status_frame(camera_status["message"])
+                last_status_sent_at = now
+                last_sent_seq = 0
         if frame is not None:
             yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
-            time.sleep(0.03 if is_live else 0.5)
         else:
             time.sleep(0.1)
 
@@ -597,16 +860,47 @@ async def get_latest_result():
 
 @app.get("/api/stream_status")
 async def get_stream_status():
+    gpu = cuda_status()
     with state_lock:
+        now = time.time()
         status = dict(stream_stats)
         status.update(build_camera_status())
         status["has_current_frame"] = current_frame is not None
         status["received_fps"] = frame_stats["fps"] if status["camera_state"] == "live" else 0
+        status["decode_fps"] = decode_stats["fps"] if status["camera_state"] == "live" else 0
+        status["publish_fps"] = publish_stats["fps"] if status["camera_state"] == "live" else 0
+        status["latest_frame_seq"] = current_frame_seq
+        status["latest_frame_age_ms"] = (
+            None if stream_stats.get("last_frame_at") is None else round((now - stream_stats["last_frame_at"]) * 1000, 1)
+        )
         status["stream_width"] = STREAM_WIDTH
         status["stream_height"] = STREAM_HEIGHT
         status["stream_fps"] = STREAM_FPS
+        status["stream_jpeg_quality"] = STREAM_JPEG_QUALITY
         status["inference_enabled"] = INFERENCE_ENABLED
+        status["inference_available"] = frame_processor is not None
         status["stream_infer_every_n"] = STREAM_INFER_EVERY_N
+        status["inference_max_fps"] = INFERENCE_MAX_FPS
+        status["inference_max_result_age_sec"] = INFERENCE_MAX_RESULT_AGE_SEC
+        status["inference_drop_older_than_sec"] = INFERENCE_DROP_OLDER_THAN_SEC
+        status["inference_fps"] = inference_rate_stats["fps"] if status["camera_state"] == "live" else 0
+        status["inference_requested_frames"] = inference_stats["requested"]
+        status["inference_completed_frames"] = inference_stats["completed"]
+        status["inference_dropped_frames"] = inference_stats["dropped"]
+        status["inference_last_ms"] = inference_stats["last_ms"]
+        status["inference_result_age_ms"] = (
+            None if inference_stats["last_result_at"] is None else round((now - inference_stats["last_result_at"]) * 1000, 1)
+        )
+        status["inference_result_stale"] = (
+            inference_stats["last_result_at"] is not None
+            and now - inference_stats["last_result_at"] > INFERENCE_MAX_RESULT_AGE_SEC
+        )
+        status["inference_device"] = DEVICE
+        status["gpu_required_for_inference"] = GPU_REQUIRED_FOR_INFERENCE
+        status["gpu_available"] = gpu["available"]
+        status["gpu_name"] = gpu["gpu_name"]
+        status["gpu_memory_used_mb"] = gpu["gpu_memory_used_mb"]
+        status["gpu_error"] = gpu["error"]
         return status
 
 

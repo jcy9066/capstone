@@ -24,7 +24,7 @@ def print_pipeline_menu():
     print("9. YOLO26m-Pose - Bot-SORT - (통합) - PoseConv3D")
 
 
-def create_pipeline(choice):
+def create_pipeline(choice, device='cuda:0'):
     choice = str(choice).strip()
 
     if choice == "1":
@@ -33,8 +33,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLODetector(weight="weights/yolo11n.pt", tracker="bytetrack"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLODetector(weight="weights/yolo11n.pt", tracker="bytetrack", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "2":
         from .models.detector_yolo import YOLODetector
@@ -42,8 +42,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLODetector(weight="weights/yolo11x.pt", tracker="bytetrack"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLODetector(weight="weights/yolo11x.pt", tracker="bytetrack", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "3":
         from .models.detector_dino import DINODetector
@@ -51,8 +51,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": DINODetector(),
-            "action_analyzer": ActionRecognizer(),
+            "detector": DINODetector(device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "4":
         from .models.detector_yolo import YOLODetector
@@ -60,8 +60,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLODetector(weight="weights/yolo11x.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLODetector(weight="weights/yolo11x.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "5":
         from .models.detector_yolo import YOLOPoseDetector
@@ -69,8 +69,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLOPoseDetector(weight="weights/yolo11x-pose.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLOPoseDetector(weight="weights/yolo11x-pose.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "6":
         from .models.detector_yolo import YOLODetector
@@ -78,8 +78,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLODetector(weight="weights/yolo26m.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLODetector(weight="weights/yolo26m.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "7":
         from .models.detector_yolo import YOLODetector
@@ -87,8 +87,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLODetector(weight="weights/yolo26m.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLODetector(weight="weights/yolo26m.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "8":
         from .models.detector_yolo import YOLOPoseDetector
@@ -96,8 +96,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLOPoseDetector(weight="weights/yolo26m-pose.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLOPoseDetector(weight="weights/yolo26m-pose.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
     if choice == "9":
         from .models.detector_yolo import YOLOPoseDetector
@@ -105,9 +105,8 @@ def create_pipeline(choice):
 
         return {
             "name": PIPELINE_OPTIONS[choice],
-            "detector": YOLOPoseDetector(weight="weights/yolo26m-pose.pt", tracker="botsort"),
-            "action_analyzer": ActionRecognizer(),
+            "detector": YOLOPoseDetector(weight="weights/yolo26m-pose.pt", tracker="botsort", device=device),
+            "action_analyzer": ActionRecognizer(device=device),
         }
 
     raise ValueError(f"지원하지 않는 파이프라인 번호입니다: {choice}")
-
