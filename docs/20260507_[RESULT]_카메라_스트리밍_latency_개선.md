@@ -93,19 +93,23 @@ inference worker
 ### 3.4. GPU inference 설정
 
 모델 추론은 CPU가 아니라 GPU를 기본 전제로 두도록 설정을 추가했다.
+사용할 GPU 번호는 코드에 고정하지 않고 `.env`에서 관리한다.
 
 추가 설정:
 
 ```env
-DEVICE=cuda:0
+CUDA_DEVICE_INDEX=0
 GPU_REQUIRED_FOR_INFERENCE=true
 ```
+
+`CUDA_DEVICE_INDEX=1`로 바꾸면 서버와 pipeline은 내부 device를 `cuda:1`로 구성한다.
+기존 `DEVICE` env를 직접 지정하면 호환을 위해 그 값을 우선 사용한다.
 
 서버 startup에서 GPU 사용 가능 여부를 확인한다.
 
 - `INFERENCE_ENABLED=true`
 - `GPU_REQUIRED_FOR_INFERENCE=true`
-- `DEVICE=cuda:*`
+- `CUDA_DEVICE_INDEX=<GPU 번호>`
 
 위 조건에서 GPU를 사용할 수 없으면 모델을 로드하지 않고 `latest_result["model_error"]`에 오류를 기록한다.
 `MODEL_REQUIRED=true`인 경우에는 서버 startup을 실패시킨다.
@@ -113,14 +117,16 @@ GPU_REQUIRED_FOR_INFERENCE=true
 ### 3.5. pipeline device 전달
 
 `perception/pipeline_factory.py`의 `create_pipeline()`에 `device` 인자를 추가했다.
+인자를 넘기지 않으면 `.env`의 `CUDA_DEVICE_INDEX`를 읽어 `cuda:{번호}`를 만든다.
 
 ```python
-create_pipeline(choice, device="cuda:0")
+create_pipeline(choice, device=None)
 ```
 
 각 pipeline의 detector/action analyzer 생성 시 같은 device를 전달한다.
 
 `perception/models/detector_yolo.py`도 `device`를 받아 YOLO `track()` 호출에 전달하도록 변경했다.
+각 action/detector 모델의 기본 생성자도 `CUDA_DEVICE_INDEX`를 읽도록 정리했다.
 
 ### 3.6. `/frame` 테스트 경로 보강
 
@@ -184,7 +190,7 @@ gpu_error
 SAVE_RECEIVED_FRAMES=false
 STREAM_JPEG_QUALITY=75
 PREVIEW_MAX_FPS=<STREAM_FPS 기본값>
-DEVICE=cuda:0
+CUDA_DEVICE_INDEX=0
 GPU_REQUIRED_FOR_INFERENCE=true
 INFERENCE_MAX_FPS=5
 INFERENCE_MAX_RESULT_AGE_SEC=3.0

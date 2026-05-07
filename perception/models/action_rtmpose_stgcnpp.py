@@ -17,7 +17,8 @@ def find_weight(pattern):
     return files[0]
 
 class ActionRecognizer:
-    def __init__(self, device='cuda:0'):
+    def __init__(self, device=None):
+        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         pose_config = os.path.join(os.path.dirname(mmpose.__file__), '.mim', 'configs', 'body_2d_keypoint', 'rtmpose', 'coco', 'rtmpose-m_8xb256-420e_coco-256x192.py')

@@ -253,13 +253,13 @@ server inference worker
 ### 5.5. 5단계: GPU 추론 경로 고정
 
 모델 추론은 CPU가 아니라 GPU를 사용하도록 명시한다.
-현재 `perception/config/config.yaml`에도 `device: "cuda:0"` 설정이 있으므로, 통합 서버의 실시간 추론 경로도 이를 기준으로 맞춘다.
+통합 서버의 실시간 추론 경로는 `.env`의 `CUDA_DEVICE_INDEX` 값을 읽어 사용할 GPU 번호를 결정한다.
 
 구현 정책:
 
 - 서버 startup에서 `torch.cuda.is_available()` 또는 각 모델 framework의 CUDA device 사용 가능 여부를 확인한다.
 - 운영 모드에서 GPU를 사용할 수 없으면 모델 추론을 켜지 않거나 명확한 오류를 반환한다.
-- `DEVICE=cuda:0` 같은 env를 추가해 pipeline 생성 시 detector, pose, action 모델이 같은 GPU device를 사용하도록 정리한다.
+- `CUDA_DEVICE_INDEX=0` 같은 env를 추가해 pipeline 생성 시 detector, pose, action 모델이 같은 GPU device를 사용하도록 정리한다.
 - 가능한 모델은 half precision 또는 TensorRT/ONNX Runtime GPU backend를 후속 최적화 후보로 둔다.
 - H.264 decode도 GPU 서버 ffmpeg가 NVDEC/CUDA를 지원하면 GPU decode를 검토한다.
 
@@ -324,7 +324,7 @@ STREAM_HEIGHT=480
 STREAM_FPS=15
 STREAM_JPEG_QUALITY=75
 
-DEVICE=cuda:0
+CUDA_DEVICE_INDEX=0
 GPU_REQUIRED_FOR_INFERENCE=true
 INFERENCE_ENABLED=true
 STREAM_INFER_EVERY_N=3
@@ -373,7 +373,7 @@ current_frame_seq
 4. 모델 ON 후 preview latency가 증가하는지 확인한다.
 5. 모델 ON 상태에서 `inference_result_age_ms`가 대부분 3000ms 이하인지 확인한다.
 6. inference가 밀릴 때 backlog 대신 dropped frame이 증가하는지 확인한다.
-7. `inference_device`가 `cuda:0`로 표시되는지 확인한다.
+7. `CUDA_DEVICE_INDEX=0`이면 `inference_device`가 `cuda:0`로 표시되는지 확인한다.
 
 성공 기준:
 
@@ -396,7 +396,7 @@ current_frame_seq
 
 1. H.264 decode loop와 inference worker를 분리한다.
 2. inference queue를 latest-only 구조로 만든다.
-3. `DEVICE=cuda:0` 기준으로 GPU 추론을 강제한다.
+3. `CUDA_DEVICE_INDEX` 기준으로 GPU 추론 device를 결정한다.
 4. `STREAM_INFER_EVERY_N` 또는 `INFERENCE_MAX_FPS`로 추론 빈도를 제한한다.
 5. 모델 결과는 `/api/latest_result` 또는 WebSocket으로 별도 전달한다.
 6. AI 결과가 3초보다 오래되면 dashboard에서 지연 상태로 표시한다.

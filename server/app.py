@@ -51,7 +51,8 @@ STREAM_INFER_EVERY_N = max(1, int(os.getenv("STREAM_INFER_EVERY_N", "1")))
 INFERENCE_MAX_FPS = max(0.1, float(os.getenv("INFERENCE_MAX_FPS", "5")))
 INFERENCE_MAX_RESULT_AGE_SEC = float(os.getenv("INFERENCE_MAX_RESULT_AGE_SEC", "3.0"))
 INFERENCE_DROP_OLDER_THAN_SEC = float(os.getenv("INFERENCE_DROP_OLDER_THAN_SEC", "2.0"))
-DEVICE = os.getenv("DEVICE", "cuda:0")
+CUDA_DEVICE_INDEX = os.getenv("CUDA_DEVICE_INDEX", "0").strip()
+DEVICE = os.getenv("DEVICE", f"cuda:{CUDA_DEVICE_INDEX}").strip().lower()
 GPU_REQUIRED_FOR_INFERENCE = os.getenv("GPU_REQUIRED_FOR_INFERENCE", "true").lower() == "true"
 CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
 ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
@@ -169,6 +170,7 @@ connections = RobotConnectionManager()
 def cuda_status():
     status = {
         "requested_device": DEVICE,
+        "cuda_device_index": CUDA_DEVICE_INDEX,
         "available": False,
         "gpu_name": None,
         "gpu_memory_used_mb": None,
@@ -182,7 +184,7 @@ def cuda_status():
 
         status["available"] = torch.cuda.is_available()
         if status["available"]:
-            index = int(DEVICE.split(":", 1)[1]) if ":" in DEVICE else 0
+            index = int(DEVICE.split(":", 1)[1]) if ":" in DEVICE else int(CUDA_DEVICE_INDEX)
             status["gpu_name"] = torch.cuda.get_device_name(index)
             status["gpu_memory_used_mb"] = round(torch.cuda.memory_allocated(index) / (1024 * 1024), 1)
     except Exception as exc:
@@ -896,6 +898,7 @@ async def get_stream_status():
             and now - inference_stats["last_result_at"] > INFERENCE_MAX_RESULT_AGE_SEC
         )
         status["inference_device"] = DEVICE
+        status["cuda_device_index"] = CUDA_DEVICE_INDEX
         status["gpu_required_for_inference"] = GPU_REQUIRED_FOR_INFERENCE
         status["gpu_available"] = gpu["available"]
         status["gpu_name"] = gpu["gpu_name"]

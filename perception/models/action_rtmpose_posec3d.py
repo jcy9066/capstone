@@ -17,7 +17,8 @@ def find_weight(pattern):
     return files[0]
 
 class ActionRecognizer:
-    def __init__(self, device='cuda:0'):
+    def __init__(self, device=None):
+        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         print("⏳ 로컬 환경에서 RTMPose 모델을 적재합니다...")
