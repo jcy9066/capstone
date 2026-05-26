@@ -1,4 +1,4 @@
-import os
+from .device import resolve_cuda_device
 
 PIPELINE_OPTIONS = {
     "1": "YOLO11n_ByteTrack_RTMPose_STGCN",
@@ -27,10 +27,7 @@ def print_pipeline_menu():
 
 
 def resolve_device(device=None):
-    if device:
-        return str(device).strip().lower()
-    cuda_device_index = os.getenv("CUDA_DEVICE_INDEX", "0").strip()
-    return os.getenv("DEVICE", f"cuda:{cuda_device_index}").strip().lower()
+    return resolve_cuda_device(device)
 
 
 def create_pipeline(choice, device=None):
