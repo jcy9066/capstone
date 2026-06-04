@@ -13,7 +13,7 @@ import numpy as np
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import ClientDisconnect
@@ -383,7 +383,17 @@ async def startup():
 
 
 @app.get("/")
-async def index(request: Request):
+async def index():
+    return RedirectResponse(url="/login", status_code=302)
+
+
+@app.get("/login")
+async def login(request: Request):
+    return templates.TemplateResponse(request, "login.html")
+
+
+@app.get("/main")
+async def main(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 

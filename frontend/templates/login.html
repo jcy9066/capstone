@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 | AI 순찰 관제 센터</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@0,400;0,700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css?v=20260604-login">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-panel" aria-labelledby="login-title">
+            <div class="login-brand">
+                <span class="login-brand-kicker">AI Patrol Control</span>
+                <h1 id="login-title">AI 순찰 로봇 관제 센터</h1>
+            </div>
+
+            <form class="login-form" id="loginForm">
+                <label class="auth-field" for="loginUserId">
+                    <span>아이디</span>
+                    <input type="text" id="loginUserId" name="user_id" autocomplete="username" required>
+                </label>
+
+                <label class="auth-field" for="loginPassword">
+                    <span>비밀번호</span>
+                    <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+                </label>
+
+                <div class="auth-actions">
+                    <button class="auth-btn secondary" type="button" id="openSignupBtn">회원가입</button>
+                    <button class="auth-btn primary" type="submit">로그인</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <div class="signup-modal" id="signupModal" aria-hidden="true">
+        <div class="signup-modal-backdrop" data-close-signup></div>
+        <section class="signup-dialog" role="dialog" aria-modal="true" aria-labelledby="signup-title">
+            <div class="signup-header">
+                <h2 id="signup-title">회원가입</h2>
+                <button class="signup-close" type="button" id="closeSignupBtn" aria-label="회원가입 닫기">&times;</button>
+            </div>
+
+            <form class="signup-form" id="signupForm">
+                <label class="auth-field" for="signupEmail">
+                    <span>이메일</span>
+                    <input type="email" id="signupEmail" name="email" autocomplete="email" required>
+                </label>
+
+                <button class="email-send-btn" type="button" id="sendEmailBtn">이메일 보내기</button>
+
+                <label class="auth-field" for="signupUserId">
+                    <span>아이디</span>
+                    <input type="text" id="signupUserId" name="user_id" autocomplete="username" required>
+                </label>
+
+                <label class="auth-field" for="signupPassword">
+                    <span>비밀번호</span>
+                    <input type="password" id="signupPassword" name="password" autocomplete="new-password" required>
+                </label>
+
+                <label class="auth-field" for="signupPasswordConfirm">
+                    <span>비밀번호 2차 확인</span>
+                    <input type="password" id="signupPasswordConfirm" name="password_confirm" autocomplete="new-password" required>
+                </label>
+
+                <p class="signup-message" id="signupMessage" role="status" aria-live="polite"></p>
+
+                <button class="auth-btn primary signup-submit" type="submit">가입하기</button>
+            </form>
+        </section>
+    </div>
+
+    <script src="static/login.js?v=20260604-login"></script>
+</body>
+</html>
