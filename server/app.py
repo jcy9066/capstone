@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 import os
 import subprocess
@@ -11,7 +12,7 @@ from uuid import uuid4
 import cv2
 import numpy as np
 import requests
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,16 +20,18 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import ClientDisconnect
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+ENV_PATH = ROOT_DIR / ".env"
 PERCEPTION_DIR = ROOT_DIR / "perception"
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 if str(PERCEPTION_DIR) not in sys.path:
     sys.path.insert(0, str(PERCEPTION_DIR))
 
+from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
 
-load_dotenv(ROOT_DIR / ".env")
+load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
@@ -47,13 +50,20 @@ STREAM_FPS = int(os.getenv("STREAM_FPS", "15"))
 STREAM_JPEG_QUALITY = int(os.getenv("STREAM_JPEG_QUALITY", "75"))
 PREVIEW_MAX_FPS = max(1.0, float(os.getenv("PREVIEW_MAX_FPS", str(STREAM_FPS))))
 INFERENCE_ENABLED = os.getenv("INFERENCE_ENABLED", "true").lower() == "true"
+VISUALIZATION_ENABLED = os.getenv("VISUALIZATION_ENABLED", "true").lower() == "true"
+MODEL_ACTIVE = INFERENCE_ENABLED or VISUALIZATION_ENABLED
 STREAM_INFER_EVERY_N = max(1, int(os.getenv("STREAM_INFER_EVERY_N", "1")))
-INFERENCE_MAX_FPS = max(0.1, float(os.getenv("INFERENCE_MAX_FPS", "5")))
+INFERENCE_MAX_FPS = max(0.1, float(os.getenv("INFERENCE_MAX_FPS", str(STREAM_FPS))))
+ADAPTIVE_BATCHING_ENABLED = os.getenv("ADAPTIVE_BATCHING_ENABLED", "true").lower() == "true"
+ADAPTIVE_BATCH_MAX_WAIT_MS = max(0.0, float(os.getenv("ADAPTIVE_BATCH_MAX_WAIT_MS", "8")))
+ACTION_DISPLAY_TTL_SEC = max(0.1, float(os.getenv("ACTION_DISPLAY_TTL_SEC", "1.0")))
+TRIGGER_SUSPICIOUS_VISUAL_ENABLED = os.getenv("TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true").lower() == "true"
 INFERENCE_MAX_RESULT_AGE_SEC = float(os.getenv("INFERENCE_MAX_RESULT_AGE_SEC", "3.0"))
 INFERENCE_DROP_OLDER_THAN_SEC = float(os.getenv("INFERENCE_DROP_OLDER_THAN_SEC", "2.0"))
 CUDA_DEVICE_INDEX = os.getenv("CUDA_DEVICE_INDEX", "0").strip()
 DEVICE = os.getenv("DEVICE", f"cuda:{CUDA_DEVICE_INDEX}").strip().lower()
 GPU_REQUIRED_FOR_INFERENCE = os.getenv("GPU_REQUIRED_FOR_INFERENCE", "true").lower() == "true"
+ENV_RELOAD_CHECK_INTERVAL_SEC = max(0.1, float(os.getenv("ENV_RELOAD_CHECK_INTERVAL_SEC", "1.0")))
 CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
 ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
 SAVE_DIR = ROOT_DIR / "received_frames"
@@ -95,6 +105,13 @@ inference_stats = {
     "completed": 0,
     "dropped": 0,
     "last_ms": None,
+    "last_detector_ms": None,
+    "last_trigger_ms": None,
+    "last_action_ms": None,
+    "last_render_ms": None,
+    "last_adaptive_wait_ms": None,
+    "last_person_count": 0,
+    "last_detection_count": 0,
     "last_result_at": None,
     "last_input_seq": None,
     "last_started_at": None,
@@ -118,6 +135,14 @@ stream_stats = {
 status_frame_cache = {"key": None, "frame": None}
 frame_processor = None
 model_error = None
+model_reload_lock = threading.Lock()
+env_reload_state = {
+    "mtime_ns": None,
+    "signature": None,
+    "last_check_at": 0.0,
+    "last_loaded_at": None,
+    "last_error": None,
+}
 processing_lock = threading.Lock()
 inference_condition = threading.Condition()
 inference_slot = {
@@ -170,26 +195,247 @@ connections = RobotConnectionManager()
 def cuda_status():
     status = {
         "requested_device": DEVICE,
+        "resolved_device": None,
         "cuda_device_index": CUDA_DEVICE_INDEX,
         "available": False,
         "gpu_name": None,
         "gpu_memory_used_mb": None,
         "error": None,
     }
-    if not DEVICE.startswith("cuda"):
-        status["available"] = True
-        return status
     try:
         import torch
 
-        status["available"] = torch.cuda.is_available()
-        if status["available"]:
-            index = int(DEVICE.split(":", 1)[1]) if ":" in DEVICE else int(CUDA_DEVICE_INDEX)
-            status["gpu_name"] = torch.cuda.get_device_name(index)
-            status["gpu_memory_used_mb"] = round(torch.cuda.memory_allocated(index) / (1024 * 1024), 1)
+        resolved_device = resolve_cuda_device(DEVICE)
+        index = int(resolved_device.split(":", 1)[1])
+        status["resolved_device"] = resolved_device
+        status["available"] = True
+        status["gpu_name"] = torch.cuda.get_device_name(index)
+        status["gpu_memory_used_mb"] = round(torch.cuda.memory_allocated(index) / (1024 * 1024), 1)
     except Exception as exc:
         status["error"] = str(exc)
     return status
+
+
+RUNTIME_MODEL_ENV_KEYS = (
+    "PIPELINE",
+    "MODEL_REQUIRED",
+    "INFERENCE_ENABLED",
+    "VISUALIZATION_ENABLED",
+    "CUDA_DEVICE_INDEX",
+    "DEVICE",
+    "GPU_REQUIRED_FOR_INFERENCE",
+    "STREAM_INFER_EVERY_N",
+    "INFERENCE_MAX_FPS",
+    "ADAPTIVE_BATCHING_ENABLED",
+    "ADAPTIVE_BATCH_MAX_WAIT_MS",
+    "ACTION_DISPLAY_TTL_SEC",
+    "TRIGGER_SUSPICIOUS_VISUAL_ENABLED",
+    "INFERENCE_MAX_RESULT_AGE_SEC",
+    "INFERENCE_DROP_OLDER_THAN_SEC",
+)
+
+
+def env_value(values, name, default):
+    value = values.get(name)
+    if value is None:
+        value = os.getenv(name, default)
+    return str(value)
+
+
+def env_bool(values, name, default):
+    return env_value(values, name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+def read_runtime_model_config():
+    values = dotenv_values(ENV_PATH) if ENV_PATH.exists() else {}
+    cuda_device_index = env_value(values, "CUDA_DEVICE_INDEX", "0").strip() or "0"
+    default_device = f"cuda:{cuda_device_index}"
+    device = env_value(values, "DEVICE", default_device).strip().lower() or default_device
+    inference_enabled = env_bool(values, "INFERENCE_ENABLED", "true")
+    visualization_enabled = env_bool(values, "VISUALIZATION_ENABLED", "true")
+    return {
+        "pipeline": env_value(values, "PIPELINE", "1").strip() or "1",
+        "model_required": env_bool(values, "MODEL_REQUIRED", "false"),
+        "inference_enabled": inference_enabled,
+        "visualization_enabled": visualization_enabled,
+        "model_active": inference_enabled or visualization_enabled,
+        "stream_infer_every_n": max(1, int(env_value(values, "STREAM_INFER_EVERY_N", "1"))),
+        "inference_max_fps": max(0.1, float(env_value(values, "INFERENCE_MAX_FPS", str(STREAM_FPS)))),
+        "adaptive_batching_enabled": env_bool(values, "ADAPTIVE_BATCHING_ENABLED", "true"),
+        "adaptive_batch_max_wait_ms": max(0.0, float(env_value(values, "ADAPTIVE_BATCH_MAX_WAIT_MS", "8"))),
+        "action_display_ttl_sec": max(0.1, float(env_value(values, "ACTION_DISPLAY_TTL_SEC", "1.0"))),
+        "trigger_suspicious_visual_enabled": env_bool(values, "TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true"),
+        "inference_max_result_age_sec": float(env_value(values, "INFERENCE_MAX_RESULT_AGE_SEC", "3.0")),
+        "inference_drop_older_than_sec": float(env_value(values, "INFERENCE_DROP_OLDER_THAN_SEC", "2.0")),
+        "cuda_device_index": cuda_device_index,
+        "device": device,
+        "gpu_required_for_inference": env_bool(values, "GPU_REQUIRED_FOR_INFERENCE", "true"),
+    }
+
+
+def apply_runtime_model_config(config):
+    global PIPELINE, MODEL_REQUIRED, INFERENCE_ENABLED, VISUALIZATION_ENABLED, MODEL_ACTIVE
+    global STREAM_INFER_EVERY_N, INFERENCE_MAX_FPS, ADAPTIVE_BATCHING_ENABLED
+    global ADAPTIVE_BATCH_MAX_WAIT_MS, ACTION_DISPLAY_TTL_SEC, TRIGGER_SUSPICIOUS_VISUAL_ENABLED
+    global INFERENCE_MAX_RESULT_AGE_SEC, INFERENCE_DROP_OLDER_THAN_SEC
+    global CUDA_DEVICE_INDEX, DEVICE, GPU_REQUIRED_FOR_INFERENCE
+
+    PIPELINE = config["pipeline"]
+    MODEL_REQUIRED = config["model_required"]
+    INFERENCE_ENABLED = config["inference_enabled"]
+    VISUALIZATION_ENABLED = config["visualization_enabled"]
+    MODEL_ACTIVE = config["model_active"]
+    STREAM_INFER_EVERY_N = config["stream_infer_every_n"]
+    INFERENCE_MAX_FPS = config["inference_max_fps"]
+    ADAPTIVE_BATCHING_ENABLED = config["adaptive_batching_enabled"]
+    ADAPTIVE_BATCH_MAX_WAIT_MS = config["adaptive_batch_max_wait_ms"]
+    ACTION_DISPLAY_TTL_SEC = config["action_display_ttl_sec"]
+    TRIGGER_SUSPICIOUS_VISUAL_ENABLED = config["trigger_suspicious_visual_enabled"]
+    INFERENCE_MAX_RESULT_AGE_SEC = config["inference_max_result_age_sec"]
+    INFERENCE_DROP_OLDER_THAN_SEC = config["inference_drop_older_than_sec"]
+    CUDA_DEVICE_INDEX = config["cuda_device_index"]
+    DEVICE = config["device"]
+    GPU_REQUIRED_FOR_INFERENCE = config["gpu_required_for_inference"]
+    with state_lock:
+        inference_stats["device"] = DEVICE
+
+
+def runtime_model_signature(config):
+    return (
+        config["pipeline"],
+        config["model_active"],
+        config["device"],
+    )
+
+
+def detach_frame_processor():
+    global frame_processor
+    with processing_lock:
+        processor = frame_processor
+        frame_processor = None
+    return processor
+
+
+def release_model_processor(processor):
+    if processor is None:
+        return
+    try:
+        del processor
+        gc.collect()
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception as exc:
+        print(f"[model] cleanup warning: {exc}")
+
+
+def set_model_state(pipeline_name=None, error=None):
+    global model_error
+    model_error = error
+    with state_lock:
+        latest_result["pipeline"] = pipeline_name
+        latest_result["model_error"] = error
+        inference_stats["device"] = DEVICE
+
+
+def reload_model_pipeline(config, reason="env", initial=False):
+    pipeline_name = PIPELINE_OPTIONS.get(str(config["pipeline"]))
+
+    if not config["model_active"]:
+        old_processor = detach_frame_processor()
+        release_model_processor(old_processor)
+        set_model_state(pipeline_name=pipeline_name, error=None)
+        print("[model] inference and visualization disabled")
+        return True
+
+    if pipeline_name is None:
+        old_processor = detach_frame_processor()
+        release_model_processor(old_processor)
+        error = f"unsupported pipeline: {config['pipeline']}"
+        set_model_state(error=error)
+        print(f"[model] pipeline load failed: {error}")
+        if initial and config["model_required"]:
+            raise RuntimeError(error)
+        return False
+
+    gpu = cuda_status()
+    if not gpu["available"]:
+        old_processor = detach_frame_processor()
+        release_model_processor(old_processor)
+        error = gpu["error"] or f"GPU device unavailable: {config['device']}"
+        set_model_state(pipeline_name=pipeline_name, error=error)
+        print(f"[model] GPU check failed: {error}")
+        if initial and config["model_required"]:
+            raise RuntimeError(error)
+        return False
+
+    old_processor = detach_frame_processor()
+    release_model_processor(old_processor)
+    try:
+        pipeline = create_pipeline(config["pipeline"], device=config["device"])
+        new_processor = FrameProcessor(
+            detector=pipeline["detector"],
+            action_analyzer=pipeline["action_analyzer"],
+        )
+        with processing_lock:
+            global frame_processor
+            frame_processor = new_processor
+        set_model_state(pipeline_name=pipeline["name"], error=None)
+        start_inference_worker()
+        env_reload_state["last_loaded_at"] = time.time()
+        print(f"[model] pipeline loaded: {pipeline['name']} device={config['device']} reason={reason}")
+        return True
+    except Exception as exc:
+        error = str(exc)
+        set_model_state(pipeline_name=pipeline_name, error=error)
+        print(f"[model] pipeline load failed: {error}")
+        if initial and config["model_required"]:
+            raise
+        return False
+
+
+def ensure_runtime_model_config(force=False, reason="env"):
+    now = time.time()
+    if not force and now - env_reload_state["last_check_at"] < ENV_RELOAD_CHECK_INTERVAL_SEC:
+        return
+
+    with model_reload_lock:
+        now = time.time()
+        if not force and now - env_reload_state["last_check_at"] < ENV_RELOAD_CHECK_INTERVAL_SEC:
+            return
+        env_reload_state["last_check_at"] = now
+
+        try:
+            mtime_ns = ENV_PATH.stat().st_mtime_ns
+        except FileNotFoundError:
+            mtime_ns = None
+
+        if not force and mtime_ns == env_reload_state["mtime_ns"]:
+            return
+
+        for key in RUNTIME_MODEL_ENV_KEYS:
+            os.environ.pop(key, None)
+        load_dotenv(ENV_PATH, override=True)
+        try:
+            config = read_runtime_model_config()
+        except Exception as exc:
+            error = f"runtime env parse failed: {exc}"
+            env_reload_state["mtime_ns"] = mtime_ns
+            env_reload_state["last_error"] = error
+            set_model_state(pipeline_name=latest_result.get("pipeline"), error=error)
+            print(f"[model] {error}")
+            return
+        apply_runtime_model_config(config)
+        signature = runtime_model_signature(config)
+        env_reload_state["mtime_ns"] = mtime_ns
+
+        if force or signature != env_reload_state["signature"]:
+            env_reload_state["signature"] = signature
+            success = reload_model_pipeline(config, reason=reason, initial=force)
+            env_reload_state["last_error"] = None if success else model_error
+        else:
+            env_reload_state["last_error"] = None
 
 
 def encode_jpeg(frame):
@@ -219,6 +465,268 @@ def build_empty_result(robot_id):
         "danger": False,
         "pipeline": latest_result.get("pipeline"),
         "model_error": model_error,
+    }
+
+
+def inference_result_is_fresh(now=None):
+    now = now or time.time()
+    with state_lock:
+        last_result_at = inference_stats.get("last_result_at")
+    return last_result_at is not None and now - last_result_at <= INFERENCE_MAX_RESULT_AGE_SEC
+
+
+def clamp_box(box, width, height):
+    x1, y1, x2, y2 = map(int, box)
+    x1 = max(0, min(width - 1, x1))
+    y1 = max(0, min(height - 1, y1))
+    x2 = max(0, min(width - 1, x2))
+    y2 = max(0, min(height - 1, y2))
+    return x1, y1, x2, y2
+
+
+def draw_overlay_label(frame, text, origin, color):
+    if not text:
+        return
+    x, y = origin
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.55
+    thickness = 2
+    (text_w, text_h), baseline = cv2.getTextSize(text, font, scale, thickness)
+    y = max(text_h + 8, y)
+    cv2.rectangle(frame, (x, y - text_h - baseline - 6), (x + text_w + 8, y + baseline), color, -1)
+    cv2.putText(frame, text, (x + 4, y - 4), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+
+
+PERSON_BASE_COLOR = (120, 220, 120)
+PERSON_BASE_OPACITY = 0.30
+
+
+def draw_translucent_box(frame, pt1, pt2, color, opacity=PERSON_BASE_OPACITY):
+    overlay = frame.copy()
+    cv2.rectangle(overlay, pt1, pt2, color, -1)
+    cv2.rectangle(overlay, pt1, pt2, color, 2)
+    cv2.addWeighted(overlay, opacity, frame, 1 - opacity, 0, frame)
+
+
+DEFAULT_SKELETON_LINKS = [
+    (15, 13), (13, 11), (16, 14), (14, 12), (11, 12), (5, 11),
+    (6, 12), (5, 6), (5, 7), (6, 8), (7, 9), (8, 10),
+    (1, 2), (0, 1), (0, 2), (1, 3), (2, 4),
+]
+
+
+def skeleton_to_list(skeleton):
+    if skeleton is None:
+        return None
+    return [[float(x), float(y)] for x, y in skeleton]
+
+
+def draw_skeleton_points(frame, skeleton, color):
+    if not skeleton:
+        return
+    points = [(int(x), int(y)) for x, y in skeleton]
+    height, width = frame.shape[:2]
+    for x, y in points:
+        if 0 <= x < width and 0 <= y < height:
+            cv2.circle(frame, (x, y), 2, color, -1)
+
+    links = getattr(getattr(frame_processor, "action_analyzer", None), "skeleton_links", DEFAULT_SKELETON_LINKS)
+    for start, end in links:
+        if start >= len(points) or end >= len(points):
+            continue
+        x1, y1 = points[start]
+        x2, y2 = points[end]
+        if (x1, y1) == (0, 0) or (x2, y2) == (0, 0):
+            continue
+        if 0 <= x1 < width and 0 <= y1 < height and 0 <= x2 < width and 0 <= y2 < height:
+            cv2.line(frame, (x1, y1), (x2, y2), color, 1)
+
+
+def draw_detection_overlay(frame, detection):
+    height, width = frame.shape[:2]
+    x1, y1, x2, y2 = clamp_box(detection["box"], width, height)
+    is_person = detection.get("cls", 0) == 0
+    is_danger = bool(detection.get("danger"))
+    has_action_label = bool(detection.get("label"))
+    confidence_level = detection.get("confidence_level")
+    is_suspicious = bool(
+        confidence_level == "suspicious"
+        or (TRIGGER_SUSPICIOUS_VISUAL_ENABLED and confidence_level == "trigger_suspicious")
+    )
+    color = (0, 0, 255) if (is_danger or not is_person) else ((0, 165, 255) if (has_action_label or is_suspicious) else PERSON_BASE_COLOR)
+    label = detection.get("label") or ("" if is_person else "WEAPON")
+    score = detection.get("score")
+    if score is not None and detection.get("label"):
+        label = f"{label} {float(score) * 100:.0f}%"
+
+    # Bounding box visualization disabled. Keep this block for easy rollback.
+    # if is_person and not has_action_label and not is_danger:
+    #     draw_translucent_box(frame, (x1, y1), (x2, y2), color)
+    # else:
+    #     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    draw_skeleton_points(frame, detection.get("skeleton"), color)
+    draw_overlay_label(frame, label, (x1, y1 - 8), color)
+
+
+def render_latest_overlay(frame, now=None):
+    if not inference_result_is_fresh(now):
+        return frame
+    with state_lock:
+        result = dict(latest_result)
+    detections = result.get("detections") or []
+    if not detections:
+        return frame
+
+    display_frame = frame.copy()
+    for detection in detections:
+        if detection.get("box"):
+            draw_detection_overlay(display_frame, detection)
+    return display_frame
+
+
+def build_preview_frame(frame, infer, now=None):
+    if infer and frame_processor is not None:
+        return render_latest_overlay(frame, now)
+    return frame
+
+
+def collect_action_results(frame, tracked_boxes):
+    persons = [obj for obj in tracked_boxes if obj.get("cls", 0) == 0]
+    if not persons:
+        return {}
+
+    analyzer = frame_processor.action_analyzer
+    if hasattr(analyzer, "process_many"):
+        return analyzer.process_many(frame, persons)
+
+    return {obj["id"]: analyzer.process(frame, obj) for obj in persons}
+
+
+def select_action_result(model_action, heuristic_action):
+    if model_action and heuristic_action:
+        if bool(heuristic_action.get("is_danger")) and not bool(model_action.get("is_danger")):
+            return heuristic_action
+        if bool(model_action.get("is_danger")) and not bool(heuristic_action.get("is_danger")):
+            return model_action
+        return model_action if float(model_action.get("score", 0.0)) >= float(heuristic_action.get("score", 0.0)) else heuristic_action
+    return model_action or heuristic_action
+
+
+def process_frame_for_dashboard(frame):
+    if frame_processor is None:
+        return {"frame": frame, "detections": [], "danger": False, "timings": {}}
+
+    detector_started = time.time()
+    tracked_boxes = frame_processor.detector.track(frame)
+    detector_ms = (time.time() - detector_started) * 1000
+
+    trigger_started = time.time()
+    obj_states = frame_processor.trigger.get_object_states(tracked_boxes)
+    trigger_ms = (time.time() - trigger_started) * 1000
+
+    action_started = time.time()
+    action_results = collect_action_results(frame, tracked_boxes)
+    skeletons_by_id = {oid: result[0] for oid, result in action_results.items() if result and result[0] is not None}
+    violence_results = frame_processor.violence_heuristic.update(tracked_boxes, skeletons_by_id)
+    action_ms = (time.time() - action_started) * 1000
+
+    render_started = time.time()
+    display_frame = frame.copy()
+    detections = []
+    danger = False
+    height, width = display_frame.shape[:2]
+
+    for obj in tracked_boxes:
+        oid = obj["id"]
+        cls_id = obj.get("cls", 0)
+        state = obj_states.get(oid, 0)
+        x1, y1, x2, y2 = clamp_box(obj["box"], width, height)
+        color = PERSON_BASE_COLOR if cls_id == 0 else (0, 0, 255)
+        label = "" if cls_id == 0 else "WEAPON"
+        skeleton = None
+
+        detection = {
+            "id": oid,
+            "cls": cls_id,
+            "box": [float(v) for v in obj["box"]],
+            "state": state,
+            "label": "",
+            "score": None,
+            "danger": False,
+            "has_skeleton": False,
+            "skeleton": None,
+            "confidence_level": None,
+            "visual_state": "normal",
+        }
+
+        if cls_id == 0:
+            skeleton, action = action_results.get(oid, (None, None))
+            detection["has_skeleton"] = skeleton is not None
+            detection["skeleton"] = skeleton_to_list(skeleton)
+
+            now = time.time()
+            heuristic_action = violence_results.get(oid)
+            selected_action = select_action_result(action, heuristic_action)
+            if selected_action:
+                selected_action = dict(selected_action)
+                selected_action["updated_at"] = now
+                frame_processor.action_display_buffer[oid] = selected_action
+
+            current_action = frame_processor.action_display_buffer.get(oid)
+            if current_action and now - current_action.get("updated_at", 0.0) > ACTION_DISPLAY_TTL_SEC:
+                frame_processor.action_display_buffer.pop(oid, None)
+                current_action = None
+
+            if current_action:
+                detection["label"] = current_action["label"]
+                detection["score"] = float(current_action["score"])
+                detection["danger"] = bool(current_action["is_danger"])
+                detection["confidence_level"] = current_action.get("confidence_level")
+                if current_action["is_danger"]:
+                    danger = True
+                    color = (0, 0, 255)
+                    detection["visual_state"] = "danger"
+                    label = f"!!! {current_action['label']} !!! {current_action['score'] * 100:.0f}%"
+                    frame_processor.notifier.send_alert_async(
+                        f"위험 행동 감지: {current_action['label']}",
+                        frame.copy(),
+                    )
+                else:
+                    color = (0, 165, 255)
+                    detection["visual_state"] = "suspicious"
+                    label = f"[{current_action['label']}] {current_action['score'] * 100:.0f}%"
+            elif TRIGGER_SUSPICIOUS_VISUAL_ENABLED and state == 1:
+                color = (0, 165, 255)
+                detection["confidence_level"] = "trigger_suspicious"
+                detection["visual_state"] = "suspicious"
+        else:
+            danger = True
+            detection["label"] = "WEAPON"
+            detection["danger"] = True
+
+        # Bounding box visualization disabled. Keep this block for easy rollback.
+        # if cls_id == 0 and not detection["label"] and not detection["danger"]:
+        #     draw_translucent_box(display_frame, (x1, y1), (x2, y2), color)
+        # else:
+        #     cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
+        if skeleton is not None:
+            frame_processor.action_analyzer.draw_skeleton(display_frame, skeleton, color)
+        draw_overlay_label(display_frame, label, (x1, y1 - 8), color)
+        detections.append(detection)
+
+    render_ms = (time.time() - render_started) * 1000
+    return {
+        "frame": display_frame,
+        "detections": detections,
+        "danger": danger,
+        "timings": {
+            "detector_ms": round(detector_ms, 1),
+            "trigger_ms": round(trigger_ms, 1),
+            "action_ms": round(action_ms, 1),
+            "render_ms": round(render_ms, 1),
+            "person_count": sum(1 for obj in tracked_boxes if obj.get("cls", 0) == 0),
+            "detection_count": len(tracked_boxes),
+        },
     }
 
 
@@ -276,10 +784,18 @@ def update_latest_result(result, frame_seq=None, input_captured_at=None, elapsed
     if elapsed_ms is not None:
         result["inference_ms"] = round(elapsed_ms, 1)
 
+    timings = result.get("timings") or {}
     with state_lock:
         latest_result = result
         inference_stats["completed"] += 1
         inference_stats["last_ms"] = result.get("inference_ms")
+        inference_stats["last_detector_ms"] = timings.get("detector_ms")
+        inference_stats["last_trigger_ms"] = timings.get("trigger_ms")
+        inference_stats["last_action_ms"] = timings.get("action_ms")
+        inference_stats["last_render_ms"] = timings.get("render_ms")
+        inference_stats["last_adaptive_wait_ms"] = timings.get("adaptive_wait_ms")
+        inference_stats["last_person_count"] = timings.get("person_count", 0)
+        inference_stats["last_detection_count"] = timings.get("detection_count", 0)
         inference_stats["last_result_at"] = now
         inference_stats["last_input_seq"] = frame_seq
         update_rate_counter(inference_rate_stats, now)
@@ -287,8 +803,9 @@ def update_latest_result(result, frame_seq=None, input_captured_at=None, elapsed
 
 
 def inference_worker():
-    min_interval = 1.0 / INFERENCE_MAX_FPS
     while True:
+        min_interval = 1.0 / INFERENCE_MAX_FPS
+        adaptive_wait_sec = ADAPTIVE_BATCH_MAX_WAIT_MS / 1000.0
         with inference_condition:
             while inference_slot["frame"] is None:
                 inference_condition.wait()
@@ -300,6 +817,13 @@ def inference_worker():
                 if wait_sec > 0:
                     inference_condition.wait(timeout=wait_sec)
                     continue
+
+            adaptive_wait_ms = 0.0
+            if ADAPTIVE_BATCHING_ENABLED and adaptive_wait_sec > 0:
+                adaptive_started = time.time()
+                inference_condition.wait(timeout=adaptive_wait_sec)
+                now = time.time()
+                adaptive_wait_ms = (now - adaptive_started) * 1000
 
             frame = inference_slot["frame"]
             robot_id = inference_slot["robot_id"]
@@ -326,12 +850,27 @@ def inference_worker():
         started = time.time()
         try:
             with processing_lock:
-                processed = frame_processor.process(frame)
+                processed = process_frame_for_dashboard(frame)
+            if stream_id is not None:
+                with state_lock:
+                    is_stale_stream = stream_id != active_stream_id
+                if is_stale_stream:
+                    inference_stats["dropped"] += 1
+                    continue
+
+            display_frame_seq = publish_preview_frame(processed["frame"], robot_id=robot_id)
             result = build_empty_result(robot_id)
             result["detections"] = processed["detections"]
             result["danger"] = processed["danger"]
+            result["timings"] = dict(processed.get("timings") or {})
+            result["timings"]["adaptive_wait_ms"] = round(adaptive_wait_ms, 1)
             elapsed_ms = (time.time() - started) * 1000
-            update_latest_result(result, frame_seq=frame_seq, input_captured_at=captured_at, elapsed_ms=elapsed_ms)
+            update_latest_result(
+                result,
+                frame_seq=display_frame_seq,
+                input_captured_at=captured_at,
+                elapsed_ms=elapsed_ms,
+            )
         except Exception as exc:
             with state_lock:
                 stream_stats["last_error"] = str(exc)
@@ -349,37 +888,7 @@ def start_inference_worker():
 
 @app.on_event("startup")
 async def startup():
-    global frame_processor, model_error
-    if INFERENCE_ENABLED and GPU_REQUIRED_FOR_INFERENCE and DEVICE.startswith("cuda"):
-        gpu = cuda_status()
-        if not gpu["available"]:
-            model_error = gpu["error"] or f"GPU device unavailable: {DEVICE}"
-            latest_result["model_error"] = model_error
-            print(f"[model] GPU check failed: {model_error}")
-            if MODEL_REQUIRED:
-                raise RuntimeError(model_error)
-            return
-
-    if not INFERENCE_ENABLED:
-        latest_result["pipeline"] = PIPELINE_OPTIONS.get(str(PIPELINE))
-        print("[model] inference disabled")
-        return
-
-    try:
-        pipeline = create_pipeline(PIPELINE, device=DEVICE)
-        frame_processor = FrameProcessor(
-            detector=pipeline["detector"],
-            action_analyzer=pipeline["action_analyzer"],
-        )
-        latest_result["pipeline"] = pipeline["name"]
-        start_inference_worker()
-        print(f"[model] pipeline loaded: {pipeline['name']} device={DEVICE}")
-    except Exception as exc:
-        model_error = str(exc)
-        latest_result["model_error"] = model_error
-        print(f"[model] pipeline load failed: {model_error}")
-        if MODEL_REQUIRED:
-            raise
+    ensure_runtime_model_config(force=True, reason="startup")
 
 
 @app.get("/")
@@ -466,10 +975,11 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
     if infer and frame_processor is not None:
         started = time.time()
         with processing_lock:
-            processed = frame_processor.process(frame)
+            processed = process_frame_for_dashboard(frame)
         result_frame = processed["frame"]
         result["detections"] = processed["detections"]
         result["danger"] = processed["danger"]
+        result["timings"] = dict(processed.get("timings") or {})
         result["inference_ms"] = round((time.time() - started) * 1000, 1)
 
     frame_seq = publish_preview_frame(result_frame, robot_id=robot_id, original_bytes=original_bytes)
@@ -601,8 +1111,9 @@ def build_status_frame(message):
 
 @app.post("/frame")
 async def receive_frame(request: Request, file: UploadFile | None = File(None)):
+    ensure_runtime_model_config(reason="frame")
     infer_param = request.query_params.get("infer")
-    infer = INFERENCE_ENABLED if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
+    infer = MODEL_ACTIVE if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
     if file is not None:
         data = await file.read()
     else:
@@ -636,13 +1147,18 @@ def read_exact(stream, size):
     return b"".join(chunks)
 
 
-def h264_decode_loop(proc, robot_id, infer, stream_id):
+def h264_decode_loop(proc, robot_id, infer_override, stream_id):
     frame_size = STREAM_WIDTH * STREAM_HEIGHT * 3
     frame_index = 0
     last_preview_at = 0.0
     min_preview_interval = 1.0 / PREVIEW_MAX_FPS
     try:
         while True:
+            ensure_runtime_model_config(reason="stream")
+            infer = MODEL_ACTIVE if infer_override is None else infer_override
+            with state_lock:
+                stream_stats["infer"] = infer
+                stream_stats["inference_available"] = frame_processor is not None
             raw_frame = read_exact(proc.stdout, frame_size)
             if raw_frame is None:
                 break
@@ -651,7 +1167,8 @@ def h264_decode_loop(proc, robot_id, infer, stream_id):
             now = time.time()
             frame_seq = None
             if now - last_preview_at >= min_preview_interval:
-                frame_seq = publish_preview_frame(frame, robot_id=robot_id)
+                preview_frame = build_preview_frame(frame, infer, now)
+                frame_seq = publish_preview_frame(preview_frame, robot_id=robot_id)
                 last_preview_at = now
             should_infer = infer and frame_processor is not None and (frame_index % STREAM_INFER_EVERY_N == 0)
             if should_infer:
@@ -692,9 +1209,11 @@ def ffmpeg_stderr_loop(proc):
 async def receive_h264_stream(request: Request):
     global active_stream_id
 
+    ensure_runtime_model_config(reason="stream_connect")
     robot_id = request.query_params.get("robot_id", SERVER_ROBOT_ID)
     infer_param = request.query_params.get("infer")
-    infer = INFERENCE_ENABLED if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
+    infer_override = None if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
+    infer = MODEL_ACTIVE if infer_override is None else infer_override
     command = [
         "ffmpeg",
         "-hide_banner",
@@ -774,7 +1293,7 @@ async def receive_h264_stream(request: Request):
                 "stream_id": stream_id,
             }
         )
-    reader = threading.Thread(target=h264_decode_loop, args=(proc, robot_id, infer, stream_id), daemon=True)
+    reader = threading.Thread(target=h264_decode_loop, args=(proc, robot_id, infer_override, stream_id), daemon=True)
     stderr_reader = threading.Thread(target=ffmpeg_stderr_loop, args=(proc,), daemon=True)
     reader.start()
     stderr_reader.start()
@@ -872,6 +1391,7 @@ async def get_latest_result():
 
 @app.get("/api/stream_status")
 async def get_stream_status():
+    ensure_runtime_model_config(reason="status")
     gpu = cuda_status()
     with state_lock:
         now = time.time()
@@ -890,9 +1410,15 @@ async def get_stream_status():
         status["stream_fps"] = STREAM_FPS
         status["stream_jpeg_quality"] = STREAM_JPEG_QUALITY
         status["inference_enabled"] = INFERENCE_ENABLED
+        status["visualization_enabled"] = VISUALIZATION_ENABLED
+        status["model_active"] = MODEL_ACTIVE
         status["inference_available"] = frame_processor is not None
         status["stream_infer_every_n"] = STREAM_INFER_EVERY_N
         status["inference_max_fps"] = INFERENCE_MAX_FPS
+        status["adaptive_batching_enabled"] = ADAPTIVE_BATCHING_ENABLED
+        status["adaptive_batch_max_wait_ms"] = ADAPTIVE_BATCH_MAX_WAIT_MS
+        status["action_display_ttl_sec"] = ACTION_DISPLAY_TTL_SEC
+        status["trigger_suspicious_visual_enabled"] = TRIGGER_SUSPICIOUS_VISUAL_ENABLED
         status["inference_max_result_age_sec"] = INFERENCE_MAX_RESULT_AGE_SEC
         status["inference_drop_older_than_sec"] = INFERENCE_DROP_OLDER_THAN_SEC
         status["inference_fps"] = inference_rate_stats["fps"] if status["camera_state"] == "live" else 0
@@ -900,6 +1426,13 @@ async def get_stream_status():
         status["inference_completed_frames"] = inference_stats["completed"]
         status["inference_dropped_frames"] = inference_stats["dropped"]
         status["inference_last_ms"] = inference_stats["last_ms"]
+        status["inference_last_detector_ms"] = inference_stats["last_detector_ms"]
+        status["inference_last_trigger_ms"] = inference_stats["last_trigger_ms"]
+        status["inference_last_action_ms"] = inference_stats["last_action_ms"]
+        status["inference_last_render_ms"] = inference_stats["last_render_ms"]
+        status["inference_last_adaptive_wait_ms"] = inference_stats["last_adaptive_wait_ms"]
+        status["inference_last_person_count"] = inference_stats["last_person_count"]
+        status["inference_last_detection_count"] = inference_stats["last_detection_count"]
         status["inference_result_age_ms"] = (
             None if inference_stats["last_result_at"] is None else round((now - inference_stats["last_result_at"]) * 1000, 1)
         )
@@ -963,7 +1496,10 @@ async def send_robot_command(robot_id: str, request: Request):
 
 @app.get("/api/pipelines")
 async def get_pipelines():
-    return {"pipelines": PIPELINE_OPTIONS, "selected": PIPELINE}
+    ensure_runtime_model_config(reason="pipelines")
+    with state_lock:
+        loaded = latest_result.get("pipeline")
+    return {"pipelines": PIPELINE_OPTIONS, "selected": PIPELINE, "loaded": loaded, "model_error": model_error}
 
 
 if __name__ == "__main__":

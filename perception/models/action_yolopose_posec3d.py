@@ -6,6 +6,9 @@ import glob
 import os
 from mmaction.apis import init_recognizer, inference_recognizer
 from mmengine.registry import DefaultScope
+from perception.device import resolve_cuda_device
+from perception.models.action_batch import process_keypoint_many
+from perception.models.action_policy import classify_target_action
 
 def find_weight(pattern):
     files = glob.glob(pattern)
@@ -14,7 +17,7 @@ def find_weight(pattern):
 
 class ActionRecognizer:
     def __init__(self, device=None):
-        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
+        device = resolve_cuda_device(device)
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         print("⏳ 로컬 환경에서 PoseConv3D 모델을 적재합니다... (MMPose 생략)")
@@ -27,6 +30,9 @@ class ActionRecognizer:
         self.action_buffer = {} 
         self.skeleton_links = [(15, 13), (13, 11), (16, 14), (14, 12), (11, 12), (5, 11), (6, 12), (5, 6), (5, 7), (6, 8), (7, 9), (8, 10), (1, 2), (0, 1), (0, 2), (1, 3), (2, 4)]
         self.target_actions = {41: {'name': 'STAGGERING', 'danger': False}, 42: {'name': 'FALLING', 'danger': True}, 49: {'name': 'PUNCHING', 'danger': True}, 50: {'name': 'KICKING', 'danger': True}, 51: {'name': 'PUSHING', 'danger': True}, 58: {'name': 'APPROACHING', 'danger': False}}
+
+    def process_many(self, frame, objs):
+        return process_keypoint_many(self, frame, objs, total_frames=48)
 
     def process(self, frame, obj):
         kpts = obj.get('keypoints')
@@ -70,9 +76,9 @@ class ActionRecognizer:
                 result = inference_recognizer(self.action_model, anno)
             max_idx = torch.argmax(result.pred_score).item()
             max_score = result.pred_score[max_idx].item()
-            
-            if max_idx in self.target_actions and max_score > 0.35:
-                return {"label": self.target_actions[max_idx]['name'], "score": max_score, "is_danger": self.target_actions[max_idx]['danger']}
+            action = classify_target_action(max_idx, max_score, self.target_actions)
+            if action:
+                return action
         except Exception: 
             pass
         return None
