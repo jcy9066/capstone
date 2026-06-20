@@ -96,6 +96,16 @@ robot_status = {
     "mode": "auto",
     "updated_at": None,
 }
+NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+navigation_state = {
+    "robot_id": SERVER_ROBOT_ID,
+    "map": None,
+    "pose": None,
+    "scan": None,
+    "map_updated_at": None,
+    "pose_updated_at": None,
+    "scan_updated_at": None,
+}
 frame_stats = {"last_time": time.time(), "count": 0, "fps": 0}
 decode_stats = {"last_time": time.time(), "count": 0, "fps": 0}
 publish_stats = {"last_time": time.time(), "count": 0, "fps": 0, "last_publish_at": None}
@@ -953,16 +963,136 @@ async def get_status():
         return dict(robot_status)
 
 
+def build_navigation_status(now=None):
+    now = now or time.time()
+    last_times = [
+        value for value in (
+            navigation_state.get("map_updated_at"),
+            navigation_state.get("pose_updated_at"),
+            navigation_state.get("scan_updated_at"),
+        )
+        if value is not None
+    ]
+    last_update_at = max(last_times) if last_times else None
+    last_update_age_sec = None if last_update_at is None else max(0.0, now - last_update_at)
+    if last_update_at is None:
+        nav_status = "offline"
+    elif last_update_age_sec > NAVIGATION_TIMEOUT_SEC:
+        nav_status = "stale"
+    elif navigation_state.get("map") is not None:
+        nav_status = "mapping"
+    elif navigation_state.get("scan") is not None:
+        nav_status = "scan_only"
+    else:
+        nav_status = "online"
+    return {
+        "robot_id": navigation_state.get("robot_id", SERVER_ROBOT_ID),
+        "status": nav_status,
+        "last_update_at": last_update_at,
+        "last_update_age_sec": last_update_age_sec,
+        "timeout_sec": NAVIGATION_TIMEOUT_SEC,
+        "has_map": navigation_state.get("map") is not None,
+        "has_pose": navigation_state.get("pose") is not None,
+        "has_scan": navigation_state.get("scan") is not None,
+        "map_updated_at": navigation_state.get("map_updated_at"),
+        "pose_updated_at": navigation_state.get("pose_updated_at"),
+        "scan_updated_at": navigation_state.get("scan_updated_at"),
+    }
+
+
+def received_payload(data, received_at):
+    payload = dict(data)
+    payload["received_at"] = received_at
+    return payload
+
+
+@app.post("/navigation/map")
+async def update_navigation_map(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty map payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["map"] = received_payload(data, received_at)
+        navigation_state["map_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.post("/navigation/pose")
+async def update_navigation_pose(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty pose payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["pose"] = received_payload(data, received_at)
+        navigation_state["pose_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.post("/navigation/scan")
+async def update_navigation_scan(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty scan payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["scan"] = received_payload(data, received_at)
+        navigation_state["scan_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.get("/api/navigation/status")
+async def get_navigation_status():
+    with state_lock:
+        return build_navigation_status()
+
+
+@app.get("/api/navigation/map")
+async def get_navigation_map():
+    with state_lock:
+        status = build_navigation_status()
+        current_map = navigation_state.get("map")
+    if current_map is None:
+        return JSONResponse({"ok": False, "status": status, "error": "map unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "map": current_map}
+
+
+@app.get("/api/navigation/pose")
+async def get_navigation_pose():
+    with state_lock:
+        status = build_navigation_status()
+        pose = navigation_state.get("pose")
+    if pose is None:
+        return JSONResponse({"ok": False, "status": status, "error": "pose unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "pose": pose}
+
+
+@app.get("/api/navigation/scan")
+async def get_navigation_scan():
+    with state_lock:
+        status = build_navigation_status()
+        scan = navigation_state.get("scan")
+    if scan is None:
+        return JSONResponse({"ok": False, "status": status, "error": "scan unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "scan": scan}
+
+
 @app.get("/api/robots/{robot_id}")
 async def get_robot(robot_id: str):
     with state_lock:
         status = dict(robot_status)
         result = dict(latest_result)
+        navigation = build_navigation_status()
     return {
         "robot_id": robot_id,
         "connected": await connections.is_connected(robot_id),
         "status": status,
         "latest_result": result,
+        "navigation": navigation,
     }
 
 

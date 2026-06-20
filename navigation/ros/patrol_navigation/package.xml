@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>patrol_navigation</name>
+  <version>0.1.0</version>
+  <description>ROS 2 mapping bridge and launch files for the AI patrol robot.</description>
+  <maintainer email="cwjeong@example.com">cwjeong</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-requests</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rplidar_ros</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
