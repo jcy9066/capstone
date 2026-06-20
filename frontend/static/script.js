@@ -107,6 +107,305 @@ function handleCameraError() {
 }
 
 // ===================================================
+// LiDAR map 시각화
+// ===================================================
+const lidarState = {
+    status: null,
+    map: null,
+    pose: null,
+    scan: null,
+    mapImage: null,
+    mapImageKey: null,
+    renderPending: false,
+};
+
+function fetchOptionalJson(url) {
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) return null;
+            return response.json();
+        })
+        .catch(() => null);
+}
+
+function decodeRleMap(runs, expectedLength) {
+    const output = new Int16Array(expectedLength);
+    let index = 0;
+    if (!Array.isArray(runs)) return output;
+    for (const run of runs) {
+        if (!Array.isArray(run) || run.length < 2) continue;
+        const value = Number(run[0]);
+        const count = Number(run[1]);
+        for (let i = 0; i < count && index < expectedLength; i += 1) {
+            output[index] = value;
+            index += 1;
+        }
+        if (index >= expectedLength) break;
+    }
+    return output;
+}
+
+function buildMapImage(map) {
+    const width = Number(map?.width || 0);
+    const height = Number(map?.height || 0);
+    if (!width || !height || !map?.data) return null;
+
+    const key = `${map.timestamp || ''}:${map.received_at || ''}:${width}x${height}`;
+    if (lidarState.mapImage && lidarState.mapImageKey === key) return lidarState.mapImage;
+
+    const cells = decodeRleMap(map.data, width * height);
+    const offscreen = document.createElement('canvas');
+    offscreen.width = width;
+    offscreen.height = height;
+    const ctx = offscreen.getContext('2d');
+    const image = ctx.createImageData(width, height);
+
+    for (let row = 0; row < height; row += 1) {
+        for (let col = 0; col < width; col += 1) {
+            const src = row * width + col;
+            const dstRow = height - 1 - row;
+            const dst = (dstRow * width + col) * 4;
+            const value = cells[src];
+            let r = 54, g = 65, b = 84;
+            if (value === 0) {
+                r = 230; g = 238; b = 246;
+            } else if (value > 0) {
+                const shade = Math.max(26, 92 - Math.round(value * 0.58));
+                r = shade; g = shade + 6; b = shade + 16;
+            }
+            image.data[dst] = r;
+            image.data[dst + 1] = g;
+            image.data[dst + 2] = b;
+            image.data[dst + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(image, 0, 0);
+    lidarState.mapImage = offscreen;
+    lidarState.mapImageKey = key;
+    return offscreen;
+}
+
+function getCanvasLayout(canvas, map) {
+    const padding = minimapExpanded ? 24 : 8;
+    const width = canvas.width;
+    const height = canvas.height;
+    const mapWidth = Number(map?.width || 0);
+    const mapHeight = Number(map?.height || 0);
+    const resolution = Number(map?.resolution || 0.05);
+    const worldWidth = mapWidth > 0 ? mapWidth * resolution : 8;
+    const worldHeight = mapHeight > 0 ? mapHeight * resolution : 8;
+    const scale = Math.min(
+        (width - padding * 2) / Math.max(worldWidth, 0.1),
+        (height - padding * 2) / Math.max(worldHeight, 0.1)
+    );
+    const drawWidth = worldWidth * scale;
+    const drawHeight = worldHeight * scale;
+    return {
+        padding,
+        scale,
+        x: (width - drawWidth) / 2,
+        y: (height - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+        worldWidth,
+        worldHeight,
+        originX: Number(map?.origin?.x || 0),
+        originY: Number(map?.origin?.y || 0),
+    };
+}
+
+function worldToCanvas(x, y, layout) {
+    return {
+        x: layout.x + (x - layout.originX) * layout.scale,
+        y: layout.y + layout.height - (y - layout.originY) * layout.scale,
+    };
+}
+
+function drawRobot(ctx, pose, layout) {
+    if (!pose) return;
+    const point = worldToCanvas(Number(pose.x || 0), Number(pose.y || 0), layout);
+    const yaw = Number(pose.yaw || 0);
+    const size = minimapExpanded ? 13 : 8;
+
+    ctx.save();
+    ctx.translate(point.x, point.y);
+    ctx.rotate(-yaw);
+    ctx.beginPath();
+    ctx.moveTo(size, 0);
+    ctx.lineTo(-size * 0.65, -size * 0.55);
+    ctx.lineTo(-size * 0.35, 0);
+    ctx.lineTo(-size * 0.65, size * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = '#e11d48';
+    ctx.strokeStyle = 'rgba(255,255,255,0.86)';
+    ctx.lineWidth = minimapExpanded ? 2 : 1.2;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawScan(ctx, scan, pose, layout) {
+    if (!scan || !Array.isArray(scan.ranges) || scan.ranges.length === 0) return;
+    const hasPose = Boolean(pose);
+    const robotX = hasPose ? Number(pose.x || 0) : layout.originX + layout.worldWidth / 2;
+    const robotY = hasPose ? Number(pose.y || 0) : layout.originY + layout.worldHeight / 2;
+    const robotYaw = hasPose ? Number(pose.yaw || 0) : 0;
+    const angleMin = Number(scan.angle_min || 0);
+    const angleIncrement = Number(scan.angle_increment || 0);
+    const rangeMin = Number(scan.range_min || 0);
+    const rangeMax = Number(scan.range_max || 12);
+
+    ctx.save();
+    ctx.fillStyle = '#22d3ee';
+    ctx.shadowColor = 'rgba(34, 211, 238, 0.5)';
+    ctx.shadowBlur = minimapExpanded ? 5 : 2;
+    const radius = minimapExpanded ? 2.2 : 1.4;
+    for (let i = 0; i < scan.ranges.length; i += 1) {
+        const range = scan.ranges[i];
+        if (range === null || range === undefined) continue;
+        const distance = Number(range);
+        if (!Number.isFinite(distance) || distance < rangeMin || distance > rangeMax) continue;
+        const angle = robotYaw + angleMin + angleIncrement * i;
+        const x = robotX + Math.cos(angle) * distance;
+        const y = robotY + Math.sin(angle) * distance;
+        const point = worldToCanvas(x, y, layout);
+        if (point.x < layout.x - 2 || point.x > layout.x + layout.width + 2) continue;
+        if (point.y < layout.y - 2 || point.y > layout.y + layout.height + 2) continue;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawEmptyLidar(ctx, canvas) {
+    ctx.fillStyle = '#101827';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.14)';
+    ctx.lineWidth = 1;
+    const step = minimapExpanded ? 32 : 16;
+    for (let x = 0; x < canvas.width; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+}
+
+function updateLidarLabels() {
+    const statusEl = document.getElementById('lidar-map-status');
+    const metaEl = document.getElementById('lidar-map-meta');
+    if (!statusEl || !metaEl) return;
+
+    const status = lidarState.status?.status || 'offline';
+    const hasData = Boolean(lidarState.map || lidarState.scan || lidarState.pose);
+    const age = lidarState.status?.last_update_age_sec;
+    const ageText = typeof age === 'number' ? `${age.toFixed(1)}s` : '--';
+    const map = lidarState.map;
+    const pose = lidarState.pose;
+
+    statusEl.classList.toggle('has-data', hasData);
+    statusEl.classList.toggle('stale', status === 'stale' || status === 'offline');
+    statusEl.textContent = hasData ? status.toUpperCase() : 'MAP AREA';
+
+    if (map) {
+        const x = pose ? Number(pose.x || 0).toFixed(2) : '--';
+        const y = pose ? Number(pose.y || 0).toFixed(2) : '--';
+        metaEl.textContent = `${status.toUpperCase()} / ${map.width}x${map.height} / AGE ${ageText} / X ${x} Y ${y}`;
+    } else if (lidarState.scan) {
+        metaEl.textContent = `${status.toUpperCase()} / SCAN / AGE ${ageText}`;
+    } else {
+        metaEl.textContent = 'LiDAR OFFLINE';
+    }
+}
+
+function renderLidarMap() {
+    const canvas = document.getElementById('lidar-map-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const nextWidth = Math.max(1, Math.floor(rect.width * dpr));
+    const nextHeight = Math.max(1, Math.floor(rect.height * dpr));
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+        canvas.width = nextWidth;
+        canvas.height = nextHeight;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const map = lidarState.map;
+    const pose = lidarState.pose;
+    const scan = lidarState.scan;
+    const layout = getCanvasLayout(canvas, map);
+
+    drawEmptyLidar(ctx, canvas);
+    if (map) {
+        const image = buildMapImage(map);
+        if (image) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(image, layout.x, layout.y, layout.width, layout.height);
+        }
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.32)';
+        ctx.lineWidth = Math.max(1, dpr);
+        ctx.strokeRect(layout.x, layout.y, layout.width, layout.height);
+    }
+    drawScan(ctx, scan, pose, layout);
+    drawRobot(ctx, pose, layout);
+    updateLidarLabels();
+}
+
+function requestLidarRender() {
+    if (lidarState.renderPending) return;
+    lidarState.renderPending = true;
+    requestAnimationFrame(() => {
+        lidarState.renderPending = false;
+        renderLidarMap();
+    });
+}
+
+function fetchNavigationStatus() {
+    fetchOptionalJson('/api/navigation/status').then(data => {
+        if (data) lidarState.status = data;
+        requestLidarRender();
+    });
+}
+
+function fetchNavigationMap() {
+    fetchOptionalJson('/api/navigation/map').then(data => {
+        if (data?.ok && data.map) lidarState.map = data.map;
+        if (data?.status) lidarState.status = data.status;
+        requestLidarRender();
+    });
+}
+
+function fetchNavigationPoseAndScan() {
+    Promise.all([
+        fetchOptionalJson('/api/navigation/pose'),
+        fetchOptionalJson('/api/navigation/scan'),
+    ]).then(([poseData, scanData]) => {
+        if (poseData?.ok && poseData.pose) lidarState.pose = poseData.pose;
+        if (poseData?.status) lidarState.status = poseData.status;
+        if (scanData?.ok && scanData.scan) lidarState.scan = scanData.scan;
+        if (scanData?.status) lidarState.status = scanData.status;
+        requestLidarRender();
+    });
+}
+
+setInterval(fetchNavigationStatus, 1000);
+setInterval(fetchNavigationMap, 1500);
+setInterval(fetchNavigationPoseAndScan, 500);
+window.addEventListener('resize', requestLidarRender);
+requestLidarRender();
+
+// ===================================================
 // 전체화면
 // ===================================================
 function toggleFullscreen(elementId) {
@@ -140,7 +439,9 @@ function toggleMinimapExpand() {
         minimap.style.zIndex = '50';
         btn.textContent = '⊡';
         btn.title = '미니맵 축소';
+        minimap.classList.add('expanded');
         minimapExpanded = true;
+        requestLidarRender();
     } else {
         minimap.style.width = '';
         minimap.style.height = '';
@@ -149,7 +450,9 @@ function toggleMinimapExpand() {
         minimap.style.zIndex = '';
         btn.textContent = '⛶';
         btn.title = '미니맵 확대';
+        minimap.classList.remove('expanded');
         minimapExpanded = false;
+        requestLidarRender();
     }
 }
 
