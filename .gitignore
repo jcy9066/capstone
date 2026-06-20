@@ -1,0 +1,8 @@
+.env
+output/
+weights/
+received_frames/
+
+# Python cache
+__pycache__/
+*.py[cod]
