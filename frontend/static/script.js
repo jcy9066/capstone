@@ -371,6 +371,62 @@ function requestLidarRender() {
     });
 }
 
+function defaultNavigationMapName() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `patrol_area_${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
+}
+
+function saveCurrentNavigationMap() {
+    const button = document.getElementById('lidarMapSaveBtn');
+    if (!lidarState.map) {
+        alert('저장할 LiDAR map이 아직 없습니다. mapping 데이터 수신 후 다시 시도하세요.');
+        return;
+    }
+    const mapName = prompt('저장할 map 이름을 입력하세요.', defaultNavigationMapName());
+    if (mapName === null) return;
+    const trimmedName = mapName.trim();
+    if (!trimmedName) {
+        alert('map 이름이 비어 있습니다.');
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = '...';
+    }
+
+    fetch('/api/navigation/maps/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ map_name: trimmedName }),
+    })
+        .then(response => response.json().then(data => ({ ok: response.ok && data.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) {
+                alert(`map 저장 실패: ${data.error || 'unknown error'}`);
+                return;
+            }
+            const savedName = data.map?.map_name || trimmedName;
+            alert(`map 저장 완료: ${savedName}`);
+        })
+        .catch(error => {
+            console.error('map 저장 오류:', error);
+            alert('서버 통신 오류로 map을 저장하지 못했습니다.');
+        })
+        .finally(() => {
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'SAVE';
+            }
+        });
+}
+
 function fetchNavigationStatus() {
     fetchOptionalJson('/api/navigation/status').then(data => {
         if (data) lidarState.status = data;
