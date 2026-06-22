@@ -109,6 +109,10 @@ function handleCameraError() {
 // ===================================================
 // LiDAR map 시각화
 // ===================================================
+const LIDAR_STALE_SECONDS = 3;
+const LIDAR_OFFLINE_SECONDS = 8;
+const SCAN_PULSE_DURATION_MS = 850;
+
 const lidarState = {
     status: null,
     map: null,
@@ -117,6 +121,10 @@ const lidarState = {
     mapImage: null,
     mapImageKey: null,
     renderPending: false,
+    lastScanKey: null,
+    lastScanSeenAtMs: 0,
+    lastScanPulseAtMs: 0,
+    scanIntervalsMs: [],
 };
 
 function fetchOptionalJson(url) {
@@ -126,6 +134,69 @@ function fetchOptionalJson(url) {
             return response.json();
         })
         .catch(() => null);
+}
+
+function formatAgeSeconds(age) {
+    return typeof age === 'number' && Number.isFinite(age) ? `${age.toFixed(1)}s` : '--';
+}
+
+function getScanKey(scan) {
+    if (!scan || !Array.isArray(scan.ranges)) return null;
+    const first = scan.ranges.length ? scan.ranges[0] : '';
+    const last = scan.ranges.length ? scan.ranges[scan.ranges.length - 1] : '';
+    return `${scan.timestamp || ''}:${scan.received_at || ''}:${scan.ranges.length}:${first}:${last}`;
+}
+
+function noteScanUpdate(scan) {
+    const key = getScanKey(scan);
+    if (!key || key === lidarState.lastScanKey) return;
+
+    const now = performance.now();
+    if (lidarState.lastScanSeenAtMs > 0) {
+        const interval = now - lidarState.lastScanSeenAtMs;
+        if (interval >= 80 && interval <= 10000) {
+            lidarState.scanIntervalsMs.push(interval);
+            if (lidarState.scanIntervalsMs.length > 8) lidarState.scanIntervalsMs.shift();
+        }
+    }
+
+    lidarState.lastScanKey = key;
+    lidarState.lastScanSeenAtMs = now;
+    lidarState.lastScanPulseAtMs = now;
+}
+
+function getScanReceiveHz() {
+    if (!lidarState.scanIntervalsMs.length) return null;
+    const total = lidarState.scanIntervalsMs.reduce((sum, value) => sum + value, 0);
+    const avg = total / lidarState.scanIntervalsMs.length;
+    return avg > 0 ? 1000 / avg : null;
+}
+
+function getNavigationAgeSec() {
+    const statusAge = lidarState.status?.last_update_age_sec;
+    if (typeof statusAge === 'number' && Number.isFinite(statusAge)) return statusAge;
+    if (lidarState.lastScanSeenAtMs > 0) return (performance.now() - lidarState.lastScanSeenAtMs) / 1000;
+    return null;
+}
+
+function getLidarLiveState() {
+    const backendStatus = lidarState.status?.status;
+    const hasData = Boolean(lidarState.map || lidarState.scan || lidarState.pose);
+    const age = getNavigationAgeSec();
+
+    if (!hasData) {
+        return { level: 'offline', label: 'OFFLINE', title: 'LiDAR OFFLINE', detail: 'NO SCAN DATA', age };
+    }
+    if (backendStatus === 'offline') {
+        return { level: 'offline', label: 'OFFLINE', title: 'LiDAR OFFLINE', detail: `LAST ${formatAgeSeconds(age)} AGO`, age };
+    }
+    if (typeof age === 'number' && age > LIDAR_OFFLINE_SECONDS) {
+        return { level: 'offline', label: 'OFFLINE', title: 'LiDAR OFFLINE', detail: `LAST ${formatAgeSeconds(age)} AGO`, age };
+    }
+    if (backendStatus === 'stale' || (typeof age === 'number' && age > LIDAR_STALE_SECONDS)) {
+        return { level: 'stale', label: 'STALE', title: 'LiDAR STALE', detail: `LAST ${formatAgeSeconds(age)} AGO`, age };
+    }
+    return { level: 'live', label: 'LIVE', title: 'LiDAR LIVE', detail: `AGE ${formatAgeSeconds(age)}`, age };
 }
 
 function decodeRleMap(runs, expectedLength) {
@@ -279,6 +350,33 @@ function drawScan(ctx, scan, pose, layout) {
     ctx.restore();
 }
 
+function drawScanPulse(ctx, pose, layout) {
+    if (!lidarState.lastScanPulseAtMs) return false;
+
+    const elapsed = performance.now() - lidarState.lastScanPulseAtMs;
+    if (elapsed < 0 || elapsed > SCAN_PULSE_DURATION_MS) return false;
+
+    const progress = elapsed / SCAN_PULSE_DURATION_MS;
+    const robotX = pose ? Number(pose.x || 0) : layout.originX + layout.worldWidth / 2;
+    const robotY = pose ? Number(pose.y || 0) : layout.originY + layout.worldHeight / 2;
+    const center = worldToCanvas(robotX, robotY, layout);
+    const baseRadius = minimapExpanded ? 12 : 6;
+    const spread = minimapExpanded ? 80 : 28;
+    const radius = baseRadius + spread * progress;
+    const alpha = Math.max(0, 0.78 * (1 - progress));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
+    ctx.lineWidth = minimapExpanded ? 3 : 1.8;
+    ctx.shadowColor = `rgba(34, 211, 238, ${alpha})`;
+    ctx.shadowBlur = minimapExpanded ? 16 : 8;
+    ctx.stroke();
+    ctx.restore();
+    return true;
+}
+
 function drawEmptyLidar(ctx, canvas) {
     ctx.fillStyle = '#101827';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -302,25 +400,44 @@ function drawEmptyLidar(ctx, canvas) {
 function updateLidarLabels() {
     const statusEl = document.getElementById('lidar-map-status');
     const metaEl = document.getElementById('lidar-map-meta');
+    const badgeEl = document.getElementById('lidar-live-badge');
+    const overlayEl = document.getElementById('lidar-stale-overlay');
+    const overlayTitleEl = document.getElementById('lidar-stale-title');
+    const overlayDetailEl = document.getElementById('lidar-stale-detail');
     if (!statusEl || !metaEl) return;
 
-    const status = lidarState.status?.status || 'offline';
+    const liveState = getLidarLiveState();
     const hasData = Boolean(lidarState.map || lidarState.scan || lidarState.pose);
-    const age = lidarState.status?.last_update_age_sec;
-    const ageText = typeof age === 'number' ? `${age.toFixed(1)}s` : '--';
+    const ageText = formatAgeSeconds(liveState.age);
     const map = lidarState.map;
     const pose = lidarState.pose;
+    const scanHz = getScanReceiveHz();
+    const scanText = scanHz ? `RX ${scanHz.toFixed(1)}Hz` : 'RX --';
 
     statusEl.classList.toggle('has-data', hasData);
-    statusEl.classList.toggle('stale', status === 'stale' || status === 'offline');
-    statusEl.textContent = hasData ? status.toUpperCase() : 'MAP AREA';
+    statusEl.classList.toggle('stale', liveState.level !== 'live');
+    statusEl.textContent = hasData ? liveState.label : 'MAP AREA';
+
+    if (badgeEl) {
+        badgeEl.classList.remove('live', 'stale', 'offline');
+        badgeEl.classList.add(liveState.level);
+        badgeEl.textContent = liveState.level === 'live' ? `LiDAR ${liveState.label}` : liveState.label;
+    }
+
+    if (overlayEl) {
+        overlayEl.classList.toggle('visible', liveState.level !== 'live');
+        overlayEl.classList.remove('stale', 'offline');
+        overlayEl.classList.add(liveState.level === 'stale' ? 'stale' : 'offline');
+    }
+    if (overlayTitleEl) overlayTitleEl.textContent = liveState.title;
+    if (overlayDetailEl) overlayDetailEl.textContent = liveState.detail;
 
     if (map) {
         const x = pose ? Number(pose.x || 0).toFixed(2) : '--';
         const y = pose ? Number(pose.y || 0).toFixed(2) : '--';
-        metaEl.textContent = `${status.toUpperCase()} / ${map.width}x${map.height} / AGE ${ageText} / X ${x} Y ${y}`;
+        metaEl.textContent = `${liveState.label} / ${scanText} / ${map.width}x${map.height} / AGE ${ageText} / X ${x} Y ${y}`;
     } else if (lidarState.scan) {
-        metaEl.textContent = `${status.toUpperCase()} / SCAN / AGE ${ageText}`;
+        metaEl.textContent = `${liveState.label} / ${scanText} / AGE ${ageText}`;
     } else {
         metaEl.textContent = 'LiDAR OFFLINE';
     }
@@ -358,8 +475,10 @@ function renderLidarMap() {
         ctx.strokeRect(layout.x, layout.y, layout.width, layout.height);
     }
     drawScan(ctx, scan, pose, layout);
+    const pulseActive = drawScanPulse(ctx, pose, layout);
     drawRobot(ctx, pose, layout);
     updateLidarLabels();
+    if (pulseActive) requestLidarRender();
 }
 
 function requestLidarRender() {
@@ -449,7 +568,10 @@ function fetchNavigationPoseAndScan() {
     ]).then(([poseData, scanData]) => {
         if (poseData?.ok && poseData.pose) lidarState.pose = poseData.pose;
         if (poseData?.status) lidarState.status = poseData.status;
-        if (scanData?.ok && scanData.scan) lidarState.scan = scanData.scan;
+        if (scanData?.ok && scanData.scan) {
+            lidarState.scan = scanData.scan;
+            noteScanUpdate(scanData.scan);
+        }
         if (scanData?.status) lidarState.status = scanData.status;
         requestLidarRender();
     });
