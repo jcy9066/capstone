@@ -1,0 +1,22 @@
+{
+  "map_name": "test_map_001",
+  "robot_id": "pi-01",
+  "frame_id": "map",
+  "source_timestamp": "2026-06-22T01:37:26.601584Z",
+  "saved_at": 1782092247.8362465,
+  "saved_at_iso": "2026-06-22T01:37:27Z",
+  "resolution": 0.05000000074505806,
+  "width": 118,
+  "height": 164,
+  "origin": {
+    "x": -1.9722677428108029,
+    "y": -1.6178543135171248,
+    "yaw": 0.0
+  },
+  "files": {
+    "pgm": "navigation/maps/test_map_001.pgm",
+    "yaml": "navigation/maps/test_map_001.yaml",
+    "meta": "navigation/maps/test_map_001.meta.json",
+    "raw": "navigation/maps/test_map_001.raw.json"
+  }
+}

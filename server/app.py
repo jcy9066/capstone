@@ -1,7 +1,9 @@
 import asyncio
 import gc
+import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -68,6 +70,8 @@ CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
 ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
 SAVE_DIR = ROOT_DIR / "received_frames"
 SAVE_DIR.mkdir(exist_ok=True)
+NAVIGATION_MAP_DIR = ROOT_DIR / "navigation" / "maps"
+NAVIGATION_MAP_DIR.mkdir(parents=True, exist_ok=True)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -95,6 +99,16 @@ robot_status = {
     "internet": "unknown",
     "mode": "auto",
     "updated_at": None,
+}
+NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+navigation_state = {
+    "robot_id": SERVER_ROBOT_ID,
+    "map": None,
+    "pose": None,
+    "scan": None,
+    "map_updated_at": None,
+    "pose_updated_at": None,
+    "scan_updated_at": None,
 }
 frame_stats = {"last_time": time.time(), "count": 0, "fps": 0}
 decode_stats = {"last_time": time.time(), "count": 0, "fps": 0}
@@ -953,16 +967,294 @@ async def get_status():
         return dict(robot_status)
 
 
+def build_navigation_status(now=None):
+    now = now or time.time()
+    last_times = [
+        value for value in (
+            navigation_state.get("map_updated_at"),
+            navigation_state.get("pose_updated_at"),
+            navigation_state.get("scan_updated_at"),
+        )
+        if value is not None
+    ]
+    last_update_at = max(last_times) if last_times else None
+    last_update_age_sec = None if last_update_at is None else max(0.0, now - last_update_at)
+    if last_update_at is None:
+        nav_status = "offline"
+    elif last_update_age_sec > NAVIGATION_TIMEOUT_SEC:
+        nav_status = "stale"
+    elif navigation_state.get("map") is not None:
+        nav_status = "mapping"
+    elif navigation_state.get("scan") is not None:
+        nav_status = "scan_only"
+    else:
+        nav_status = "online"
+    return {
+        "robot_id": navigation_state.get("robot_id", SERVER_ROBOT_ID),
+        "status": nav_status,
+        "last_update_at": last_update_at,
+        "last_update_age_sec": last_update_age_sec,
+        "timeout_sec": NAVIGATION_TIMEOUT_SEC,
+        "has_map": navigation_state.get("map") is not None,
+        "has_pose": navigation_state.get("pose") is not None,
+        "has_scan": navigation_state.get("scan") is not None,
+        "map_updated_at": navigation_state.get("map_updated_at"),
+        "pose_updated_at": navigation_state.get("pose_updated_at"),
+        "scan_updated_at": navigation_state.get("scan_updated_at"),
+    }
+
+
+def received_payload(data, received_at):
+    payload = dict(data)
+    payload["received_at"] = received_at
+    return payload
+
+
+def sanitize_map_name(name=None):
+    if name is None or not str(name).strip():
+        name = f"map_{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
+    name = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(name).strip())
+    name = name.strip("._-") or f"map_{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
+    return name[:64]
+
+
+def unique_map_name(base_name):
+    candidate = base_name
+    index = 2
+    while (NAVIGATION_MAP_DIR / f"{candidate}.meta.json").exists():
+        candidate = f"{base_name}_{index}"
+        index += 1
+    return candidate
+
+
+def decode_map_cells(map_payload):
+    width = int(map_payload.get("width") or 0)
+    height = int(map_payload.get("height") or 0)
+    if width <= 0 or height <= 0:
+        raise ValueError("invalid map dimensions")
+    expected = width * height
+    data = map_payload.get("data")
+    encoding = map_payload.get("data_encoding", "raw")
+    if not isinstance(data, list):
+        raise ValueError("map data must be a list")
+
+    if encoding == "rle":
+        cells = []
+        for run in data:
+            if not isinstance(run, list) or len(run) < 2:
+                raise ValueError("invalid rle map data")
+            value = int(run[0])
+            count = int(run[1])
+            if count < 0:
+                raise ValueError("invalid rle count")
+            cells.extend([value] * count)
+            if len(cells) > expected:
+                raise ValueError("rle map data is longer than expected")
+    else:
+        cells = [int(value) for value in data]
+
+    if len(cells) != expected:
+        raise ValueError(f"map data length mismatch: expected {expected}, got {len(cells)}")
+    return width, height, cells
+
+
+def occupancy_to_pgm_bytes(width, height, cells):
+    # ROS map files store the top image row first, while OccupancyGrid data starts at origin.
+    pixels = bytearray()
+    for row in range(height - 1, -1, -1):
+        offset = row * width
+        for value in cells[offset:offset + width]:
+            if value < 0:
+                pixels.append(205)
+            elif value >= 65:
+                pixels.append(0)
+            elif value <= 25:
+                pixels.append(254)
+            else:
+                pixels.append(205)
+    header = f"P5\n# AI patrol robot map\n{width} {height}\n255\n".encode("ascii")
+    return header + bytes(pixels)
+
+
+def save_navigation_map_files(map_payload, requested_name=None):
+    width, height, cells = decode_map_cells(map_payload)
+    base_name = unique_map_name(sanitize_map_name(requested_name))
+    saved_at = time.time()
+    saved_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(saved_at))
+    pgm_path = NAVIGATION_MAP_DIR / f"{base_name}.pgm"
+    yaml_path = NAVIGATION_MAP_DIR / f"{base_name}.yaml"
+    meta_path = NAVIGATION_MAP_DIR / f"{base_name}.meta.json"
+    raw_path = NAVIGATION_MAP_DIR / f"{base_name}.raw.json"
+
+    origin = map_payload.get("origin") or {}
+    origin_x = float(origin.get("x", 0.0))
+    origin_y = float(origin.get("y", 0.0))
+    origin_yaw = float(origin.get("yaw", 0.0))
+    resolution = float(map_payload.get("resolution") or 0.05)
+
+    pgm_path.write_bytes(occupancy_to_pgm_bytes(width, height, cells))
+    yaml_path.write_text(
+        "\n".join([
+            f"image: {pgm_path.name}",
+            f"resolution: {resolution}",
+            f"origin: [{origin_x}, {origin_y}, {origin_yaw}]",
+            "negate: 0",
+            "occupied_thresh: 0.65",
+            "free_thresh: 0.196",
+            "",
+        ]),
+        encoding="utf-8",
+    )
+    raw_payload = dict(map_payload)
+    raw_payload["saved_at"] = saved_at
+    raw_payload["saved_at_iso"] = saved_at_iso
+    raw_path.write_text(json.dumps(raw_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    meta = {
+        "map_name": base_name,
+        "robot_id": map_payload.get("robot_id", SERVER_ROBOT_ID),
+        "frame_id": map_payload.get("frame_id", "map"),
+        "source_timestamp": map_payload.get("timestamp"),
+        "saved_at": saved_at,
+        "saved_at_iso": saved_at_iso,
+        "resolution": resolution,
+        "width": width,
+        "height": height,
+        "origin": {"x": origin_x, "y": origin_y, "yaw": origin_yaw},
+        "files": {
+            "pgm": str(pgm_path.relative_to(ROOT_DIR)),
+            "yaml": str(yaml_path.relative_to(ROOT_DIR)),
+            "meta": str(meta_path.relative_to(ROOT_DIR)),
+            "raw": str(raw_path.relative_to(ROOT_DIR)),
+        },
+    }
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
+
+
+def list_saved_navigation_maps():
+    maps = []
+    for meta_path in sorted(NAVIGATION_MAP_DIR.glob("*.meta.json"), reverse=True):
+        try:
+            maps.append(json.loads(meta_path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue
+    return maps
+
+
+@app.post("/navigation/map")
+async def update_navigation_map(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty map payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["map"] = received_payload(data, received_at)
+        navigation_state["map_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.post("/navigation/pose")
+async def update_navigation_pose(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty pose payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["pose"] = received_payload(data, received_at)
+        navigation_state["pose_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.post("/navigation/scan")
+async def update_navigation_scan(request: Request):
+    data = await request.json()
+    if not data:
+        return JSONResponse({"ok": False, "error": "empty scan payload"}, status_code=400)
+    received_at = time.time()
+    with state_lock:
+        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["scan"] = received_payload(data, received_at)
+        navigation_state["scan_updated_at"] = received_at
+    return {"ok": True}
+
+
+@app.get("/api/navigation/status")
+async def get_navigation_status():
+    with state_lock:
+        return build_navigation_status()
+
+
+@app.get("/api/navigation/map")
+async def get_navigation_map():
+    with state_lock:
+        status = build_navigation_status()
+        current_map = navigation_state.get("map")
+    if current_map is None:
+        return JSONResponse({"ok": False, "status": status, "error": "map unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "map": current_map}
+
+
+@app.post("/api/navigation/maps/save")
+async def save_current_navigation_map(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    requested_name = None
+    if isinstance(data, dict):
+        requested_name = data.get("map_name") or data.get("name")
+    with state_lock:
+        current_map = navigation_state.get("map")
+        status = build_navigation_status()
+    if current_map is None:
+        return JSONResponse({"ok": False, "status": status, "error": "map unavailable"}, status_code=404)
+    try:
+        meta = save_navigation_map_files(dict(current_map), requested_name=requested_name)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "status": status, "error": str(exc)}, status_code=400)
+    return {"ok": True, "status": status, "map": meta}
+
+
+@app.get("/api/navigation/maps")
+async def get_saved_navigation_maps():
+    return {"ok": True, "maps": list_saved_navigation_maps()}
+
+
+@app.get("/api/navigation/pose")
+async def get_navigation_pose():
+    with state_lock:
+        status = build_navigation_status()
+        pose = navigation_state.get("pose")
+    if pose is None:
+        return JSONResponse({"ok": False, "status": status, "error": "pose unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "pose": pose}
+
+
+@app.get("/api/navigation/scan")
+async def get_navigation_scan():
+    with state_lock:
+        status = build_navigation_status()
+        scan = navigation_state.get("scan")
+    if scan is None:
+        return JSONResponse({"ok": False, "status": status, "error": "scan unavailable"}, status_code=404)
+    return {"ok": True, "status": status, "scan": scan}
+
+
 @app.get("/api/robots/{robot_id}")
 async def get_robot(robot_id: str):
     with state_lock:
         status = dict(robot_status)
         result = dict(latest_result)
+        navigation = build_navigation_status()
     return {
         "robot_id": robot_id,
         "connected": await connections.is_connected(robot_id),
         "status": status,
         "latest_result": result,
+        "navigation": navigation,
     }
 
 
