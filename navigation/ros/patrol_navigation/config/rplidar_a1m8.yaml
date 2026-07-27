@@ -1,0 +1,27 @@
+# SLAMTEC RPLIDAR A1M8-R6용 standalone 파라미터 파일.
+#
+# 현재 launch 파일은 같은 값을 inline parameter로 넘기고 있지만,
+# 나중에 driver node가 YAML을 직접 읽도록 바꿀 때 참고할 수 있도록 남겨둔다.
+
+rplidar_node:
+  ros__parameters:
+    # RPLIDAR는 USB serial 장치로 연결한다.
+    channel_type: serial
+
+    # 확인 명령: ls -l /dev/ttyUSB* /dev/ttyACM*
+    serial_port: /dev/ttyUSB0
+
+    # 실제 Pi 테스트에서 동작한 A1 계열 기본 baudrate다.
+    serial_baudrate: 115200
+
+    # LaserScan 메시지에 붙는 frame 이름이다.
+    frame_id: laser
+
+    # scan이 좌우 반전되어 보일 때만 true를 검토한다.
+    inverted: false
+
+    # downstream SLAM이 일정한 각도 샘플을 받도록 angle 데이터를 보정한다.
+    angle_compensate: true
+
+    # Pi 테스트에서 사용한 scan mode다.
+    scan_mode: Standard

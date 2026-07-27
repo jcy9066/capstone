@@ -6,3 +6,13 @@ received_frames/
 # Python cache
 __pycache__/
 *.py[cod]
+
+# ROS2
+navigation/ros/build/
+navigation/ros/install/
+navigation/ros/log/
+
+# ROS2 test map
+navigation/maps/test_map.*
+
+

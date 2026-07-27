@@ -1,0 +1,71 @@
+# slam_toolbox online mapping 설정 파일.
+#
+# slam_toolbox는 RPLIDAR가 publish하는 /scan을 입력으로 받아 /map과 map 관련 TF를 만든다.
+# 현재 프로젝트에서는 먼저 mapping mode를 사용하고, 저장 map 기반 localization/navigation은 다음 단계에서 진행한다.
+
+slam_toolbox:
+  ros__parameters:
+    # 들어오는 LaserScan 데이터로 새 map을 만든다.
+    mode: mapping
+
+    # 좌표계 이름이다. launch 파일에서 publish하는 TF tree와 반드시 맞아야 한다.
+    map_frame: map
+    odom_frame: odom
+    base_frame: base_link
+
+    # rplidar_node가 publish하는 LaserScan 입력 topic이다.
+    scan_topic: /scan
+
+    # map 저장 지원과 scan matching 기능을 켠다.
+    use_map_saver: true
+    use_scan_matching: true
+    use_scan_barycenter: true
+
+    # 로봇이 이 거리/각도 이상 움직였을 때 새 scan을 graph에 반영한다.
+    minimum_travel_distance: 0.08
+    minimum_travel_heading: 0.08
+
+    # scan matching에 사용할 최근 scan buffer다.
+    scan_buffer_size: 10
+    scan_buffer_maximum_scan_distance: 12.0
+
+    # scan matching과 loop closure 임계값이다. 너무 낮추면 잘못된 matching으로 map이 찢어질 수 있다.
+    link_match_minimum_response_fine: 0.1
+    link_scan_maximum_distance: 1.5
+    loop_search_maximum_distance: 3.0
+    do_loop_closing: true
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine: 0.45
+
+    # map 해상도다. 0.05는 grid cell 한 칸이 5cm라는 뜻이다.
+    resolution: 0.05
+
+    # RPLIDAR A1M8-R6를 12m급 2D LiDAR로 사용한다.
+    max_laser_range: 12.0
+
+    # TF publish와 map update 관련 시간 설정이다.
+    minimum_time_interval: 0.5
+    transform_publish_period: 0.02
+    map_update_interval: 2.0
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+
+    # graph optimization 중 stack 문제가 생기는 것을 줄이기 위해 크게 잡았다.
+    stack_size_to_use: 40000000
+
+    # RViz에서 mapping 상태를 볼 때 유용한 interactive mode다.
+    enable_interactive_mode: true
+
+    # 모든 scan을 사용한다. Pi 부하가 크면 이 값을 늘려 일부 scan만 쓰게 할 수 있다.
+    throttle_scans: 1
+    debug_logging: false
+
+    # slam_toolbox 내부 최적화 solver 설정이다.
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None

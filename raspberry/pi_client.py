@@ -40,6 +40,8 @@ class PiClient:
         self.status_url = f"{self.server_base_url}/status"
         self.ws_url = args.ws_url or self.server_base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws/robot/{self.robot_id}"
         self.frame_fps = args.frame_fps
+        self.frame_width = args.frame_width
+        self.frame_height = args.frame_height
         self.jpeg_quality = args.jpeg_quality
         self.status_interval_sec = args.status_interval_sec
         self.ws_reconnect_delay_sec = args.ws_reconnect_delay_sec
@@ -65,6 +67,9 @@ class PiClient:
 
     def frame_loop(self):
         cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.frame_width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.frame_height)
+        cap.set(cv2.CAP_PROP_FPS, self.frame_fps)
         if not cap.isOpened():
             print("[camera] 카메라를 열 수 없습니다.")
             return
@@ -162,6 +167,8 @@ def parse_args():
     parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "pi-01"))
     parser.add_argument("--ws-url", default=os.getenv("COMMAND_WS_URL"))
     parser.add_argument("--frame-fps", type=float, default=float(os.getenv("FRAME_FPS", "10")))
+    parser.add_argument("--frame-width", type=int, default=int(os.getenv("FRAME_WIDTH", os.getenv("STREAM_WIDTH", "640"))))
+    parser.add_argument("--frame-height", type=int, default=int(os.getenv("FRAME_HEIGHT", os.getenv("STREAM_HEIGHT", "480"))))
     parser.add_argument("--jpeg-quality", type=int, default=int(os.getenv("JPEG_QUALITY", "70")))
     parser.add_argument("--status-interval-sec", type=float, default=float(os.getenv("STATUS_INTERVAL_SEC", "1.0")))
     parser.add_argument("--command-timeout-sec", type=float, default=float(os.getenv("COMMAND_TIMEOUT_SEC", "0.5")))

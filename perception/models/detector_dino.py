@@ -8,6 +8,7 @@ from ultralytics.trackers.bot_sort import BOTSORT
 from ultralytics.utils import IterableSimpleNamespace
 from mmengine.registry import DefaultScope
 from ultralytics.engine.results import Boxes
+from perception.device import resolve_cuda_device
 
 def find_weight(pattern):
     files = glob.glob(pattern)
@@ -16,7 +17,7 @@ def find_weight(pattern):
 
 class DINODetector:
     def __init__(self, device=None):
-        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
+        device = resolve_cuda_device(device)
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         print("⏳ 로컬 환경에서 DINO (Swin-L) 모델을 적재합니다...")
@@ -33,7 +34,7 @@ class DINODetector:
             with_reid=False, fuse_score=True
         )
         self.tracker = BOTSORT(bot_sort_args, frame_rate=30)
-        self.target_classes = [0, 34, 43, 76]
+        self.target_classes = [0]
 
     def track(self, frame):
         with DefaultScope.overwrite_default_scope('mmdet'):

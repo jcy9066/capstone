@@ -2,6 +2,7 @@ import cv2
 
 from .core.trigger import CascadingTrigger
 from .utils.telegram_notifier import TelegramNotifier
+from .models.violence_heuristic import ViolenceHeuristic
 
 
 class FrameProcessor:
@@ -11,6 +12,7 @@ class FrameProcessor:
         self.trigger = CascadingTrigger()
         self.notifier = notifier if notifier is not None else TelegramNotifier()
         self.action_display_buffer = {}
+        self.violence_heuristic = ViolenceHeuristic()
 
     def process(self, frame):
         tracked_boxes = self.detector.track(frame)
@@ -71,7 +73,8 @@ class FrameProcessor:
                 label = "WEAPON"
 
             x1, y1, x2, y2 = map(int, obj["box"])
-            cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
+            # Bounding box visualization disabled. Keep this line for easy rollback.
+            # cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
 
             if skeleton is not None:
                 self.action_analyzer.draw_skeleton(display_frame, skeleton, color)

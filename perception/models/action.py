@@ -9,10 +9,13 @@ import mmaction
 from mmpose.apis import init_model as init_pose_model
 from mmpose.apis import inference_topdown
 from mmaction.apis import init_recognizer, inference_recognizer
+from perception.device import resolve_cuda_device
+from perception.models.action_policy import classify_target_action
+from perception.models.action_batch import process_topdown_many
 
 class ActionRecognizer:
     def __init__(self, device=None):
-        device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
+        device = resolve_cuda_device(device)
         logging.getLogger('mmengine').setLevel(logging.ERROR)
         
         mmpose_base = os.path.dirname(mmpose.__file__)
@@ -50,6 +53,9 @@ class ActionRecognizer:
             51: {'name': 'PUSHING', 'danger': True},       
             58: {'name': 'APPROACHING', 'danger': False},  
         }
+
+    def process_many(self, frame, objs):
+        return process_topdown_many(self, frame, objs, total_frames=48, pose_scope=None)
 
     def process(self, frame, obj):
         x1, y1, x2, y2 = map(int, obj['box'])
@@ -111,14 +117,10 @@ class ActionRecognizer:
             max_idx = torch.argmax(scores).item()
             max_score = scores[max_idx].item()
             
-            # 초기 프레임에서는 정보가 부족하여 신뢰도가 낮을 수 있으므로 임계값을 0.35로 약간 완화
-            if max_idx in self.target_actions and max_score > 0.35:
-                action_info = self.target_actions[max_idx]
-                return {
-                    "label": action_info['name'], 
-                    "score": max_score, 
-                    "is_danger": action_info['danger']
-                }
+            # Two-stage policy returns suspicious or danger based on action score.
+            action = classify_target_action(max_idx, max_score, self.target_actions)
+            if action:
+                return action
                 
         except Exception:
             pass

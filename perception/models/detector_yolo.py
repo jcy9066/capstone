@@ -1,5 +1,10 @@
 from ultralytics import YOLO
 import os
+from perception.device import resolve_cuda_device
+
+
+PERSON_CLASS_ID = 0
+
 
 class YOLODetector:
     def __init__(self, weight, tracker, device=None):
@@ -7,8 +12,8 @@ class YOLODetector:
             raise FileNotFoundError(f"가중치 파일 없음: {weight}")
         self.model = YOLO(weight)
         self.tracker = f"{tracker}.yaml"
-        self.target_classes = [0, 34, 43, 76]
-        self.device = (device or os.getenv("DEVICE", f"cuda:{os.getenv('CUDA_DEVICE_INDEX', '0').strip()}")).strip().lower()
+        self.target_classes = [PERSON_CLASS_ID]
+        self.device = resolve_cuda_device(device)
 
     def track(self, frame):
         results = self.model.track(
@@ -26,7 +31,7 @@ class YOLODetector:
 class YOLOPoseDetector(YOLODetector):
     def track(self, frame):
         results = self.model.track(
-            frame, persist=True, tracker=self.tracker, half=True, verbose=False, classes=[0], conf=0.25, imgsz=640, device=self.device
+            frame, persist=True, tracker=self.tracker, half=True, verbose=False, classes=self.target_classes, conf=0.25, imgsz=640, device=self.device
         )
         boxes = []
         if results[0].boxes.id is not None:
