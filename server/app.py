@@ -32,6 +32,7 @@ if str(PERCEPTION_DIR) not in sys.path:
 from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
+from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -101,11 +102,24 @@ robot_status = {
     "updated_at": None,
 }
 NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
+    enabled=os.getenv("NAV_DRY_RUN_ENABLED", "true").lower() == "true",
+    stop_distance_m=float(os.getenv("NAV_STOP_DISTANCE_M", "0.45")),
+    slow_distance_m=float(os.getenv("NAV_SLOW_DISTANCE_M", "0.90")),
+    normal_linear_mps=float(os.getenv("NAV_NORMAL_LINEAR_MPS", "0.25")),
+    slow_linear_mps=float(os.getenv("NAV_SLOW_LINEAR_MPS", "0.10")),
+    turn_angular_rps=float(os.getenv("NAV_TURN_ANGULAR_RPS", "0.65")),
+    scan_timeout_sec=float(os.getenv("NAV_SCAN_TIMEOUT_SEC", "1.0")),
+)
+# This server has no actuator implementation. Keep the safety state false even
+# if an external environment file accidentally requests otherwise.
+MOTOR_OUTPUT_ENABLED = False
 navigation_state = {
     "robot_id": SERVER_ROBOT_ID,
     "map": None,
     "pose": None,
     "scan": None,
+    "decision": None,
     "map_updated_at": None,
     "pose_updated_at": None,
     "scan_updated_at": None,
@@ -969,6 +983,7 @@ async def get_status():
 
 def build_navigation_status(now=None):
     now = now or time.time()
+    decision = build_navigation_decision(now)
     last_times = [
         value for value in (
             navigation_state.get("map_updated_at"),
@@ -1001,8 +1016,25 @@ def build_navigation_status(now=None):
         "map_updated_at": navigation_state.get("map_updated_at"),
         "pose_updated_at": navigation_state.get("pose_updated_at"),
         "scan_updated_at": navigation_state.get("scan_updated_at"),
+        "dry_run": True,
+        "motor_output_enabled": MOTOR_OUTPUT_ENABLED,
+        "decision_action": decision["action"],
+        "decision_reason": decision["reason"],
     }
 
+
+
+def build_navigation_decision(now=None):
+    """Refresh the display-only decision from the latest scan while locked."""
+    decision = plan_scan(
+        navigation_state.get("scan"),
+        navigation_state.get("scan_updated_at"),
+        NAV_DRY_RUN_CONFIG,
+        now=now,
+    )
+    decision["robot_id"] = navigation_state.get("robot_id", SERVER_ROBOT_ID)
+    navigation_state["decision"] = decision
+    return decision
 
 def received_payload(data, received_at):
     payload = dict(data)
@@ -1170,14 +1202,16 @@ async def update_navigation_pose(request: Request):
 
 @app.post("/navigation/scan")
 async def update_navigation_scan(request: Request):
-    data = await request.json()
-    if not data:
-        return JSONResponse({"ok": False, "error": "empty scan payload"}, status_code=400)
+    try:
+        data = validate_scan_payload(await request.json())
+    except (TypeError, ValueError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
     received_at = time.time()
     with state_lock:
         navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
         navigation_state["scan"] = received_payload(data, received_at)
         navigation_state["scan_updated_at"] = received_at
+        build_navigation_decision(received_at)
     return {"ok": True}
 
 
@@ -1185,6 +1219,12 @@ async def update_navigation_scan(request: Request):
 async def get_navigation_status():
     with state_lock:
         return build_navigation_status()
+
+@app.get("/api/navigation/decision")
+async def get_navigation_decision():
+    with state_lock:
+        return {"ok": True, **build_navigation_decision()}
+
 
 
 @app.get("/api/navigation/map")

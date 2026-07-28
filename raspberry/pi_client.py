@@ -135,15 +135,13 @@ class PiClient:
 
         try:
             if command_type == "move":
-                self.motor.move(message.get("direction", "stop"), float(message.get("speed", 0.4)))
+                print(f"[dry-run] ignored move command: {message}")
             elif command_type in ("stop", "emergency_stop"):
-                self.motor.stop(reason=command_type)
+                print(f"[dry-run] ignored {command_type} command")
             elif command_type == "speak":
                 self.speaker.speak(message.get("text", ""))
             elif command_type == "mode":
                 print(f"[mode] {message.get('mode')}")
-                if message.get("mode") == "auto":
-                    self.motor.stop(reason="auto mode")
             elif command_type == "camera_config":
                 print(f"[camera_config] {message}")
             else:
