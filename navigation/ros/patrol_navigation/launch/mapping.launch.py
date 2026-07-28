@@ -105,9 +105,10 @@ def generate_launch_description():
                     "pose_child_frame": "base_link",
 
                     # 서버 전송 주기
-                    "map_publish_period_sec": 1.0,
-                    "pose_publish_period_sec": 0.2,
+                    "map_publish_period_sec": 2.0,
+                    "pose_publish_period_sec": 0.5,
                     "scan_publish_period_sec": 0.2,
+                    "request_timeout_sec": 5.0,
 
                     # 서버로 전송할 데이터
                     "send_map": True,
