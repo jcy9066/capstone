@@ -125,18 +125,91 @@
                 
                 <div class="card d-pad-container disabled" id="d-pad-area">
                     <div class="d-pad">
-                        <button class="d-btn" onclick="moveRobot('↖')">↖</button>
-                        <button class="d-btn" onclick="moveRobot('↑')">↑</button>
-                        <button class="d-btn" onclick="moveRobot('↗')">↗</button>
-                        <button class="d-btn" onclick="moveRobot('←')">←</button>
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↖"
+                            onpointerdown="startButtonMove('↖', event)"
+                            oncontextmenu="return false;"
+                        >↖</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↑"
+                            onpointerdown="startButtonMove('↑', event)"
+                            oncontextmenu="return false;"
+                        >↑</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↗"
+                            onpointerdown="startButtonMove('↗', event)"
+                            oncontextmenu="return false;"
+                        >↗</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="←"
+                            onpointerdown="startButtonMove('←', event)"
+                            oncontextmenu="return false;"
+                        >←</button>
+
                         <div class="d-center-split">
-                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(반시계)')">↺</button>
-                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(시계)')">↻</button>
+                            <button
+                                class="d-btn rotate-btn"
+                                onpointerdown="
+                                    startButtonMove(
+                                        '제자리 회전(반시계)',
+                                        event
+                                    )
+                                "
+                                oncontextmenu="return false;"
+                            >↺</button>
+
+                            <button
+                                class="d-btn stop-btn"
+                                onclick="emergencyStopRobot()"
+                                title="비상 정지"
+                            >■</button>
+
+                            <button
+                                class="d-btn rotate-btn"
+                                onpointerdown="
+                                    startButtonMove(
+                                        '제자리 회전(시계)',
+                                        event
+                                    )
+                                "
+                                oncontextmenu="return false;"
+                            >↻</button>
                         </div>
-                        <button class="d-btn" onclick="moveRobot('→')">→</button>
-                        <button class="d-btn" onclick="moveRobot('↙')">↙</button>
-                        <button class="d-btn" onclick="moveRobot('↓')">↓</button>
-                        <button class="d-btn" onclick="moveRobot('↘')">↘</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="→"
+                            onpointerdown="startButtonMove('→', event)"
+                            oncontextmenu="return false;"
+                        >→</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↙"
+                            onpointerdown="startButtonMove('↙', event)"
+                            oncontextmenu="return false;"
+                        >↙</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↓"
+                            onpointerdown="startButtonMove('↓', event)"
+                            oncontextmenu="return false;"
+                        >↓</button>
+
+                        <button
+                            class="d-btn"
+                            data-drive-direction="↘"
+                            onpointerdown="startButtonMove('↘', event)"
+                            oncontextmenu="return false;"
+                        >↘</button>
                     </div>
                 </div>
             </div>
