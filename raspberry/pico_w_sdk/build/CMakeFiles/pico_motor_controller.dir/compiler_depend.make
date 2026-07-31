@@ -37,6 +37,485 @@ CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/ha
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
 
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/critical_section.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_sync/critical_section.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/critical_section.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/sem.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_sync/sem.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sem.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sem.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/critical_section.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_time_adapter/include/pico/time_adapter.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/interp.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/io_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/io_bank0.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/timeout_helper.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_time/timeout_helper.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/timeout_helper.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_util/datetime.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_util/datetime.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/datetime.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /usr/include/newlib/time.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/machine/time.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/sys/time.h \
+  /usr/include/newlib/machine/_time.h \
+  /usr/include/newlib/stdio.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/stdio.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_util/fixed_bitset.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_util/fixed_bitset.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_util/pheap.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_util/pheap.c \
+  /usr/include/newlib/stdio.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/stdio.h \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/pheap.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_util/queue.c.o: /home/dabom_user/pico/pico-sdk/src/common/pico_util/queue.c \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/queue.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h
+
 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/platform.c.o: /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/platform.c \
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
@@ -70,6 +549,96 @@ CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2040/pi
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
   /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sysinfo.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/include/hardware/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/interp.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/io_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/io_bank0.h
 
 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h \
@@ -120,6 +689,1050 @@ CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_commo
   /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/common/hardware_claim/include/hardware/claim.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/include/hardware/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/resets.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/rtc.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/rtc.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/include/hardware/rtc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/rtc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/rtc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/hardware_claim/include/hardware/claim.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/include/hardware/ticks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/include/hardware/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/watchdog.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/hardware_claim/include/hardware/claim.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/include/hardware/uart.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/uart.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/uart.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/dreq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/vreg.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/vreg.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/include/hardware/vreg.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/vreg_and_chip_reset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/vreg_and_chip_reset.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c \
+  /usr/include/newlib/stdio.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/stdio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/include/hardware/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/psm.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/psm.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/include/hardware/ticks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/xosc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/include/hardware/xosc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/xosc.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_atomic/atomic.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_atomic/atomic.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_atomic/include/stdatomic.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdatomic.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sem.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/critical_section.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h \
+  /home/dabom_user/pico/pico-sdk/src/common/boot_picoboot_headers/include/boot/picoboot.h \
+  /home/dabom_user/pico/pico-sdk/src/common/boot_picoboot_headers/include/boot/picoboot_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/common/boot_picobin_headers/include/boot/picobin.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/cxa_guard.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/cxa_guard.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/include/pico/cxx_options.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c \
+  /usr/include/newlib/stdio.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/stdio.h \
+  /usr/include/newlib/sys/stat.h \
+  /usr/include/newlib/time.h \
+  /usr/include/newlib/machine/time.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/sys/time.h \
+  /usr/include/newlib/machine/_time.h \
+  /usr/include/newlib/sys/times.h \
+  /usr/include/newlib/unistd.h \
+  /usr/include/newlib/sys/unistd.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/include/pico/cxx_options.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/c++/10.3.1/cassert \
+  /usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/c++config.h \
+  /usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/os_defines.h \
+  /usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/cpu_defines.h \
+  /usr/include/newlib/c++/10.3.1/pstl/pstl_config.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /usr/include/newlib/c++/10.3.1/stdlib.h \
+  /usr/include/newlib/c++/10.3.1/cstdlib \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /usr/include/newlib/c++/10.3.1/bits/std_abs.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/include/pico/double.h \
+  /usr/include/newlib/math.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/sf_table.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_math.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_math.c \
+  /usr/include/newlib/math.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/_ansi.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/include/pico/double.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/flash.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/flash.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/include/pico/float.h \
+  /usr/include/newlib/math.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/float.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/sf_table.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_math.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_math.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/include/pico/float.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /usr/include/newlib/math.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/float.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_malloc/malloc.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_malloc/malloc.c \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_malloc/include/pico/malloc.h
 
 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/common.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/common.c \
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
@@ -210,6 +1823,348 @@ CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_commo
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
   /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h
 
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/include/newlib/stdio.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/stdio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/include/newlib/assert.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/float.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/resets.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/usb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/usb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/usb_dpram.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pads_bank0.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/include/hardware/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pll.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/include/hardware/ticks.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/include/hardware/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/watchdog.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/include/hardware/vreg.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/vreg_and_chip_reset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/vreg_and_chip_reset.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/include/hardware/xosc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/xosc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/xosc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/include/hardware/rtc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/rtc.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/rtc.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/mpu.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/structure.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/code.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/boot_stage2/include/boot_stage2/config.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /usr/include/newlib/stdio.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h \
+  /usr/include/newlib/sys/types.h \
+  /usr/include/newlib/sys/_stdint.h \
+  /usr/include/newlib/machine/endian.h \
+  /usr/include/newlib/machine/_endian.h \
+  /usr/include/newlib/sys/select.h \
+  /usr/include/newlib/sys/_sigset.h \
+  /usr/include/newlib/sys/_timeval.h \
+  /usr/include/newlib/sys/timespec.h \
+  /usr/include/newlib/sys/_timespec.h \
+  /usr/include/newlib/sys/_pthreadtypes.h \
+  /usr/include/newlib/sys/sched.h \
+  /usr/include/newlib/machine/types.h \
+  /usr/include/newlib/sys/stdio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio/driver.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
+
 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c \
   /home/dabom_user/pico/pico-sdk/src/common/pico_stdlib_headers/include/pico/stdlib.h \
   /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
@@ -275,6 +2230,57 @@ CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_commo
   /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/defs.h \
   /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/structure.h \
   /home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/code.h
+
+CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/thread_local.c.o: /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/thread_local.c \
+  /usr/include/newlib/string.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/include/newlib/newlib.h \
+  /usr/include/newlib/_newlib_version.h \
+  /usr/include/newlib/sys/config.h \
+  /usr/include/newlib/machine/ieeefp.h \
+  /usr/include/newlib/sys/features.h \
+  /usr/include/newlib/sys/reent.h \
+  /usr/include/newlib/_ansi.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h \
+  /usr/include/newlib/sys/_types.h \
+  /usr/include/newlib/machine/_types.h \
+  /usr/include/newlib/machine/_default_types.h \
+  /usr/include/newlib/sys/lock.h \
+  /usr/include/newlib/sys/cdefs.h \
+  /usr/include/newlib/sys/_locale.h \
+  /usr/include/newlib/strings.h \
+  /usr/include/newlib/sys/string.h \
+  /usr/include/newlib/stdlib.h \
+  /usr/include/newlib/machine/stdlib.h \
+  /usr/include/newlib/alloca.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
+  /usr/include/newlib/assert.h \
+  /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h \
+  generated/pico_base/pico/version.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h \
+  generated/pico_base/pico/config_autogen.h \
+  /home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h \
+  /home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/include/picotls.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/include/pico/thread_local.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h \
+  /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h
 
 CMakeFiles/pico_motor_controller.dir/main.c.o: ../main.c \
   /usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h \
@@ -374,226 +2380,452 @@ CMakeFiles/pico_motor_controller.dir/main.c.o: ../main.c \
   /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h
 
 
-/home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h:
-
-/usr/include/newlib/sys/string.h:
-
-/usr/include/newlib/strings.h:
-
-/usr/include/newlib/string.h:
-
-/usr/include/newlib/sys/_locale.h:
-
-/usr/include/newlib/sys/_intsup.h:
-
-/usr/include/newlib/inttypes.h:
-
-../main.c:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/structure.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/dreq.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/uart.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_stdlib_headers/include/pico/stdlib.h:
-
-/usr/include/newlib/unistd.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pwm.h:
-
-/usr/include/newlib/sys/stdio.h:
-
-/usr/include/newlib/machine/stdlib.h:
-
-/usr/include/newlib/sys/sched.h:
-
-/usr/include/newlib/sys/_pthreadtypes.h:
-
-/usr/include/newlib/sys/_timespec.h:
-
-/usr/include/newlib/sys/timespec.h:
-
-/usr/include/newlib/sys/select.h:
-
-/usr/include/newlib/machine/_endian.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h:
-
-/usr/include/newlib/machine/endian.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/defs.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h:
-
-/usr/include/newlib/sys/_stdint.h:
-
-/usr/include/newlib/sys/lock.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h:
-
-/usr/include/newlib/sys/cdefs.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pwm.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pwm/include/hardware/pwm.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h:
+/usr/include/newlib/inttypes.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/include/picotls.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/include/hardware/uart.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c:
 
-/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c:
 
-/usr/include/newlib/alloca.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/boot_stage2/include/boot_stage2/config.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/thread_local.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/mpu.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/usb.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/usb.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/common.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_math.c:
+
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/float.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/flash.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/sf_table.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c:
+
+/usr/include/newlib/c++/10.3.1/bits/std_abs.h:
+
+/usr/include/newlib/c++/10.3.1/cstdlib:
+
+/usr/include/newlib/sys/_intsup.h:
+
+/usr/include/newlib/c++/10.3.1/stdlib.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/new_delete.cpp:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/include/pico/printf.h:
+
+/usr/include/newlib/sys/unistd.h:
+
+/usr/include/newlib/unistd.h:
+
+/usr/include/newlib/sys/times.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/structure.h:
+
+/usr/include/newlib/sys/stat.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_cxx_options/include/pico/cxx_options.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/cxa_guard.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/boot_picobin_headers/include/boot/picobin.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/boot_picoboot_headers/include/boot/picoboot_constants.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_atomic/include/stdatomic.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/xosc.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/include/hardware/xosc.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_malloc/include/pico/malloc.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/xosc.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_flash/include/pico/flash.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom/lock.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/boot_bootrom_headers/include/boot/bootrom_constants.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/psm.h:
+
+../main.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/include/pico/double.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/watchdog.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/include/hardware/vreg.h:
+
+/usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/c++config.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_vreg/vreg.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/dreq.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/watchdog.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/watchdog.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/include/hardware/ticks.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pwm.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_math.c:
+
+/usr/include/newlib/math.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_thread_local/include/pico/thread_local.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2_common/cmsis/include/cmsis/rename_exceptions.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/uart.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c:
 
-/home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/psm.h:
 
-/usr/include/newlib/machine/_default_types.h:
+/usr/include/newlib/sys/sched.h:
 
-generated/pico_base/pico/version.h:
+/usr/include/newlib/sys/lock.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c:
+
+/usr/include/newlib/machine/_types.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/io_bank0.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_stack_guard.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/tbman.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_time_adapter/include/pico/time_adapter.h:
+
+/usr/include/newlib/assert.h:
 
 /usr/include/newlib/stdlib.h:
 
 generated/pico_base/pico/config_autogen.h:
 
-/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c:
 
-/home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h:
+/usr/include/newlib/alloca.h:
 
-/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h:
+/usr/include/newlib/sys/reent.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h:
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h:
 
-/usr/include/newlib/stdio.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio/driver.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/include/pico/float.h:
 
-/usr/include/newlib/_ansi.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h:
 
-/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h:
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h:
 
-/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h:
+/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c:
 
-/usr/include/newlib/machine/types.h:
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/sem.c:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/rtc.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdlib/stdlib.c:
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdatomic.h:
 
-/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h:
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/queue.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pwm.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c:
 
-/usr/include/newlib/sys/_timeval.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/platform.c:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/interp.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h:
-
-/usr/include/newlib/machine/ieeefp.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/include/hardware/claim.h:
-
-/usr/include/newlib/newlib.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h:
-
-/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/tbman.h:
-
-/usr/include/newlib/machine/_types.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/io_bank0.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/include/pico/platform/common.h:
-
-/usr/include/newlib/_newlib_version.h:
-
-/usr/include/newlib/sys/features.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sysinfo.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h:
-
-/usr/include/newlib/sys/config.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h:
-
-/usr/include/newlib/sys/types.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_common/common.c:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h:
-
-/usr/include/newlib/sys/unistd.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/usb_dpram.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/include/hardware/sync/spin_lock.h:
 
-/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c:
+/usr/include/newlib/sys/time.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/intctrl.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/critical_section.h:
+
+/usr/include/newlib/c++/10.3.1/pstl/pstl_config.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/mutex.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/m0plus.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/error.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/include/hardware/timer.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_watchdog/include/hardware/watchdog.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/platform_defs.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sio.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/vreg_and_chip_reset.h:
+
+/usr/include/newlib/sys/features.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/time.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/boot_picoboot_headers/include/boot/picoboot.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c:
+
+/usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/os_defines.h:
+
+/usr/include/newlib/_newlib_version.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/timer.h:
+
+/usr/include/newlib/newlib.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/include/hardware/claim.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/boot_lock.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sem.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/uart.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pll.h:
+
+/usr/include/newlib/sys/_types.h:
+
+/usr/include/newlib/machine/ieeefp.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/include/pico/runtime_init.h:
+
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdbool.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/clocks.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/lock_core.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/include/pico/platform/panic.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/defs.h:
+
+/usr/include/newlib/machine/time.h:
+
+/usr/include/newlib/sys/_timeval.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_atomic/atomic.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/config.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/include/pico/sync.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/types.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c:
+
+/usr/include/newlib/_ansi.h:
+
+/usr/include/newlib/stdio.h:
+
+generated/pico_base/pico/version.h:
+
+/usr/include/newlib/machine/_default_types.h:
+
+/home/dabom_user/pico/pico-sdk/src/boards/include/boards/pico_w.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_malloc/malloc.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_compiler/include/pico/platform/compiler.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/include/pico/stdio.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c:
+
+/usr/include/newlib/sys/cdefs.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/addressmap.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/include/hardware/irq.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/include/pico/platform/cpu_regs.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h:
+
+/usr/include/newlib/machine/types.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom_constants.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/sio.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pads_bank0.h:
 
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/interp.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_stdlib_headers/include/pico/stdlib.h:
+
+/usr/include/newlib/sys/_sigset.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/critical_section.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c:
+
 /home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/include/hardware/clocks.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/resets.h:
 
-/usr/include/newlib/sys/_sigset.h:
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c:
 
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pads_bank0.h:
-
-/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/code.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/systick.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/m0plus.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h:
-
-/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/nvic.h:
-
-/usr/lib/gcc/arm-none-eabi/10.3.1/include/stddef.h:
-
-/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdarg.h:
-
-/usr/include/newlib/sys/reent.h:
-
-/usr/include/newlib/assert.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/uart.h:
 
 /home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/io_bank0.h:
 
-/usr/include/newlib/sys/_types.h:
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/scb.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/rtc.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_time/include/pico/timeout_helper.h:
+
+/usr/include/newlib/sys/_pthreadtypes.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/datetime.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/datetime.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_sections/include/pico/platform/sections.h:
+
+/usr/include/newlib/time.h:
+
+/usr/include/newlib/sys/types.h:
+
+/usr/include/newlib/machine/stdlib.h:
+
+/usr/include/newlib/sys/_stdint.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/resets.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/pads_bank0.h:
+
+/usr/include/newlib/machine/endian.h:
+
+/usr/include/newlib/machine/_endian.h:
+
+/usr/include/newlib/sys/select.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c:
+
+/usr/include/newlib/sys/timespec.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_base_headers/include/pico/assert.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_structs/include/hardware/structs/pll.h:
+
+/usr/include/newlib/c++/10.3.1/arm-none-eabi/thumb/v6-m/nofp/bits/cpu_defines.h:
+
+/usr/include/newlib/sys/_timespec.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom_lock.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/include/pico/runtime.h:
+
+/usr/include/newlib/sys/_locale.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/include/hardware/sync.h:
+
+/usr/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h:
+
+/usr/include/newlib/machine/_time.h:
+
+/usr/include/newlib/sys/stdio.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_base/include/hardware/address_mapped.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/fixed_bitset.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/timer.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/pheap.c:
+
+/usr/include/newlib/sys/config.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/include/pico/util/pheap.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/queue.c:
+
+/usr/include/newlib/string.h:
+
+/usr/include/newlib/c++/10.3.1/cassert:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/include/hardware/uart.h:
+
+/usr/include/newlib/strings.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h:
+
+/usr/include/newlib/sys/string.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_util/fixed_bitset.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/pico_platform/platform.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/sysinfo.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_time/timeout_helper.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_boot_lock/include/hardware/boot_lock.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/clocks.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/include/hardware/pll.h:
+
+/home/dabom_user/pico/pico-sdk/src/common/pico_binary_info/include/pico/binary_info/code.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/vreg_and_chip_reset.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_rtc/include/hardware/rtc.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/include/hardware/gpio.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_resets/include/hardware/resets.h:
+
+/home/dabom_user/pico/pico-sdk/src/rp2040/hardware_regs/include/hardware/regs/rtc.h:

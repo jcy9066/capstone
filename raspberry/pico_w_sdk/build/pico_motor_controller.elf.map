@@ -2291,7 +2291,7 @@ END GROUP
                 0x0000000010000100                __boot2_end__ = .
                 0x0000000000000001                ASSERT (((__boot2_end__ - __boot2_start__) == 0x100), ERROR: Pico second stage bootloader must be exactly 256 bytes in size for RP2040)
 
-.text           0x0000000010000100     0x819c
+.text           0x0000000010000100     0x8184
                 0x0000000010000100                __logical_binary_start = .
  *(.vectors)
  .vectors       0x0000000010000100       0xd4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
@@ -2352,441 +2352,441 @@ END GROUP
  *(.init)
  *libgcc.a:cmse_nonsecure_call.o()
  *(EXCLUDE_FILE(*libm.a: *lib*_a-mem*.o *libc.a: *libgcc.a:) .text*)
- .text.motor_set_signed_speed
-                0x0000000010000280       0xc4 CMakeFiles/pico_motor_controller.dir/main.c.o
  .text.encoder_gpio_callback
-                0x0000000010000344       0x78 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000010000280      0x100 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .text.motor_set_signed_speed
+                0x0000000010000380       0xc4 CMakeFiles/pico_motor_controller.dir/main.c.o
  .text.motor_channel_init.constprop.0
-                0x00000000100003bc       0xbc CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000010000444       0xbc CMakeFiles/pico_motor_controller.dir/main.c.o
  .text.startup.main
-                0x0000000010000478     0x11b8 CMakeFiles/pico_motor_controller.dir/main.c.o
-                0x0000000010000478                main
+                0x0000000010000500     0x1118 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000010000500                main
  .text.gpio_default_irq_handler
-                0x0000000010001630      0x268 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x0000000010001618      0x268 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
  .text.gpio_set_function
-                0x0000000010001898       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
-                0x0000000010001898                gpio_set_function
+                0x0000000010001880       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x0000000010001880                gpio_set_function
  .text.gpio_set_pulls
-                0x00000000100018cc       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
-                0x00000000100018cc                gpio_set_pulls
+                0x00000000100018b4       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x00000000100018b4                gpio_set_pulls
  .text.gpio_set_irq_enabled
-                0x0000000010001900       0x4c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
-                0x0000000010001900                gpio_set_irq_enabled
+                0x00000000100018e8       0x4c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x00000000100018e8                gpio_set_irq_enabled
  .text.gpio_set_irq_enabled_with_callback
-                0x000000001000194c       0xfc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
-                0x000000001000194c                gpio_set_irq_enabled_with_callback
+                0x0000000010001934       0xfc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x0000000010001934                gpio_set_irq_enabled_with_callback
  .text.gpio_init
-                0x0000000010001a48       0x40 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
-                0x0000000010001a48                gpio_init
- .text.panic    0x0000000010001a88       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
-                0x0000000010001a88                panic
+                0x0000000010001a30       0x40 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+                0x0000000010001a30                gpio_init
+ .text.panic    0x0000000010001a70       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+                0x0000000010001a70                panic
  .text.hw_claim_or_assert
-                0x0000000010001ab8       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
-                0x0000000010001ab8                hw_claim_or_assert
+                0x0000000010001aa0       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+                0x0000000010001aa0                hw_claim_or_assert
  .text.next_striped_spin_lock_num
-                0x0000000010001afc       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
-                0x0000000010001afc                next_striped_spin_lock_num
+                0x0000000010001ae4       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+                0x0000000010001ae4                next_striped_spin_lock_num
  .text.spin_locks_reset
-                0x0000000010001b14       0x1c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
-                0x0000000010001b14                spin_locks_reset
+                0x0000000010001afc       0x1c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+                0x0000000010001afc                spin_locks_reset
  .text.runtime_init_per_core_irq_priorities
-                0x0000000010001b30       0x24 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001b30                runtime_init_per_core_irq_priorities
+                0x0000000010001b18       0x24 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001b18                runtime_init_per_core_irq_priorities
  .text.irq_set_enabled
-                0x0000000010001b54       0x24 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001b54                irq_set_enabled
+                0x0000000010001b3c       0x24 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001b3c                irq_set_enabled
  .text.irq_set_exclusive_handler
-                0x0000000010001b78       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001b78                irq_set_exclusive_handler
+                0x0000000010001b60       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001b60                irq_set_exclusive_handler
  .text.irq_add_shared_handler
-                0x0000000010001bcc      0x1b0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001bcc                irq_add_shared_handler
+                0x0000000010001bb4      0x1b0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001bb4                irq_add_shared_handler
  .text.irq_remove_handler
-                0x0000000010001d7c      0x1c4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001d7c                irq_remove_handler
+                0x0000000010001d64      0x1c4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001d64                irq_remove_handler
  .text.irq_add_tail_to_free_list
-                0x0000000010001f40       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010001f40                irq_add_tail_to_free_list
+                0x0000000010001f28       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010001f28                irq_add_tail_to_free_list
  .text.lock_init
-                0x0000000010001ff4       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
-                0x0000000010001ff4                lock_init
+                0x0000000010001fdc       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+                0x0000000010001fdc                lock_init
  .text.runtime_init_mutex
-                0x0000000010002004       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
-                0x0000000010002004                runtime_init_mutex
+                0x0000000010001fec       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+                0x0000000010001fec                runtime_init_mutex
  .text.sleep_until_callback
-                0x000000001000205c       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002044       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
  .text.alarm_pool_irq_handler
-                0x000000001000208c      0x308 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002074      0x308 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
  .text.runtime_init_default_alarm_pool
-                0x0000000010002394       0xdc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x0000000010002394                runtime_init_default_alarm_pool
+                0x000000001000237c       0xdc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x000000001000237c                runtime_init_default_alarm_pool
  .text.alarm_pool_add_alarm_at_force_in_context
-                0x0000000010002470       0xb0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x0000000010002470                alarm_pool_add_alarm_at_force_in_context
+                0x0000000010002458       0xb0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002458                alarm_pool_add_alarm_at_force_in_context
  .text.alarm_pool_cancel_alarm
-                0x0000000010002520       0x7c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x0000000010002520                alarm_pool_cancel_alarm
+                0x0000000010002508       0x7c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002508                alarm_pool_cancel_alarm
  .text.sleep_until
-                0x000000001000259c       0xd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x000000001000259c                sleep_until
+                0x0000000010002584       0xd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002584                sleep_until
  .text.sleep_ms
-                0x000000001000266c       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x000000001000266c                sleep_ms
+                0x0000000010002654       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002654                sleep_ms
  .text.best_effort_wfe_or_timeout
-                0x00000000100026a0      0x11c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x00000000100026a0                best_effort_wfe_or_timeout
+                0x0000000010002688      0x11c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010002688                best_effort_wfe_or_timeout
  .text.timer_hardware_alarm_claim
-                0x00000000100027bc       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
-                0x00000000100027bc                timer_hardware_alarm_claim
+                0x00000000100027a4       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+                0x00000000100027a4                timer_hardware_alarm_claim
  .text.timer_time_us_64
-                0x00000000100027d0       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
-                0x00000000100027d0                timer_time_us_64
+                0x00000000100027b8       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+                0x00000000100027b8                timer_time_us_64
  .text.time_us_64
-                0x00000000100027e0       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
-                0x00000000100027e0                time_us_64
+                0x00000000100027c8       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+                0x00000000100027c8                time_us_64
  .text.busy_wait_us
-                0x00000000100027f4       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
-                0x00000000100027f4                busy_wait_us
+                0x00000000100027dc       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+                0x00000000100027dc                busy_wait_us
  .text.busy_wait_until
-                0x0000000010002848       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
-                0x0000000010002848                busy_wait_until
+                0x0000000010002830       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+                0x0000000010002830                busy_wait_until
  .text.uart_init
-                0x0000000010002868      0x11c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
-                0x0000000010002868                uart_init
+                0x0000000010002850      0x11c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+                0x0000000010002850                uart_init
  .text.uart_set_format
-                0x0000000010002984       0x78 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
-                0x0000000010002984                uart_set_format
+                0x000000001000296c       0x78 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+                0x000000001000296c                uart_set_format
  .text.uart_set_fifo_enabled
-                0x00000000100029fc       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
-                0x00000000100029fc                uart_set_fifo_enabled
+                0x00000000100029e4       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+                0x00000000100029e4                uart_set_fifo_enabled
  .text.clock_configure_int_divider
-                0x0000000010002a5c       0xf4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
-                0x0000000010002a5c                clock_configure_int_divider
+                0x0000000010002a44       0xf4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+                0x0000000010002a44                clock_configure_int_divider
  .text.clock_configure_undivided
-                0x0000000010002b50       0xe8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
-                0x0000000010002b50                clock_configure_undivided
+                0x0000000010002b38       0xe8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+                0x0000000010002b38                clock_configure_undivided
  .text.clock_get_hz
-                0x0000000010002c38        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
-                0x0000000010002c38                clock_get_hz
+                0x0000000010002c20        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+                0x0000000010002c20                clock_get_hz
  .text.pll_init
-                0x0000000010002c44       0xa0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
-                0x0000000010002c44                pll_init
+                0x0000000010002c2c       0xa0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+                0x0000000010002c2c                pll_init
  .text.tick_start
-                0x0000000010002ce4       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
-                0x0000000010002ce4                tick_start
+                0x0000000010002ccc       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+                0x0000000010002ccc                tick_start
  .text.rom_func_lookup
-                0x0000000010002cf4       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
-                0x0000000010002cf4                rom_func_lookup
+                0x0000000010002cdc       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+                0x0000000010002cdc                rom_func_lookup
  .text.rom_data_lookup
-                0x0000000010002d04       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
-                0x0000000010002d04                rom_data_lookup
+                0x0000000010002cec       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+                0x0000000010002cec                rom_data_lookup
  .text.rom_funcs_lookup
-                0x0000000010002d14       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
-                0x0000000010002d14                rom_funcs_lookup
+                0x0000000010002cfc       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+                0x0000000010002cfc                rom_funcs_lookup
  .text.xosc_init
-                0x0000000010002d58       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
-                0x0000000010002d58                xosc_init
+                0x0000000010002d40       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+                0x0000000010002d40                xosc_init
  .text.first_per_core_initializer
-                0x0000000010002d80        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+                0x0000000010002d68        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
  .text.hard_assertion_failure
-                0x0000000010002d84        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
-                0x0000000010002d84                hard_assertion_failure
+                0x0000000010002d6c        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+                0x0000000010002d6c                hard_assertion_failure
  .text.runtime_run_initializers
-                0x0000000010002d90       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
-                0x0000000010002d90                runtime_run_initializers
+                0x0000000010002d78       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+                0x0000000010002d78                runtime_run_initializers
  .text.runtime_init_early_resets
-                0x0000000010002db8       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002db8                runtime_init_early_resets
+                0x0000000010002da0       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002da0                runtime_init_early_resets
  .text.runtime_init_usb_power_down
-                0x0000000010002de4       0x1c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002de4                runtime_init_usb_power_down
+                0x0000000010002dcc       0x1c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002dcc                runtime_init_usb_power_down
  .text.runtime_init_post_clock_resets
-                0x0000000010002e00       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002e00                runtime_init_post_clock_resets
+                0x0000000010002de8       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002de8                runtime_init_post_clock_resets
  .text.runtime_init_rp2040_gpio_ie_disable
-                0x0000000010002e20       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002e20                runtime_init_rp2040_gpio_ie_disable
+                0x0000000010002e08       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002e08                runtime_init_rp2040_gpio_ie_disable
  .text.runtime_init_spin_locks_reset
-                0x0000000010002e34        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002e34                runtime_init_spin_locks_reset
+                0x0000000010002e1c        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002e1c                runtime_init_spin_locks_reset
  .text.runtime_init_install_ram_vector_table
-                0x0000000010002e3c       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010002e3c                runtime_init_install_ram_vector_table
+                0x0000000010002e24       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010002e24                runtime_init_install_ram_vector_table
  .text.runtime_init_clocks
-                0x0000000010002ef0       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
-                0x0000000010002ef0                runtime_init_clocks
- .text          0x0000000010002fc8       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+                0x0000000010002ed8       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+                0x0000000010002ed8                runtime_init_clocks
+ .text          0x0000000010002fb0       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
  .text.__wrap___aeabi_idiv
-                0x0000000010002fd8       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
-                0x0000000010002fd8                __wrap___aeabi_idivmod
-                0x0000000010002fd8                divmod_s32s32
-                0x0000000010002fd8                div_s32s32
-                0x0000000010002fd8                __wrap___aeabi_idiv
-                0x000000001000300c                divmod_s32s32_savestate
+                0x0000000010002fc0       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+                0x0000000010002fc0                __wrap___aeabi_idivmod
+                0x0000000010002fc0                divmod_s32s32
+                0x0000000010002fc0                div_s32s32
+                0x0000000010002fc0                __wrap___aeabi_idiv
+                0x0000000010002ff4                divmod_s32s32_savestate
  .text.__wrap___aeabi_uidiv
-                0x0000000010003028       0x4c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
-                0x0000000010003028                __wrap___aeabi_uidiv
-                0x0000000010003028                __wrap___aeabi_uidivmod
-                0x0000000010003028                div_u32u32
-                0x0000000010003028                divmod_u32u32
-                0x0000000010003058                divmod_u32u32_savestate
+                0x0000000010003010       0x4c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+                0x0000000010003010                __wrap___aeabi_uidiv
+                0x0000000010003010                __wrap___aeabi_uidivmod
+                0x0000000010003010                div_u32u32
+                0x0000000010003010                divmod_u32u32
+                0x0000000010003040                divmod_u32u32_savestate
  .text.__wrap___aeabi_ldiv
-                0x0000000010003074      0x424 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
-                0x0000000010003074                div_s64s64
-                0x0000000010003074                divmod_s64s64
-                0x0000000010003074                __wrap___aeabi_ldivmod
-                0x00000000100030a4                div_u64u64
-                0x00000000100030a4                divmod_u64u64
-                0x00000000100030a4                __wrap___aeabi_uldivmod
-                0x00000000100030b4                divmod_u64u64_savestate
-                0x00000000100030d4                divmod_s64s64_unsafe
-                0x000000001000315c                divmod_u64u64_unsafe
+                0x000000001000305c      0x424 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+                0x000000001000305c                div_s64s64
+                0x000000001000305c                divmod_s64s64
+                0x000000001000305c                __wrap___aeabi_ldivmod
+                0x000000001000308c                div_u64u64
+                0x000000001000308c                divmod_u64u64
+                0x000000001000308c                __wrap___aeabi_uldivmod
+                0x000000001000309c                divmod_u64u64_savestate
+                0x00000000100030bc                divmod_s64s64_unsafe
+                0x0000000010003144                divmod_u64u64_unsafe
  .text.__wrap___aeabi_darithmetic
-                0x0000000010003498       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003498                __wrap___aeabi_drsub
-                0x000000001000349e                __wrap___aeabi_dsub
-                0x00000000100034a8                __wrap___aeabi_dadd
-                0x00000000100034b2                __wrap___aeabi_ddiv
-                0x00000000100034e6                __wrap___aeabi_dmul
+                0x0000000010003480       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003480                __wrap___aeabi_drsub
+                0x0000000010003486                __wrap___aeabi_dsub
+                0x0000000010003490                __wrap___aeabi_dadd
+                0x000000001000349a                __wrap___aeabi_ddiv
+                0x00000000100034ce                __wrap___aeabi_dmul
  .text.__wrap___aeabi_cdcmple
-                0x00000000100034f8       0x6c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100034f8                __wrap___aeabi_cdrcmple
-                0x0000000010003508                __wrap___aeabi_cdcmple
-                0x0000000010003508                __wrap___aeabi_cdcmpeq
+                0x00000000100034e0       0x6c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x00000000100034e0                __wrap___aeabi_cdrcmple
+                0x00000000100034f0                __wrap___aeabi_cdcmple
+                0x00000000100034f0                __wrap___aeabi_cdcmpeq
  .text.__wrap___aeabi_dcmpeq
-                0x0000000010003564       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003564                __wrap___aeabi_dcmpeq
+                0x000000001000354c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x000000001000354c                __wrap___aeabi_dcmpeq
  .text.__wrap___aeabi_dcmplt
-                0x0000000010003574        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003574                __wrap___aeabi_dcmplt
+                0x000000001000355c        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x000000001000355c                __wrap___aeabi_dcmplt
  .text.__wrap___aeabi_dcmple
-                0x0000000010003580       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003580                __wrap___aeabi_dcmple
+                0x0000000010003568       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003568                __wrap___aeabi_dcmple
  .text.__wrap___aeabi_dcmpge
-                0x0000000010003590       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003590                __wrap___aeabi_dcmpge
+                0x0000000010003578       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003578                __wrap___aeabi_dcmpge
  .text.__wrap___aeabi_dcmpgt
-                0x00000000100035a0        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100035a0                __wrap___aeabi_dcmpgt
+                0x0000000010003588        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003588                __wrap___aeabi_dcmpgt
  .text.__wrap___aeabi_dcmpun
-                0x00000000100035aa       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100035aa                __wrap___aeabi_dcmpun
- *fill*         0x00000000100035c2        0x2 
+                0x0000000010003592       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003592                __wrap___aeabi_dcmpun
+ *fill*         0x00000000100035aa        0x2 
  .text.__wrap___aeabi_i2d
-                0x00000000100035c4       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100035c4                __wrap___aeabi_ui2d
-                0x00000000100035c4                uint2double
-                0x00000000100035cc                __wrap___aeabi_i2d
-                0x00000000100035cc                int2double
+                0x00000000100035ac       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x00000000100035ac                __wrap___aeabi_ui2d
+                0x00000000100035ac                uint2double
+                0x00000000100035b4                __wrap___aeabi_i2d
+                0x00000000100035b4                int2double
  .text.__wrap___aeabi_d2iz
-                0x00000000100035fc       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100035fc                __wrap___aeabi_d2iz
-                0x00000000100035fc                double2int_z
+                0x00000000100035e4       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x00000000100035e4                __wrap___aeabi_d2iz
+                0x00000000100035e4                double2int_z
  .text.__wrap___aeabi_d2uiz
-                0x0000000010003644       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003644                double2uint_z
-                0x0000000010003644                double2uint
-                0x0000000010003644                __wrap___aeabi_d2uiz
+                0x000000001000362c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x000000001000362c                double2uint_z
+                0x000000001000362c                double2uint
+                0x000000001000362c                __wrap___aeabi_d2uiz
  .text.__wrap___aeabi_l2d
-                0x0000000010003654       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003654                __wrap___aeabi_l2d
-                0x0000000010003654                int642double
+                0x000000001000363c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x000000001000363c                __wrap___aeabi_l2d
+                0x000000001000363c                int642double
  .text.__wrap___aeabi_d2lz
-                0x0000000010003664       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x0000000010003664                __wrap___aeabi_d2lz
-                0x0000000010003664                double2int64_z
- *fill*         0x000000001000368a        0x2 
+                0x000000001000364c       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x000000001000364c                __wrap___aeabi_d2lz
+                0x000000001000364c                double2int64_z
+ *fill*         0x0000000010003672        0x2 
  .text.double2int64
-                0x000000001000368c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x000000001000368c                double2int64
+                0x0000000010003674       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003674                double2int64
  .text.double2ufix64
-                0x000000001000369c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x000000001000369c                double2ufix64
-                0x000000001000369c                double2ufix64_z
+                0x0000000010003684       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003684                double2ufix64
+                0x0000000010003684                double2ufix64_z
  .text.__wrap___aeabi_d2f
-                0x00000000100036ac       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
-                0x00000000100036ac                __wrap___aeabi_d2f
+                0x0000000010003694       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010003694                __wrap___aeabi_d2f
  .text.missing_double_func_shim
-                0x00000000100036bc        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+                0x00000000100036a4        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
  .text.__aeabi_double_init
-                0x00000000100036c8       0xa4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
-                0x00000000100036c8                __aeabi_double_init
+                0x00000000100036b0       0xa4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+                0x00000000100036b0                __aeabi_double_init
  .text.double_table_shim_on_use_helper
-                0x000000001000376c       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
-                0x000000001000376c                double_table_shim_on_use_helper
+                0x0000000010003754       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
+                0x0000000010003754                double_table_shim_on_use_helper
  .text.__aeabi_lmul
-                0x0000000010003798       0x32 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
-                0x0000000010003798                __wrap___aeabi_lmul
- *fill*         0x00000000100037ca        0x2 
+                0x0000000010003780       0x32 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
+                0x0000000010003780                __wrap___aeabi_lmul
+ *fill*         0x00000000100037b2        0x2 
  .text.__wrap___aeabi_farithmetic
-                0x00000000100037cc       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x00000000100037cc                __wrap___aeabi_frsub
-                0x00000000100037d2                __wrap___aeabi_fsub
-                0x00000000100037d8                __wrap___aeabi_fadd
-                0x00000000100037de                __wrap___aeabi_fdiv
-                0x0000000010003806                __wrap___aeabi_fmul
+                0x00000000100037b4       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x00000000100037b4                __wrap___aeabi_frsub
+                0x00000000100037ba                __wrap___aeabi_fsub
+                0x00000000100037c0                __wrap___aeabi_fadd
+                0x00000000100037c6                __wrap___aeabi_fdiv
+                0x00000000100037ee                __wrap___aeabi_fmul
  .text.__wrap___aeabi_cfcmple
-                0x0000000010003814       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003814                __wrap___aeabi_cfrcmple
-                0x0000000010003820                __wrap___aeabi_cfcmpeq
-                0x0000000010003820                __wrap___aeabi_cfcmple
+                0x00000000100037fc       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x00000000100037fc                __wrap___aeabi_cfrcmple
+                0x0000000010003808                __wrap___aeabi_cfcmpeq
+                0x0000000010003808                __wrap___aeabi_cfcmple
  .text.__wrap___aeabi_fcmplt
-                0x0000000010003864        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003864                __wrap___aeabi_fcmplt
+                0x000000001000384c        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x000000001000384c                __wrap___aeabi_fcmplt
  .text.__wrap___aeabi_fcmple
-                0x0000000010003870       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003870                __wrap___aeabi_fcmple
+                0x0000000010003858       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x0000000010003858                __wrap___aeabi_fcmple
  .text.__wrap___aeabi_fcmpge
-                0x0000000010003880       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003880                __wrap___aeabi_fcmpge
+                0x0000000010003868       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x0000000010003868                __wrap___aeabi_fcmpge
  .text.__wrap___aeabi_fcmpgt
-                0x0000000010003890        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003890                __wrap___aeabi_fcmpgt
+                0x0000000010003878        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x0000000010003878                __wrap___aeabi_fcmpgt
  .text.__wrap___aeabi_fcmpun
-                0x000000001000389a       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x000000001000389a                __wrap___aeabi_fcmpun
+                0x0000000010003882       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x0000000010003882                __wrap___aeabi_fcmpun
  .text.__wrap___aeabi_ui2f
-                0x00000000100038b2        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x00000000100038b2                uint2float
-                0x00000000100038b2                __wrap___aeabi_ui2f
+                0x000000001000389a        0xa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x000000001000389a                uint2float
+                0x000000001000389a                __wrap___aeabi_ui2f
  .text.__wrap___aeabi_i2f
-                0x00000000100038bc       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x00000000100038bc                int2float
-                0x00000000100038bc                __wrap___aeabi_i2f
+                0x00000000100038a4       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x00000000100038a4                int2float
+                0x00000000100038a4                __wrap___aeabi_i2f
  .text.__wrap___aeabi_f2uiz
-                0x0000000010003900        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
-                0x0000000010003900                float2uint
-                0x0000000010003900                float2uint_z
-                0x0000000010003900                __wrap___aeabi_f2uiz
+                0x00000000100038e8        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x00000000100038e8                float2uint
+                0x00000000100038e8                float2uint_z
+                0x00000000100038e8                __wrap___aeabi_f2uiz
  .text.missing_float_func_shim
-                0x000000001000390c        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+                0x00000000100038f4        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
  .text.__aeabi_float_init
-                0x0000000010003918       0x5c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
-                0x0000000010003918                __aeabi_float_init
- .text          0x0000000010003974       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
-                0x0000000010003974                __aeabi_mem_init
- .text.memset   0x0000000010003984        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
-                0x0000000010003984                __wrap_memset
- .text.memcpy   0x0000000010003990        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
-                0x0000000010003990                __wrap___aeabi_memcpy
-                0x0000000010003990                __wrap_memcpy
+                0x0000000010003900       0x5c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+                0x0000000010003900                __aeabi_float_init
+ .text          0x000000001000395c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+                0x000000001000395c                __aeabi_mem_init
+ .text.memset   0x000000001000396c        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+                0x000000001000396c                __wrap_memset
+ .text.memcpy   0x0000000010003978        0xc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+                0x0000000010003978                __wrap___aeabi_memcpy
+                0x0000000010003978                __wrap_memcpy
  .text._out_buffer
-                0x000000001000399c        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010003984        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text._out_null
-                0x00000000100039a4        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x000000001000398c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text._out_rev
-                0x00000000100039a8       0x9c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010003990       0x9c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text._ntoa_format
-                0x0000000010003a44      0x1cc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010003a2c      0x1cc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text._out_char
-                0x0000000010003c10       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .text._etoa    0x0000000010003c20      0x44c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .text._ftoa    0x000000001000406c      0x398 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010003bf8       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .text._etoa    0x0000000010003c08      0x44c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .text._ftoa    0x0000000010004054      0x398 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text._vsnprintf
-                0x0000000010004404      0xb04 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x00000000100043ec      0xb04 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
  .text.__wrap_snprintf
-                0x0000000010004f08       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
-                0x0000000010004f08                __wrap_snprintf
+                0x0000000010004ef0       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010004ef0                __wrap_snprintf
  .text.weak_raw_printf
-                0x0000000010004f30       0x40 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
-                0x0000000010004f30                weak_raw_printf
+                0x0000000010004f18       0x40 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010004f18                weak_raw_printf
  .text.weak_raw_vprintf
-                0x0000000010004f70       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
-                0x0000000010004f70                weak_raw_vprintf
- .text._exit    0x0000000010004fa0        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010004fa0                _exit
- .text._fini    0x0000000010004fa4        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010004fa4                _fini
- .text._sbrk    0x0000000010004fa8       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010004fa8                _sbrk
- .text.exit     0x0000000010004fdc        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010004fdc                exit
+                0x0000000010004f58       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+                0x0000000010004f58                weak_raw_vprintf
+ .text._exit    0x0000000010004f88        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010004f88                _exit
+ .text._fini    0x0000000010004f8c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010004f8c                _fini
+ .text._sbrk    0x0000000010004f90       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010004f90                _sbrk
+ .text.exit     0x0000000010004fc4        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010004fc4                exit
  .text.__assert_func
-                0x0000000010004fe4       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010004fe4                __assert_func
+                0x0000000010004fcc       0x34 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010004fcc                __assert_func
  .text.runtime_init
-                0x0000000010005018       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
-                0x0000000010005018                runtime_init
+                0x0000000010005000       0x2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+                0x0000000010005000                runtime_init
  .text.stdio_out_chars_no_crlf
-                0x0000000010005044       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+                0x000000001000502c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
  .text.stdio_out_chars_crlf
-                0x0000000010005054       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+                0x000000001000503c       0xb4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
  .text.stdio_put_string
-                0x0000000010005108      0x100 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
-                0x0000000010005108                stdio_put_string
+                0x00000000100050f0      0x100 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+                0x00000000100050f0                stdio_put_string
  .text.__wrap_putchar
-                0x0000000010005208       0x98 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
-                0x0000000010005208                stdio_putchar
-                0x0000000010005208                __wrap_putchar
+                0x00000000100051f0       0x98 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+                0x00000000100051f0                stdio_putchar
+                0x00000000100051f0                __wrap_putchar
  .text.__wrap_puts
-                0x00000000100052a0       0x3c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
-                0x00000000100052a0                __wrap_puts
-                0x00000000100052a0                stdio_puts
- .text          0x00000000100052dc       0x5c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
-                0x00000000100052dc                _calloc_r
- .text          0x0000000010005338      0x574 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
-                0x0000000010005338                _malloc_r
- .text          0x00000000100058ac        0x8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
-                0x00000000100058ac                __malloc_lock
-                0x00000000100058b0                __malloc_unlock
- .text          0x00000000100058b4       0x24 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
-                0x00000000100058b4                _sbrk_r
- .text          0x00000000100058d8       0x88 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
-                0x00000000100058d8                strcmp
- .text          0x0000000010005960       0x5c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
-                0x0000000010005960                strlen
- .text          0x00000000100059bc     0x1128 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
-                0x00000000100059bc                _strtod_l
-                0x000000001000693c                _strtod_r
-                0x000000001000694c                strtod_l
-                0x0000000010006964                strtod
-                0x0000000010006980                strtof_l
-                0x0000000010006a30                strtof
- .text          0x0000000010006ae4       0x78 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
-                0x0000000010006ae4                __strtok_r
-                0x0000000010006b50                strtok_r
- .text          0x0000000010006b5c      0x260 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
-                0x0000000010006b5c                _malloc_trim_r
-                0x0000000010006bf8                _free_r
- .text          0x0000000010006dbc      0x670 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
-                0x0000000010006e60                __gethex
- .text          0x000000001000742c      0x1fc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
-                0x000000001000742c                __match
-                0x0000000010007458                __hexnan
- .text          0x0000000010007628       0x44 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
-                0x0000000010007628                _mbtowc_r
-                0x0000000010007640                __ascii_mbtowc
- .text          0x000000001000766c      0xafc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
-                0x000000001000766c                _Balloc
-                0x00000000100076bc                _Bfree
-                0x00000000100076d0                __multadd
-                0x0000000010007778                __s2b
-                0x0000000010007828                __hi0bits
-                0x0000000010007860                __lo0bits
-                0x00000000100078bc                __i2b
-                0x000000001000791c                __multiply
-                0x0000000010007ac0                __pow5mult
-                0x0000000010007b98                __lshift
-                0x0000000010007c94                __mcmp
-                0x0000000010007cc8                __mdiff
-                0x0000000010007e54                __ulp
-                0x0000000010007e9c                __b2d
-                0x0000000010007f64                __d2b
-                0x000000001000803c                __ratio
-                0x00000000100080a4                _mprec_log10
-                0x00000000100080d8                __copybits
-                0x0000000010008118                __any_on
- .text          0x0000000010008168        0xc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
-                0x0000000010008168                nan
- .text          0x0000000010008174        0x8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
-                0x0000000010008174                nanf
- .text          0x000000001000817c       0x74 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
-                0x000000001000817c                strncmp
- .text          0x00000000100081f0       0x2c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
-                0x00000000100081f0                _wctomb_r
-                0x0000000010008200                __ascii_wctomb
- *fill*         0x000000001000821c        0x4 
- .text.__stub   0x0000000010008220       0x40 linker stubs
+                0x0000000010005288       0x3c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+                0x0000000010005288                __wrap_puts
+                0x0000000010005288                stdio_puts
+ .text          0x00000000100052c4       0x5c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+                0x00000000100052c4                _calloc_r
+ .text          0x0000000010005320      0x574 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+                0x0000000010005320                _malloc_r
+ .text          0x0000000010005894        0x8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
+                0x0000000010005894                __malloc_lock
+                0x0000000010005898                __malloc_unlock
+ .text          0x000000001000589c       0x24 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+                0x000000001000589c                _sbrk_r
+ .text          0x00000000100058c0       0x88 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
+                0x00000000100058c0                strcmp
+ .text          0x0000000010005948       0x5c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+                0x0000000010005948                strlen
+ .text          0x00000000100059a4     0x1128 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+                0x00000000100059a4                _strtod_l
+                0x0000000010006924                _strtod_r
+                0x0000000010006934                strtod_l
+                0x000000001000694c                strtod
+                0x0000000010006968                strtof_l
+                0x0000000010006a18                strtof
+ .text          0x0000000010006acc       0x78 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+                0x0000000010006acc                __strtok_r
+                0x0000000010006b38                strtok_r
+ .text          0x0000000010006b44      0x260 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+                0x0000000010006b44                _malloc_trim_r
+                0x0000000010006be0                _free_r
+ .text          0x0000000010006da4      0x670 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+                0x0000000010006e48                __gethex
+ .text          0x0000000010007414      0x1fc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+                0x0000000010007414                __match
+                0x0000000010007440                __hexnan
+ .text          0x0000000010007610       0x44 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+                0x0000000010007610                _mbtowc_r
+                0x0000000010007628                __ascii_mbtowc
+ .text          0x0000000010007654      0xafc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+                0x0000000010007654                _Balloc
+                0x00000000100076a4                _Bfree
+                0x00000000100076b8                __multadd
+                0x0000000010007760                __s2b
+                0x0000000010007810                __hi0bits
+                0x0000000010007848                __lo0bits
+                0x00000000100078a4                __i2b
+                0x0000000010007904                __multiply
+                0x0000000010007aa8                __pow5mult
+                0x0000000010007b80                __lshift
+                0x0000000010007c7c                __mcmp
+                0x0000000010007cb0                __mdiff
+                0x0000000010007e3c                __ulp
+                0x0000000010007e84                __b2d
+                0x0000000010007f4c                __d2b
+                0x0000000010008024                __ratio
+                0x000000001000808c                _mprec_log10
+                0x00000000100080c0                __copybits
+                0x0000000010008100                __any_on
+ .text          0x0000000010008150        0xc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+                0x0000000010008150                nan
+ .text          0x000000001000815c        0x8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+                0x000000001000815c                nanf
+ .text          0x0000000010008164       0x74 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+                0x0000000010008164                strncmp
+ .text          0x00000000100081d8       0x2c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+                0x00000000100081d8                _wctomb_r
+                0x00000000100081e8                __ascii_wctomb
+ *fill*         0x0000000010008204        0x4 
+ .text.__stub   0x0000000010008208       0x40 linker stubs
  *(.fini)
  *crtbegin.o(.ctors)
  *crtbegin?.o(.ctors)
@@ -2798,90 +2798,90 @@ END GROUP
  *(EXCLUDE_FILE(*crtend.o *crtend?.o) .dtors)
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
-                0x0000000010008260                . = ALIGN (0x4)
+                0x0000000010008248                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__bothinit_array_start = .)
-                0x0000000010008260                PROVIDE (__preinit_array_start = .)
+                0x0000000010008248                PROVIDE (__preinit_array_start = .)
  *(SORT_BY_NAME(.preinit_array.*))
  .preinit_array.00100
-                0x0000000010008260        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010008260                __pre_init_runtime_init_early_resets
+                0x0000000010008248        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010008248                __pre_init_runtime_init_early_resets
  .preinit_array.00101
-                0x0000000010008264        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010008264                __pre_init_runtime_init_usb_power_down
+                0x000000001000824c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x000000001000824c                __pre_init_runtime_init_usb_power_down
  .preinit_array.00275
-                0x0000000010008268        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+                0x0000000010008250        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
  .preinit_array.00300
-                0x000000001000826c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+                0x0000000010008254        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
  .preinit_array.00350
-                0x0000000010008270        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+                0x0000000010008258        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
  .preinit_array.00350
-                0x0000000010008274        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+                0x000000001000825c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
  .preinit_array.00500
-                0x0000000010008278        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010008278                __pre_init_runtime_init_clocks
+                0x0000000010008260        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010008260                __pre_init_runtime_init_clocks
  .preinit_array.00600
-                0x000000001000827c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x000000001000827c                __pre_init_runtime_init_post_clock_resets
+                0x0000000010008264        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010008264                __pre_init_runtime_init_post_clock_resets
  .preinit_array.00700
-                0x0000000010008280        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010008280                __pre_init_runtime_init_rp2040_gpio_ie_disable
+                0x0000000010008268        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010008268                __pre_init_runtime_init_rp2040_gpio_ie_disable
  .preinit_array.01000
-                0x0000000010008284        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x0000000010008284                __pre_init_runtime_init_spin_locks_reset
+                0x000000001000826c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x000000001000826c                __pre_init_runtime_init_spin_locks_reset
  .preinit_array.01100
-                0x0000000010008288        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
-                0x0000000010008288                __pre_init_runtime_init_mutex
+                0x0000000010008270        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+                0x0000000010008270                __pre_init_runtime_init_mutex
  .preinit_array.10080
-                0x000000001000828c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
-                0x000000001000828c                __pre_init_runtime_init_install_ram_vector_table
+                0x0000000010008274        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+                0x0000000010008274                __pre_init_runtime_init_install_ram_vector_table
  .preinit_array.11000
-                0x0000000010008290        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
-                0x0000000010008290                __pre_init_runtime_init_default_alarm_pool
+                0x0000000010008278        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000010008278                __pre_init_runtime_init_default_alarm_pool
  .preinit_array.YYYYY
-                0x0000000010008294        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
-                0x0000000010008294                __pre_init_first_per_core_initializer
+                0x000000001000827c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+                0x000000001000827c                __pre_init_first_per_core_initializer
  .preinit_array.ZZZZZ.01200
-                0x0000000010008298        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
-                0x0000000010008298                __pre_init_runtime_init_per_core_irq_priorities
+                0x0000000010008280        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x0000000010008280                __pre_init_runtime_init_per_core_irq_priorities
  *(.preinit_array)
-                0x000000001000829c                PROVIDE (__preinit_array_end = .)
-                0x000000001000829c                . = ALIGN (0x4)
-                0x000000001000829c                PROVIDE (__init_array_start = .)
+                0x0000000010008284                PROVIDE (__preinit_array_end = .)
+                0x0000000010008284                . = ALIGN (0x4)
+                0x0000000010008284                PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array)
-                0x000000001000829c                PROVIDE (__init_array_end = .)
+                0x0000000010008284                PROVIDE (__init_array_end = .)
                 [!provide]                        PROVIDE (__bothinit_array_end = .)
-                0x000000001000829c                . = ALIGN (0x4)
+                0x0000000010008284                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array)
                 [!provide]                        PROVIDE (__fini_array_end = .)
                 [!provide]                        PROVIDE (__dso_handle = 0x0)
  *(.eh_frame*)
-                0x000000001000829c                . = ALIGN (0x4)
+                0x0000000010008284                . = ALIGN (0x4)
 
-.glue_7         0x000000001000829c        0x0
- .glue_7        0x000000001000829c        0x0 linker stubs
+.glue_7         0x0000000010008284        0x0
+ .glue_7        0x0000000010008284        0x0 linker stubs
 
-.glue_7t        0x000000001000829c        0x0
- .glue_7t       0x000000001000829c        0x0 linker stubs
+.glue_7t        0x0000000010008284        0x0
+ .glue_7t       0x0000000010008284        0x0 linker stubs
 
-.vfp11_veneer   0x000000001000829c        0x0
- .vfp11_veneer  0x000000001000829c        0x0 linker stubs
+.vfp11_veneer   0x0000000010008284        0x0
+ .vfp11_veneer  0x0000000010008284        0x0 linker stubs
 
-.v4_bx          0x000000001000829c        0x0
- .v4_bx         0x000000001000829c        0x0 linker stubs
+.v4_bx          0x0000000010008284        0x0
+ .v4_bx         0x0000000010008284        0x0 linker stubs
 
-.iplt           0x000000001000829c        0x0
- .iplt          0x000000001000829c        0x0 CMakeFiles/pico_motor_controller.dir/main.c.o
+.iplt           0x0000000010008284        0x0
+ .iplt          0x0000000010008284        0x0 CMakeFiles/pico_motor_controller.dir/main.c.o
 
-.rodata         0x00000000100082a0      0xaac
+.rodata         0x0000000010008288      0xac4
  *(EXCLUDE_FILE(*libm.a: *lib*_a-mem*.o *libc.a: *libgcc.a:) .rodata*)
  .rodata.main.str1.4
-                0x00000000100082a0      0x206 CMakeFiles/pico_motor_controller.dir/main.c.o
-                                        0x21a (size before relaxing)
- *fill*         0x00000000100084a6        0x2 
- .rodata        0x00000000100084a8       0x10 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000010008288      0x20e CMakeFiles/pico_motor_controller.dir/main.c.o
+                                        0x222 (size before relaxing)
+ *fill*         0x0000000010008496        0x2 
+ .rodata        0x0000000010008498       0x20 CMakeFiles/pico_motor_controller.dir/main.c.o
  .rodata.quadrature_table
                 0x00000000100084b8       0x10 CMakeFiles/pico_motor_controller.dir/main.c.o
  .rodata.panic.str1.4
@@ -3106,7 +3106,7 @@ END GROUP
 .tbss_space     0x0000000020000c38        0x0 load address 0x00000000100098e0
                 0x0000000020000c38                . = (__bss_start__ + SIZEOF (.tbss))
 
-.bss            0x0000000020000c38      0x468 load address 0x00000000100098e0
+.bss            0x0000000020000c38      0x470 load address 0x00000000100098e0
                 0x0000000020000c38                . = ALIGN (0x4)
                 0x0000000020000c38                __tbss_end = .
  *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.bss*)))
@@ -3137,43 +3137,51 @@ END GROUP
                 0x0000000020000f3c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
  .bss.lazy_vsnprintf
                 0x0000000020000f40        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .bss.left_encoder_ticks
+ .bss.left_front_encoder_ticks
                 0x0000000020000f44        0x4 CMakeFiles/pico_motor_controller.dir/main.c.o
  .bss.left_motor
                 0x0000000020000f48       0x14 CMakeFiles/pico_motor_controller.dir/main.c.o
- .bss.pools     0x0000000020000f5c       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .bss.left_rear_encoder_ticks
+                0x0000000020000f5c        0x4 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.pools     0x0000000020000f60       0x10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
  .bss.raw_irq_mask
-                0x0000000020000f6c        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .bss.right_encoder_ticks
-                0x0000000020000f74        0x4 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000020000f70        0x8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .bss.right_front_encoder_ticks
+                0x0000000020000f78        0x4 CMakeFiles/pico_motor_controller.dir/main.c.o
  .bss.right_motor
-                0x0000000020000f78       0x14 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x0000000020000f7c       0x14 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.right_rear_encoder_ticks
+                0x0000000020000f90        0x4 CMakeFiles/pico_motor_controller.dir/main.c.o
  .bss.sf_clz_func
-                0x0000000020000f8c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
-                0x0000000020000f8c                sf_clz_func
- .bss.sf_table  0x0000000020000f90      0x100 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
-                0x0000000020000f90                sf_table
+                0x0000000020000f94        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+                0x0000000020000f94                sf_clz_func
+ .bss.sf_table  0x0000000020000f98      0x100 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+                0x0000000020000f98                sf_table
  .bss.sleep_notifier
-                0x0000000020001090        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+                0x0000000020001098        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
  .bss.uart_char_to_line_feed
-                0x0000000020001094        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
-                0x0000000020001094                uart_char_to_line_feed
+                0x000000002000109c        0x4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+                0x000000002000109c                uart_char_to_line_feed
  .bss.encoder_stream_enabled
-                0x0000000020001098        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x00000000200010a0        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
  .bss.irq_handler_chain_free_slot_head
-                0x0000000020001099        0x1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+                0x00000000200010a1        0x1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
  .bss.is_moving
-                0x000000002000109a        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
- .bss.left_encoder_state
-                0x000000002000109b        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
- .bss.right_encoder_state
-                0x000000002000109c        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+                0x00000000200010a2        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.left_front_encoder_state
+                0x00000000200010a3        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.left_rear_encoder_state
+                0x00000000200010a4        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.right_front_encoder_state
+                0x00000000200010a5        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .bss.right_rear_encoder_state
+                0x00000000200010a6        0x1 CMakeFiles/pico_motor_controller.dir/main.c.o
  *(COMMON)
                 [!provide]                        PROVIDE (__global_pointer$ = (. + 0x800))
  *(.sbss*)
-                0x00000000200010a0                . = ALIGN (0x4)
- *fill*         0x000000002000109d        0x3 
-                0x00000000200010a0                __bss_end__ = .
+                0x00000000200010a8                . = ALIGN (0x4)
+ *fill*         0x00000000200010a7        0x1 
+                0x00000000200010a8                __bss_end__ = .
                 [!provide]                        PROVIDE (__tls_start = SIZEOF (.tdata)?ADDR (.tdata):ADDR (.tbss))
                 [!provide]                        PROVIDE (__tls_size = (__tls_end - __tls_start))
                 0x0000000000000001                PROVIDE (__tls_align = MAX (ALIGNOF (.tdata), ALIGNOF (.tbss)))
@@ -3185,7 +3193,7 @@ END GROUP
                 [!provide]                        PROVIDE (__tbss_offset = (ADDR (.tbss) - __tls_start))
 
 .tlsX_not_needed_marker
-                0x00000000200010a0        0x0 load address 0x00000000100098e0
+                0x00000000200010a8        0x0 load address 0x00000000100098e0
  *(.tlsX_not_needed_marker)
                 [!provide]                        PROVIDE (__tlsX_align = (SIZEOF (.tlsX_not_needed_marker) > 0x0)?0x4:__tls_align)
                 [!provide]                        PROVIDE (__tlsX_size_align = (SIZEOF (.tlsX_not_needed_marker) > 0x0)?0x0:__tls_size_align)
@@ -3201,32 +3209,32 @@ END GROUP
                 0x0000000000000001                __tlsX_align = DEFINED (__tlsX_align)?__tlsX_align:(SIZEOF (.tlsX_not_needed_marker) > 0x0)?0x4:__tls_align
                 0x0000000000000000                __tlsX_size_align = DEFINED (__tlsX_size_align)?__tlsX_size_align:(SIZEOF (.tlsX_not_needed_marker) > 0x0)?0x0:__tls_size_align
 
-.tls0           0x00000000200010a0        0x0 load address 0x00000000100098e0
-                0x00000000200010a0                . = ALIGN (__tlsX_align)
-                0x00000000200010a0                PROVIDE (__tls0_base = .)
-                0x00000000200010a0                . = (. + __tlsX_size_align)
+.tls0           0x00000000200010a8        0x0 load address 0x00000000100098e0
+                0x00000000200010a8                . = ALIGN (__tlsX_align)
+                0x00000000200010a8                PROVIDE (__tls0_base = .)
+                0x00000000200010a8                . = (. + __tlsX_size_align)
 
-.tls1           0x00000000200010a0        0x0 load address 0x00000000100098e0
-                0x00000000200010a0                . = ALIGN (__tlsX_align)
-                0x00000000200010a0                PROVIDE (__tls1_base = .)
-                0x00000000200010a0                . = (. + __tlsX_size_align)
+.tls1           0x00000000200010a8        0x0 load address 0x00000000100098e0
+                0x00000000200010a8                . = ALIGN (__tlsX_align)
+                0x00000000200010a8                PROVIDE (__tls1_base = .)
+                0x00000000200010a8                . = (. + __tlsX_size_align)
 
 .persistent_data
-                0x00000000200010a0        0x0 load address 0x00000000100098e0
-                0x00000000200010a0                __persistent_data_start__ = .
+                0x00000000200010a8        0x0 load address 0x00000000100098e0
+                0x00000000200010a8                __persistent_data_start__ = .
  *(.persistent_data*)
-                0x00000000200010a0                . = ALIGN (0x4)
+                0x00000000200010a8                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__persistent_data_end__ = .)
 
 .dummy_pre_heap
-                0x00000000200010a0        0x0 load address 0x00000000100098e0
-                0x00000000200010a0                . = .
+                0x00000000200010a8        0x0 load address 0x00000000100098e0
+                0x00000000200010a8                . = .
 
-.heap           0x00000000200010a0      0x800
-                0x00000000200010a0                __end__ = .
-                0x00000000200010a0                end = __end__
+.heap           0x00000000200010a8      0x800
+                0x00000000200010a8                __end__ = .
+                0x00000000200010a8                end = __end__
  *(.heap*)
- .heap          0x00000000200010a0      0x800 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .heap          0x00000000200010a8      0x800 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
                 0x0000000020040000                __HeapLimit = DEFINED (HEAP_LIMIT)?HEAP_LIMIT:(ORIGIN (RAM) + LENGTH (RAM))
 
 .scratch_x      0x0000000020040000        0x0 load address 0x00000000100098e0
@@ -3274,167 +3282,167 @@ END GROUP
 OUTPUT(pico_motor_controller.elf elf32-littlearm)
 LOAD linker stubs
 
-.debug_info     0x0000000000000000    0x2ea48
- .debug_info    0x0000000000000000     0x6396 CMakeFiles/pico_motor_controller.dir/main.c.o
- .debug_info    0x0000000000006396     0x23a2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .debug_info    0x0000000000008738      0x19c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
- .debug_info    0x00000000000088d4      0xa3d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
- .debug_info    0x0000000000009311      0x3df CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
- .debug_info    0x00000000000096f0      0x244 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
- .debug_info    0x0000000000009934     0x2334 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
- .debug_info    0x000000000000bc68      0x156 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
- .debug_info    0x000000000000bdbe     0x1d64 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
- .debug_info    0x000000000000db22     0x49f8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
- .debug_info    0x000000000001251a     0x2aeb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
- .debug_info    0x0000000000015005     0x1b2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
- .debug_info    0x0000000000016b31     0x2e9e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
- .debug_info    0x00000000000199cf      0x505 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
- .debug_info    0x0000000000019ed4      0x242 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
- .debug_info    0x000000000001a116      0x4f2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
- .debug_info    0x000000000001a608      0x1c9 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
- .debug_info    0x000000000001a7d1      0x208 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
- .debug_info    0x000000000001a9d9      0x816 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
- .debug_info    0x000000000001b1ef      0x701 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
- .debug_info    0x000000000001b8f0       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
- .debug_info    0x000000000001b912       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
- .debug_info    0x000000000001b934       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
- .debug_info    0x000000000001b956      0x25c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
- .debug_info    0x000000000001bbb2       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
- .debug_info    0x000000000001bbd8       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
- .debug_info    0x000000000001bbfe       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
- .debug_info    0x000000000001bc20      0x254 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
- .debug_info    0x000000000001be74       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
- .debug_info    0x000000000001be96      0x2bf CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
- .debug_info    0x000000000001c155     0x21b1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .debug_info    0x000000000001e306       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
- .debug_info    0x000000000001e328      0xbcd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
- .debug_info    0x000000000001eef5     0x1b94 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
- .debug_info    0x0000000000020a89       0x26 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_info    0x0000000000020aaf      0xa81 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
- .debug_info    0x0000000000021530      0x92a /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
- .debug_info    0x0000000000021e5a      0xe80 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
- .debug_info    0x0000000000022cda      0x942 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
- .debug_info    0x000000000002361c      0x98e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
- .debug_info    0x0000000000023faa       0x26 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
- .debug_info    0x0000000000023fd0       0xee /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
- .debug_info    0x00000000000240be     0x1ed0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
- .debug_info    0x0000000000025f8e      0x1bf /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
- .debug_info    0x000000000002614d      0xce5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
- .debug_info    0x0000000000026e32     0x147f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
- .debug_info    0x00000000000282b1      0x3f0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
- .debug_info    0x00000000000286a1      0xc48 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
- .debug_info    0x00000000000292e9      0xe04 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
- .debug_info    0x000000000002a0ed      0xccd /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
- .debug_info    0x000000000002adba     0x20bc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
- .debug_info    0x000000000002ce76      0xbe1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
- .debug_info    0x000000000002da57       0xd2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
- .debug_info    0x000000000002db29       0xce /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
- .debug_info    0x000000000002dbf7      0x110 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
- .debug_info    0x000000000002dd07      0xc89 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
- .debug_info    0x000000000002e990       0xb8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
+.debug_info     0x0000000000000000    0x2ef0e
+ .debug_info    0x0000000000000000     0x685c CMakeFiles/pico_motor_controller.dir/main.c.o
+ .debug_info    0x000000000000685c     0x23a2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .debug_info    0x0000000000008bfe      0x19c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+ .debug_info    0x0000000000008d9a      0xa3d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_info    0x00000000000097d7      0x3df CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_info    0x0000000000009bb6      0x244 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_info    0x0000000000009dfa     0x2334 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_info    0x000000000000c12e      0x156 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_info    0x000000000000c284     0x1d64 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_info    0x000000000000dfe8     0x49f8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_info    0x00000000000129e0     0x2aeb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_info    0x00000000000154cb     0x1b2c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_info    0x0000000000016ff7     0x2e9e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_info    0x0000000000019e95      0x505 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_info    0x000000000001a39a      0x242 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_info    0x000000000001a5dc      0x4f2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_info    0x000000000001aace      0x1c9 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_info    0x000000000001ac97      0x208 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_info    0x000000000001ae9f      0x816 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_info    0x000000000001b6b5      0x701 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_info    0x000000000001bdb6       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+ .debug_info    0x000000000001bdd8       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+ .debug_info    0x000000000001bdfa       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+ .debug_info    0x000000000001be1c      0x25c CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_info    0x000000000001c078       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
+ .debug_info    0x000000000001c09e       0x26 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
+ .debug_info    0x000000000001c0c4       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+ .debug_info    0x000000000001c0e6      0x254 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_info    0x000000000001c33a       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+ .debug_info    0x000000000001c35c      0x2bf CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
+ .debug_info    0x000000000001c61b     0x21b1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_info    0x000000000001e7cc       0x22 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .debug_info    0x000000000001e7ee      0xbcd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_info    0x000000000001f3bb     0x1b94 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_info    0x0000000000020f4f       0x26 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_info    0x0000000000020f75      0xa81 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_info    0x00000000000219f6      0x92a /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
+ .debug_info    0x0000000000022320      0xe80 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_info    0x00000000000231a0      0x942 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
+ .debug_info    0x0000000000023ae2      0x98e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+ .debug_info    0x0000000000024470       0x26 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
+ .debug_info    0x0000000000024496       0xee /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+ .debug_info    0x0000000000024584     0x1ed0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_info    0x0000000000026454      0x1bf /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+ .debug_info    0x0000000000026613      0xce5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+ .debug_info    0x00000000000272f8     0x147f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_info    0x0000000000028777      0x3f0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_info    0x0000000000028b67      0xc48 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
+ .debug_info    0x00000000000297af      0xe04 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_info    0x000000000002a5b3      0xccd /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+ .debug_info    0x000000000002b280     0x20bc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+ .debug_info    0x000000000002d33c      0xbe1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
+ .debug_info    0x000000000002df1d       0xd2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+ .debug_info    0x000000000002dfef       0xce /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+ .debug_info    0x000000000002e0bd      0x110 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+ .debug_info    0x000000000002e1cd      0xc89 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+ .debug_info    0x000000000002ee56       0xb8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
 
-.debug_abbrev   0x0000000000000000     0x7850
- .debug_abbrev  0x0000000000000000      0x4ac CMakeFiles/pico_motor_controller.dir/main.c.o
- .debug_abbrev  0x00000000000004ac      0x49a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .debug_abbrev  0x0000000000000946       0xf4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
- .debug_abbrev  0x0000000000000a3a      0x2d3 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
- .debug_abbrev  0x0000000000000d0d      0x1de CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
- .debug_abbrev  0x0000000000000eeb      0x1a3 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
- .debug_abbrev  0x000000000000108e      0x54a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
- .debug_abbrev  0x00000000000015d8       0xee CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
- .debug_abbrev  0x00000000000016c6      0x3e2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
- .debug_abbrev  0x0000000000001aa8      0x617 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
- .debug_abbrev  0x00000000000020bf      0x49d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
- .debug_abbrev  0x000000000000255c      0x324 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
- .debug_abbrev  0x0000000000002880      0x4fa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
- .debug_abbrev  0x0000000000002d7a      0x1c6 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
- .debug_abbrev  0x0000000000002f40      0x141 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
- .debug_abbrev  0x0000000000003081      0x1ba CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
- .debug_abbrev  0x000000000000323b      0x11a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
- .debug_abbrev  0x0000000000003355      0x16f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
- .debug_abbrev  0x00000000000034c4      0x252 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
- .debug_abbrev  0x0000000000003716      0x246 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
- .debug_abbrev  0x000000000000395c       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
- .debug_abbrev  0x000000000000396e       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
- .debug_abbrev  0x0000000000003980       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
- .debug_abbrev  0x0000000000003992      0x179 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
- .debug_abbrev  0x0000000000003b0b       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
- .debug_abbrev  0x0000000000003b1f       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
- .debug_abbrev  0x0000000000003b33       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
- .debug_abbrev  0x0000000000003b45      0x166 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
- .debug_abbrev  0x0000000000003cab       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
- .debug_abbrev  0x0000000000003cbd       0xad CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
- .debug_abbrev  0x0000000000003d6a      0x517 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .debug_abbrev  0x0000000000004281       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
- .debug_abbrev  0x0000000000004293      0x32f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
- .debug_abbrev  0x00000000000045c2      0x59e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
- .debug_abbrev  0x0000000000004b60       0x14 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_abbrev  0x0000000000004b74      0x241 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
- .debug_abbrev  0x0000000000004db5      0x1b8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
- .debug_abbrev  0x0000000000004f6d      0x2f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
- .debug_abbrev  0x0000000000005263      0x1f0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
- .debug_abbrev  0x0000000000005453      0x23d /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
- .debug_abbrev  0x0000000000005690       0x14 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
- .debug_abbrev  0x00000000000056a4       0x8f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
- .debug_abbrev  0x0000000000005733      0x4a5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
- .debug_abbrev  0x0000000000005bd8      0x10f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
- .debug_abbrev  0x0000000000005ce7      0x2a1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
- .debug_abbrev  0x0000000000005f88      0x3d2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
- .debug_abbrev  0x000000000000635a      0x1a9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
- .debug_abbrev  0x0000000000006503      0x22b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
- .debug_abbrev  0x000000000000672e      0x2f5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
- .debug_abbrev  0x0000000000006a23      0x269 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
- .debug_abbrev  0x0000000000006c8c      0x4bc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
- .debug_abbrev  0x0000000000007148      0x2d0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
- .debug_abbrev  0x0000000000007418       0x7b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
- .debug_abbrev  0x0000000000007493       0x7b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
- .debug_abbrev  0x000000000000750e       0x8f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
- .debug_abbrev  0x000000000000759d      0x251 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
- .debug_abbrev  0x00000000000077ee       0x62 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
+.debug_abbrev   0x0000000000000000     0x7892
+ .debug_abbrev  0x0000000000000000      0x4ee CMakeFiles/pico_motor_controller.dir/main.c.o
+ .debug_abbrev  0x00000000000004ee      0x49a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .debug_abbrev  0x0000000000000988       0xf4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+ .debug_abbrev  0x0000000000000a7c      0x2d3 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_abbrev  0x0000000000000d4f      0x1de CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_abbrev  0x0000000000000f2d      0x1a3 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_abbrev  0x00000000000010d0      0x54a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_abbrev  0x000000000000161a       0xee CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_abbrev  0x0000000000001708      0x3e2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_abbrev  0x0000000000001aea      0x617 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_abbrev  0x0000000000002101      0x49d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_abbrev  0x000000000000259e      0x324 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_abbrev  0x00000000000028c2      0x4fa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_abbrev  0x0000000000002dbc      0x1c6 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_abbrev  0x0000000000002f82      0x141 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_abbrev  0x00000000000030c3      0x1ba CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_abbrev  0x000000000000327d      0x11a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_abbrev  0x0000000000003397      0x16f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_abbrev  0x0000000000003506      0x252 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_abbrev  0x0000000000003758      0x246 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_abbrev  0x000000000000399e       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+ .debug_abbrev  0x00000000000039b0       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+ .debug_abbrev  0x00000000000039c2       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+ .debug_abbrev  0x00000000000039d4      0x179 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_abbrev  0x0000000000003b4d       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
+ .debug_abbrev  0x0000000000003b61       0x14 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
+ .debug_abbrev  0x0000000000003b75       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+ .debug_abbrev  0x0000000000003b87      0x166 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_abbrev  0x0000000000003ced       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+ .debug_abbrev  0x0000000000003cff       0xad CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
+ .debug_abbrev  0x0000000000003dac      0x517 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_abbrev  0x00000000000042c3       0x12 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .debug_abbrev  0x00000000000042d5      0x32f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_abbrev  0x0000000000004604      0x59e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_abbrev  0x0000000000004ba2       0x14 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_abbrev  0x0000000000004bb6      0x241 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_abbrev  0x0000000000004df7      0x1b8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
+ .debug_abbrev  0x0000000000004faf      0x2f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_abbrev  0x00000000000052a5      0x1f0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
+ .debug_abbrev  0x0000000000005495      0x23d /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+ .debug_abbrev  0x00000000000056d2       0x14 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
+ .debug_abbrev  0x00000000000056e6       0x8f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+ .debug_abbrev  0x0000000000005775      0x4a5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_abbrev  0x0000000000005c1a      0x10f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+ .debug_abbrev  0x0000000000005d29      0x2a1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+ .debug_abbrev  0x0000000000005fca      0x3d2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_abbrev  0x000000000000639c      0x1a9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_abbrev  0x0000000000006545      0x22b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
+ .debug_abbrev  0x0000000000006770      0x2f5 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_abbrev  0x0000000000006a65      0x269 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+ .debug_abbrev  0x0000000000006cce      0x4bc /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+ .debug_abbrev  0x000000000000718a      0x2d0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
+ .debug_abbrev  0x000000000000745a       0x7b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+ .debug_abbrev  0x00000000000074d5       0x7b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+ .debug_abbrev  0x0000000000007550       0x8f /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+ .debug_abbrev  0x00000000000075df      0x251 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+ .debug_abbrev  0x0000000000007830       0x62 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
 
-.debug_loc      0x0000000000000000    0x269f0
- .debug_loc     0x0000000000000000     0x545a CMakeFiles/pico_motor_controller.dir/main.c.o
- .debug_loc     0x000000000000545a     0x2907 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .debug_loc     0x0000000000007d61      0x6c7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
- .debug_loc     0x0000000000008428      0x154 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
- .debug_loc     0x000000000000857c       0xb5 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
- .debug_loc     0x0000000000008631     0x1d55 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
- .debug_loc     0x000000000000a386       0x4d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
- .debug_loc     0x000000000000a3d3     0x1261 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
- .debug_loc     0x000000000000b634     0x3ffd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
- .debug_loc     0x000000000000f631     0x2553 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
- .debug_loc     0x0000000000011b84     0x1476 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
- .debug_loc     0x0000000000012ffa     0x35f0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
- .debug_loc     0x00000000000165ea      0x28f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
- .debug_loc     0x0000000000016879       0x57 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
- .debug_loc     0x00000000000168d0      0x4bb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
- .debug_loc     0x0000000000016d8b       0x71 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
- .debug_loc     0x0000000000016dfc       0xbc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
- .debug_loc     0x0000000000016eb8      0x1fb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
- .debug_loc     0x00000000000170b3       0xa7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
- .debug_loc     0x000000000001715a       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
- .debug_loc     0x000000000001719e       0x74 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
- .debug_loc     0x0000000000017212     0x3c08 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .debug_loc     0x000000000001ae1a      0x5d6 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
- .debug_loc     0x000000000001b3f0     0x1567 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
- .debug_loc     0x000000000001c957      0x299 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
- .debug_loc     0x000000000001cbf0      0xef0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
- .debug_loc     0x000000000001dae0       0x79 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
- .debug_loc     0x000000000001db59       0x90 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
- .debug_loc     0x000000000001dbe9     0x363e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
- .debug_loc     0x0000000000021227      0x2b2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
- .debug_loc     0x00000000000214d9      0x4e3 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
- .debug_loc     0x00000000000219bc     0x17f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
- .debug_loc     0x00000000000231b2      0x8f1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
- .debug_loc     0x0000000000023aa3       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
- .debug_loc     0x0000000000023ac8      0x1f2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
- .debug_loc     0x0000000000023cba      0x18e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
- .debug_loc     0x0000000000023e48     0x2687 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
- .debug_loc     0x00000000000264cf      0x1e0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
- .debug_loc     0x00000000000266af       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
- .debug_loc     0x00000000000266d4       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
- .debug_loc     0x00000000000266f9      0x1a0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
- .debug_loc     0x0000000000026899      0x157 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+.debug_loc      0x0000000000000000    0x26f0d
+ .debug_loc     0x0000000000000000     0x5977 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .debug_loc     0x0000000000005977     0x2907 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .debug_loc     0x000000000000827e      0x6c7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_loc     0x0000000000008945      0x154 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_loc     0x0000000000008a99       0xb5 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_loc     0x0000000000008b4e     0x1d55 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_loc     0x000000000000a8a3       0x4d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_loc     0x000000000000a8f0     0x1261 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_loc     0x000000000000bb51     0x3ffd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_loc     0x000000000000fb4e     0x2553 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_loc     0x00000000000120a1     0x1476 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_loc     0x0000000000013517     0x35f0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_loc     0x0000000000016b07      0x28f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_loc     0x0000000000016d96       0x57 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_loc     0x0000000000016ded      0x4bb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_loc     0x00000000000172a8       0x71 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_loc     0x0000000000017319       0xbc CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_loc     0x00000000000173d5      0x1fb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_loc     0x00000000000175d0       0xa7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_loc     0x0000000000017677       0x44 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_loc     0x00000000000176bb       0x74 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_loc     0x000000000001772f     0x3c08 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_loc     0x000000000001b337      0x5d6 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_loc     0x000000000001b90d     0x1567 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_loc     0x000000000001ce74      0x299 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_loc     0x000000000001d10d      0xef0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_loc     0x000000000001dffd       0x79 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+ .debug_loc     0x000000000001e076       0x90 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+ .debug_loc     0x000000000001e106     0x363e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_loc     0x0000000000021744      0x2b2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+ .debug_loc     0x00000000000219f6      0x4e3 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+ .debug_loc     0x0000000000021ed9     0x17f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_loc     0x00000000000236cf      0x8f1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_loc     0x0000000000023fc0       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
+ .debug_loc     0x0000000000023fe5      0x1f2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_loc     0x00000000000241d7      0x18e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+ .debug_loc     0x0000000000024365     0x2687 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+ .debug_loc     0x00000000000269ec      0x1e0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
+ .debug_loc     0x0000000000026bcc       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+ .debug_loc     0x0000000000026bf1       0x25 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+ .debug_loc     0x0000000000026c16      0x1a0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+ .debug_loc     0x0000000000026db6      0x157 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
 
 .debug_aranges  0x0000000000000000     0x1100
  .debug_aranges
@@ -3552,218 +3560,218 @@ LOAD linker stubs
  .debug_aranges
                 0x00000000000010e8       0x18 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
 
-.debug_ranges   0x0000000000000000     0xdf60
- .debug_ranges  0x0000000000000000     0x5aa8 CMakeFiles/pico_motor_controller.dir/main.c.o
- .debug_ranges  0x0000000000005aa8      0xc50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .debug_ranges  0x00000000000066f8       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
- .debug_ranges  0x0000000000006710      0x440 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
- .debug_ranges  0x0000000000006b50       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
- .debug_ranges  0x0000000000006c28       0xa8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
- .debug_ranges  0x0000000000006cd0      0xa80 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
- .debug_ranges  0x0000000000007750       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
- .debug_ranges  0x0000000000007778      0xcd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
- .debug_ranges  0x0000000000008448     0x1e10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
- .debug_ranges  0x000000000000a258      0xe68 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
- .debug_ranges  0x000000000000b0c0      0x820 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
- .debug_ranges  0x000000000000b8e0      0xc80 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
- .debug_ranges  0x000000000000c560       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
- .debug_ranges  0x000000000000c638       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
- .debug_ranges  0x000000000000c670      0x138 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
- .debug_ranges  0x000000000000c7a8       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
- .debug_ranges  0x000000000000c7c8       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
- .debug_ranges  0x000000000000c820       0xb0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
- .debug_ranges  0x000000000000c8d0       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
- .debug_ranges  0x000000000000c8f8       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
- .debug_ranges  0x000000000000c950       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
- .debug_ranges  0x000000000000c998      0x148 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
- .debug_ranges  0x000000000000cae0       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
- .debug_ranges  0x000000000000cb18      0x130 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
- .debug_ranges  0x000000000000cc48       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
- .debug_ranges  0x000000000000cc60       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
- .debug_ranges  0x000000000000cc90      0x500 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .debug_ranges  0x000000000000d190       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
- .debug_ranges  0x000000000000d1b0      0x130 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
- .debug_ranges  0x000000000000d2e0      0x8d0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
- .debug_ranges  0x000000000000dbb0       0x40 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
- .debug_ranges  0x000000000000dbf0       0x50 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
- .debug_ranges  0x000000000000dc40       0xe0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
- .debug_ranges  0x000000000000dd20       0x88 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
- .debug_ranges  0x000000000000dda8       0x20 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
- .debug_ranges  0x000000000000ddc8       0x20 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
- .debug_ranges  0x000000000000dde8      0x178 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+.debug_ranges   0x0000000000000000     0xde28
+ .debug_ranges  0x0000000000000000     0x5970 CMakeFiles/pico_motor_controller.dir/main.c.o
+ .debug_ranges  0x0000000000005970      0xc50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .debug_ranges  0x00000000000065c0       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+ .debug_ranges  0x00000000000065d8      0x440 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_ranges  0x0000000000006a18       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_ranges  0x0000000000006af0       0xa8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_ranges  0x0000000000006b98      0xa80 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_ranges  0x0000000000007618       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_ranges  0x0000000000007640      0xcd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_ranges  0x0000000000008310     0x1e10 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_ranges  0x000000000000a120      0xe68 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_ranges  0x000000000000af88      0x820 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_ranges  0x000000000000b7a8      0xc80 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_ranges  0x000000000000c428       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_ranges  0x000000000000c500       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_ranges  0x000000000000c538      0x138 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_ranges  0x000000000000c670       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_ranges  0x000000000000c690       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_ranges  0x000000000000c6e8       0xb0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_ranges  0x000000000000c798       0x28 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_ranges  0x000000000000c7c0       0x58 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+ .debug_ranges  0x000000000000c818       0x48 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+ .debug_ranges  0x000000000000c860      0x148 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+ .debug_ranges  0x000000000000c9a8       0x38 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_ranges  0x000000000000c9e0      0x130 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+ .debug_ranges  0x000000000000cb10       0x18 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_ranges  0x000000000000cb28       0x30 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+ .debug_ranges  0x000000000000cb58      0x500 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_ranges  0x000000000000d058       0x20 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .debug_ranges  0x000000000000d078      0x130 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_ranges  0x000000000000d1a8      0x8d0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_ranges  0x000000000000da78       0x40 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_ranges  0x000000000000dab8       0x50 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_ranges  0x000000000000db08       0xe0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_ranges  0x000000000000dbe8       0x88 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_ranges  0x000000000000dc70       0x20 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_ranges  0x000000000000dc90       0x20 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_ranges  0x000000000000dcb0      0x178 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
 
-.debug_line     0x0000000000000000    0x1d905
- .debug_line    0x0000000000000000     0x3b14 CMakeFiles/pico_motor_controller.dir/main.c.o
- .debug_line    0x0000000000003b14     0x1af7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
- .debug_line    0x000000000000560b      0x1f8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
- .debug_line    0x0000000000005803      0x8b7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
- .debug_line    0x00000000000060ba      0x444 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
- .debug_line    0x00000000000064fe      0x314 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
- .debug_line    0x0000000000006812     0x1729 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
- .debug_line    0x0000000000007f3b      0x24a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
- .debug_line    0x0000000000008185     0x12ce CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
- .debug_line    0x0000000000009453     0x2f96 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
- .debug_line    0x000000000000c3e9     0x1d68 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
- .debug_line    0x000000000000e151     0x1133 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
- .debug_line    0x000000000000f284     0x2009 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
- .debug_line    0x000000000001128d      0x4b2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
- .debug_line    0x000000000001173f      0x29e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
- .debug_line    0x00000000000119dd      0x339 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
- .debug_line    0x0000000000011d16      0x2cb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
- .debug_line    0x0000000000011fe1      0x26a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
- .debug_line    0x000000000001224b      0x5f1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
- .debug_line    0x000000000001283c      0x4be CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
- .debug_line    0x0000000000012cfa      0x139 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
- .debug_line    0x0000000000012e33      0x322 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
- .debug_line    0x0000000000013155      0x483 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
- .debug_line    0x00000000000135d8      0x3ba CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
- .debug_line    0x0000000000013992       0x99 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
- .debug_line    0x0000000000013a2b       0x9b CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
- .debug_line    0x0000000000013ac6      0x3fa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
- .debug_line    0x0000000000013ec0      0x2df CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
- .debug_line    0x000000000001419f       0xc5 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
- .debug_line    0x0000000000014264      0x118 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
- .debug_line    0x000000000001437c     0x17d1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
- .debug_line    0x0000000000015b4d       0xc8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
- .debug_line    0x0000000000015c15      0x819 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
- .debug_line    0x000000000001642e     0x1411 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
- .debug_line    0x000000000001783f       0x60 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_line    0x000000000001789f      0x1d1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
- .debug_line    0x0000000000017a70       0xe4 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
- .debug_line    0x0000000000017b54      0x8e2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
- .debug_line    0x0000000000018436      0x13e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
- .debug_line    0x0000000000018574      0x183 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
- .debug_line    0x00000000000186f7       0xb0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
- .debug_line    0x00000000000187a7      0x172 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
- .debug_line    0x0000000000018919     0x1583 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
- .debug_line    0x0000000000019e9c      0x1a8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
- .debug_line    0x000000000001a044      0x47d /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
- .debug_line    0x000000000001a4c1      0xaea /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
- .debug_line    0x000000000001afab      0x3fd /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
- .debug_line    0x000000000001b3a8      0x161 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
- .debug_line    0x000000000001b509      0x245 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
- .debug_line    0x000000000001b74e      0x200 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
- .debug_line    0x000000000001b94e     0x17e1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
- .debug_line    0x000000000001d12f      0x27e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
- .debug_line    0x000000000001d3ad       0xae /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
- .debug_line    0x000000000001d45b       0xad /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
- .debug_line    0x000000000001d508      0x1a9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
- .debug_line    0x000000000001d6b1      0x1f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
- .debug_line    0x000000000001d8a7       0x5e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
+.debug_line     0x0000000000000000    0x1da20
+ .debug_line    0x0000000000000000     0x3c2f CMakeFiles/pico_motor_controller.dir/main.c.o
+ .debug_line    0x0000000000003c2f     0x1af7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+ .debug_line    0x0000000000005726      0x1f8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+ .debug_line    0x000000000000591e      0x8b7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_line    0x00000000000061d5      0x444 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_line    0x0000000000006619      0x314 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_line    0x000000000000692d     0x1729 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_line    0x0000000000008056      0x24a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_line    0x00000000000082a0     0x12ce CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_line    0x000000000000956e     0x2f96 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_line    0x000000000000c504     0x1d68 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_line    0x000000000000e26c     0x1133 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_line    0x000000000000f39f     0x2009 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_line    0x00000000000113a8      0x4b2 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_line    0x000000000001185a      0x29e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_line    0x0000000000011af8      0x339 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_line    0x0000000000011e31      0x2cb CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_line    0x00000000000120fc      0x26a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_line    0x0000000000012366      0x5f1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_line    0x0000000000012957      0x4be CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_line    0x0000000000012e15      0x139 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+ .debug_line    0x0000000000012f4e      0x322 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+ .debug_line    0x0000000000013270      0x483 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+ .debug_line    0x00000000000136f3      0x3ba CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_line    0x0000000000013aad       0x99 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
+ .debug_line    0x0000000000013b46       0x9b CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
+ .debug_line    0x0000000000013be1      0x3fa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+ .debug_line    0x0000000000013fdb      0x2df CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_line    0x00000000000142ba       0xc5 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+ .debug_line    0x000000000001437f      0x118 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
+ .debug_line    0x0000000000014497     0x17d1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_line    0x0000000000015c68       0xc8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .debug_line    0x0000000000015d30      0x819 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_line    0x0000000000016549     0x1411 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_line    0x000000000001795a       0x60 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_line    0x00000000000179ba      0x1d1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_line    0x0000000000017b8b       0xe4 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
+ .debug_line    0x0000000000017c6f      0x8e2 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_line    0x0000000000018551      0x13e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
+ .debug_line    0x000000000001868f      0x183 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+ .debug_line    0x0000000000018812       0xb0 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
+ .debug_line    0x00000000000188c2      0x172 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+ .debug_line    0x0000000000018a34     0x1583 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_line    0x0000000000019fb7      0x1a8 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+ .debug_line    0x000000000001a15f      0x47d /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+ .debug_line    0x000000000001a5dc      0xaea /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_line    0x000000000001b0c6      0x3fd /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_line    0x000000000001b4c3      0x161 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
+ .debug_line    0x000000000001b624      0x245 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_line    0x000000000001b869      0x200 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+ .debug_line    0x000000000001ba69     0x17e1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+ .debug_line    0x000000000001d24a      0x27e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
+ .debug_line    0x000000000001d4c8       0xae /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+ .debug_line    0x000000000001d576       0xad /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+ .debug_line    0x000000000001d623      0x1a9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+ .debug_line    0x000000000001d7cc      0x1f6 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+ .debug_line    0x000000000001d9c2       0x5e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
 
-.debug_str      0x0000000000000000     0x64c1
- .debug_str     0x0000000000000000     0x168c CMakeFiles/pico_motor_controller.dir/main.c.o
-                                       0x17fa (size before relaxing)
- .debug_str     0x000000000000168c      0x5aa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
+.debug_str      0x0000000000000000     0x6580
+ .debug_str     0x0000000000000000     0x174b CMakeFiles/pico_motor_controller.dir/main.c.o
+                                       0x18c4 (size before relaxing)
+ .debug_str     0x000000000000174b      0x5aa CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_gpio/gpio.c.o
                                         0xcb0 (size before relaxing)
- .debug_str     0x0000000000001c36       0x91 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
+ .debug_str     0x0000000000001cf5       0x91 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_platform_panic/panic.c.o
                                         0x20e (size before relaxing)
- .debug_str     0x0000000000001cc7      0x1b7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
+ .debug_str     0x0000000000001d86      0x1b7 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/hardware_claim/claim.c.o
                                         0x382 (size before relaxing)
- .debug_str     0x0000000000001e7e       0xd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
+ .debug_str     0x0000000000001f3d       0xd0 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync/sync.c.o
                                         0x326 (size before relaxing)
- .debug_str     0x0000000000001f4e       0x66 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
+ .debug_str     0x000000000000200d       0x66 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_sync_spin_lock/sync_spin_lock.c.o
                                         0x248 (size before relaxing)
- .debug_str     0x0000000000001fb4      0x4ad CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
+ .debug_str     0x0000000000002073      0x4ad CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_irq/irq.c.o
                                         0xa6f (size before relaxing)
- .debug_str     0x0000000000002461       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
+ .debug_str     0x0000000000002520       0x60 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/lock_core.c.o
                                         0x214 (size before relaxing)
- .debug_str     0x00000000000024c1      0x228 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
+ .debug_str     0x0000000000002580      0x228 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_sync/mutex.c.o
                                         0x7bb (size before relaxing)
- .debug_str     0x00000000000026e9      0x9ff CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
+ .debug_str     0x00000000000027a8      0x9ff CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/common/pico_time/time.c.o
                                        0x11ac (size before relaxing)
- .debug_str     0x00000000000030e8      0x1c9 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
+ .debug_str     0x00000000000031a7      0x1c9 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_timer/timer.c.o
                                         0x9f9 (size before relaxing)
- .debug_str     0x00000000000032b1      0x241 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
+ .debug_str     0x0000000000003370      0x241 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_uart/uart.c.o
                                         0xfc6 (size before relaxing)
- .debug_str     0x00000000000034f2      0x509 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
+ .debug_str     0x00000000000035b1      0x509 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_clocks/clocks.c.o
                                         0xe8f (size before relaxing)
- .debug_str     0x00000000000039fb       0x79 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
+ .debug_str     0x0000000000003aba       0x79 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_pll/pll.c.o
                                         0x467 (size before relaxing)
- .debug_str     0x0000000000003a74       0xcd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
+ .debug_str     0x0000000000003b33       0xcd CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_ticks/ticks.c.o
                                         0x28a (size before relaxing)
- .debug_str     0x0000000000003b41      0x18a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
+ .debug_str     0x0000000000003c00      0x18a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bootrom/bootrom.c.o
                                         0x327 (size before relaxing)
- .debug_str     0x0000000000003ccb       0x79 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
+ .debug_str     0x0000000000003d8a       0x79 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/hardware_xosc/xosc.c.o
                                         0x23f (size before relaxing)
- .debug_str     0x0000000000003d44       0xee CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
+ .debug_str     0x0000000000003e03       0xee CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime/runtime.c.o
                                         0x295 (size before relaxing)
- .debug_str     0x0000000000003e32      0x2d4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
+ .debug_str     0x0000000000003ef1      0x2d4 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init.c.o
                                         0x799 (size before relaxing)
- .debug_str     0x0000000000004106       0x66 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
+ .debug_str     0x00000000000041c5       0x66 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_runtime_init/runtime_init_clocks.c.o
                                         0x466 (size before relaxing)
- .debug_str     0x000000000000416c       0x57 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
+ .debug_str     0x000000000000422b       0x57 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_bit_ops/bit_ops_aeabi.S.o
                                          0x92 (size before relaxing)
- .debug_str     0x00000000000041c3       0x4e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
+ .debug_str     0x0000000000004282       0x4e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_divider/divider_hardware.S.o
                                          0x95 (size before relaxing)
- .debug_str     0x0000000000004211       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
+ .debug_str     0x00000000000042d0       0x50 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_aeabi_rp2040.S.o
                                          0x97 (size before relaxing)
- .debug_str     0x0000000000004261       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
+ .debug_str     0x0000000000004320       0xd8 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_init_rom_rp2040.c.o
                                         0x2ba (size before relaxing)
- .debug_str     0x0000000000004339       0x56 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
+ .debug_str     0x00000000000043f8       0x56 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_double/double_v1_rom_shim_rp2040.S.o
                                          0x9d (size before relaxing)
- .debug_str     0x000000000000438f       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
+ .debug_str     0x000000000000444e       0x54 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_int64_ops/pico_int64_ops_aeabi.S.o
                                          0x9b (size before relaxing)
- .debug_str     0x00000000000043e3       0x4e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
+ .debug_str     0x00000000000044a2       0x4e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_aeabi_rp2040.S.o
                                          0x95 (size before relaxing)
- .debug_str     0x0000000000004431       0x8f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
+ .debug_str     0x00000000000044f0       0x8f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_float/float_init_rom_rp2040.c.o
                                         0x29f (size before relaxing)
- .debug_str     0x00000000000044c0       0x4b CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
+ .debug_str     0x000000000000457f       0x4b CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_mem_ops/mem_ops_aeabi.S.o
                                          0x92 (size before relaxing)
- .debug_str     0x000000000000450b      0x24d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
+ .debug_str     0x00000000000045ca      0x24d CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_standard_binary_info/standard_binary_info.c.o
                                         0x3e5 (size before relaxing)
- .debug_str     0x0000000000004758      0x27e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
+ .debug_str     0x0000000000004817      0x27e CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_printf/printf.c.o
                                         0x4e1 (size before relaxing)
- .debug_str     0x00000000000049d6       0x3f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
+ .debug_str     0x0000000000004a95       0x3f CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_crt0/crt0.S.o
                                          0x86 (size before relaxing)
- .debug_str     0x0000000000004a15      0x32a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
+ .debug_str     0x0000000000004ad4      0x32a CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_clib_interface/newlib_interface.c.o
                                         0x795 (size before relaxing)
- .debug_str     0x0000000000004d3f      0x2f1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
+ .debug_str     0x0000000000004dfe      0x2f1 CMakeFiles/pico_motor_controller.dir/home/dabom_user/pico/pico-sdk/src/rp2_common/pico_stdio/stdio.c.o
                                         0xb0f (size before relaxing)
- .debug_str     0x0000000000005030       0xa6 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
- .debug_str     0x00000000000050d6      0x4a7 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
+ .debug_str     0x00000000000050ef       0xa6 /usr/lib/gcc/arm-none-eabi/10.3.1/thumb/v6-m/nofp/libgcc.a(_dvmd_tls.o)
+ .debug_str     0x0000000000005195      0x4a7 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-callocr.o)
                                         0x5b4 (size before relaxing)
- .debug_str     0x000000000000557d       0xaa /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
+ .debug_str     0x000000000000563c       0xaa /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-impure.o)
                                         0x57b (size before relaxing)
- .debug_str     0x0000000000005627      0x1c1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
+ .debug_str     0x00000000000056e6      0x1c1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mallocr.o)
                                         0x780 (size before relaxing)
- .debug_str     0x00000000000057e8       0x4c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
+ .debug_str     0x00000000000058a7       0x4c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mlock.o)
                                         0x588 (size before relaxing)
- .debug_str     0x0000000000005834       0x3c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
+ .debug_str     0x00000000000058f3       0x3c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sbrkr.o)
                                         0x572 (size before relaxing)
- .debug_str     0x0000000000005870       0xa1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
+ .debug_str     0x000000000000592f       0xa1 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strcmp.o)
                                          0xad (size before relaxing)
- .debug_str     0x0000000000005911       0x4e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
+ .debug_str     0x00000000000059d0       0x4e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strlen-stub.o)
                                         0x1c5 (size before relaxing)
- .debug_str     0x000000000000595f      0x473 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
+ .debug_str     0x0000000000005a1e      0x473 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtod.o)
                                         0xb52 (size before relaxing)
- .debug_str     0x0000000000005dd2       0xb9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
+ .debug_str     0x0000000000005e91       0xb9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strtok_r.o)
                                         0x1d2 (size before relaxing)
- .debug_str     0x0000000000005e8b       0x2e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
+ .debug_str     0x0000000000005f4a       0x2e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-freer.o)
                                         0x6ca (size before relaxing)
- .debug_str     0x0000000000005eb9       0xeb /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
+ .debug_str     0x0000000000005f78       0xeb /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-gethex.o)
                                         0x996 (size before relaxing)
- .debug_str     0x0000000000005fa4       0x42 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
+ .debug_str     0x0000000000006063       0x42 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-gdtoa-hexnan.o)
                                         0x2cb (size before relaxing)
- .debug_str     0x0000000000005fe6       0xc9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
+ .debug_str     0x00000000000060a5       0xc9 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-lnumeric.o)
                                         0x792 (size before relaxing)
- .debug_str     0x00000000000060af       0x7c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
+ .debug_str     0x000000000000616e       0x7c /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-locale.o)
                                         0x7cb (size before relaxing)
- .debug_str     0x000000000000612b       0x55 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
+ .debug_str     0x00000000000061ea       0x55 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mbtowc_r.o)
                                         0x790 (size before relaxing)
- .debug_str     0x0000000000006180       0x90 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
+ .debug_str     0x000000000000623f       0x90 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-mprec.o)
                                         0x88d (size before relaxing)
- .debug_str     0x0000000000006210       0x5e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
+ .debug_str     0x00000000000062cf       0x5e /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-reent.o)
                                         0x59a (size before relaxing)
- .debug_str     0x000000000000626e      0x109 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
+ .debug_str     0x000000000000632d      0x109 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-s_nan.o)
                                         0x1b2 (size before relaxing)
- .debug_str     0x0000000000006377       0x34 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
+ .debug_str     0x0000000000006436       0x34 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-sf_nan.o)
                                         0x1b8 (size before relaxing)
- .debug_str     0x00000000000063ab       0x35 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
+ .debug_str     0x000000000000646a       0x35 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-strncmp.o)
                                         0x1a2 (size before relaxing)
- .debug_str     0x00000000000063e0       0x56 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
+ .debug_str     0x000000000000649f       0x56 /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-wctomb_r.o)
                                         0x797 (size before relaxing)
- .debug_str     0x0000000000006436       0x8b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
+ .debug_str     0x00000000000064f5       0x8b /usr/lib/gcc/arm-none-eabi/10.3.1/../../../arm-none-eabi/lib/thumb/v6-m/nofp/libg.a(lib_a-ctype_.o)
                                         0x198 (size before relaxing)
 
 .comment        0x0000000000000000       0x33

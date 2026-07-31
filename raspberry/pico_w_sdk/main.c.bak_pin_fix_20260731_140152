@@ -24,30 +24,18 @@
 #define RIGHT_PWM_PIN 4
 #define RIGHT_DIR_PIN 5
 
-/* 4개 모터 엔코더 */
-#define LEFT_FRONT_ENCODER_A_PIN 6
-#define LEFT_FRONT_ENCODER_B_PIN 8
-
-#define RIGHT_FRONT_ENCODER_A_PIN 10
-#define RIGHT_FRONT_ENCODER_B_PIN 11
-
-#define LEFT_REAR_ENCODER_A_PIN 12
-#define LEFT_REAR_ENCODER_B_PIN 13
-
-#define RIGHT_REAR_ENCODER_A_PIN 14
-#define RIGHT_REAR_ENCODER_B_PIN 15
-
-/* 추가 출력 장치 */
-#define SPEAKER_PIN 16
-#define MOSFET_PIN 20
+/* 좌·우 엔코더 */
+#define LEFT_ENCODER_A_PIN 6
+#define LEFT_ENCODER_B_PIN 7
+#define RIGHT_ENCODER_A_PIN 8
+#define RIGHT_ENCODER_B_PIN 9
 
 /*
- * 전진 시 tick이 감소하는 바퀴는 해당 값을 -1로 변경한다.
+ * 전진 시 tick 부호가 반대인 경우 1과 -1을 바꾼다.
+ * 우선 실제 quadrature 신호를 그대로 사용한다.
  */
-#define LEFT_FRONT_ENCODER_SIGN 1
-#define RIGHT_FRONT_ENCODER_SIGN -1
-#define LEFT_REAR_ENCODER_SIGN 1
-#define RIGHT_REAR_ENCODER_SIGN -1
+#define LEFT_ENCODER_SIGN 1
+#define RIGHT_ENCODER_SIGN 1
 
 #define ENCODER_REPORT_INTERVAL_MS 50U
 
@@ -84,15 +72,11 @@ static uint64_t last_move_ms = 0;
  * GPIO IRQ에서 갱신한다.
  * int32_t 읽기/쓰기는 RP2040에서 원자적으로 처리된다.
  */
-static volatile int32_t left_front_encoder_ticks = 0;
-static volatile int32_t right_front_encoder_ticks = 0;
-static volatile int32_t left_rear_encoder_ticks = 0;
-static volatile int32_t right_rear_encoder_ticks = 0;
+static volatile int32_t left_encoder_ticks = 0;
+static volatile int32_t right_encoder_ticks = 0;
 
-static volatile uint8_t left_front_encoder_state = 0;
-static volatile uint8_t right_front_encoder_state = 0;
-static volatile uint8_t left_rear_encoder_state = 0;
-static volatile uint8_t right_rear_encoder_state = 0;
+static volatile uint8_t left_encoder_state = 0;
+static volatile uint8_t right_encoder_state = 0;
 
 static bool encoder_stream_enabled = false;
 static uint64_t last_encoder_report_ms = 0;
@@ -150,28 +134,6 @@ static uint8_t read_encoder_state(
 }
 
 
-static void update_encoder(
-    volatile int32_t *ticks,
-    volatile uint8_t *previous_state,
-    uint a_pin,
-    uint b_pin,
-    int sign
-) {
-    const uint8_t new_state = read_encoder_state(
-        a_pin,
-        b_pin
-    );
-
-    const uint8_t index = (uint8_t)(
-        ((*previous_state) << 2U) |
-        new_state
-    );
-
-    *ticks += quadrature_table[index] * sign;
-    *previous_state = new_state;
-}
-
-
 static void encoder_gpio_callback(
     uint gpio,
     uint32_t events
@@ -179,105 +141,82 @@ static void encoder_gpio_callback(
     (void)events;
 
     if (
-        gpio == LEFT_FRONT_ENCODER_A_PIN ||
-        gpio == LEFT_FRONT_ENCODER_B_PIN
+        gpio == LEFT_ENCODER_A_PIN ||
+        gpio == LEFT_ENCODER_B_PIN
     ) {
-        update_encoder(
-            &left_front_encoder_ticks,
-            &left_front_encoder_state,
-            LEFT_FRONT_ENCODER_A_PIN,
-            LEFT_FRONT_ENCODER_B_PIN,
-            LEFT_FRONT_ENCODER_SIGN
+        const uint8_t new_state = read_encoder_state(
+            LEFT_ENCODER_A_PIN,
+            LEFT_ENCODER_B_PIN
         );
+
+        const uint8_t index = (uint8_t)(
+            (left_encoder_state << 2U) |
+            new_state
+        );
+
+        left_encoder_ticks +=
+            quadrature_table[index] *
+            LEFT_ENCODER_SIGN;
+
+        left_encoder_state = new_state;
     }
 
     if (
-        gpio == RIGHT_FRONT_ENCODER_A_PIN ||
-        gpio == RIGHT_FRONT_ENCODER_B_PIN
+        gpio == RIGHT_ENCODER_A_PIN ||
+        gpio == RIGHT_ENCODER_B_PIN
     ) {
-        update_encoder(
-            &right_front_encoder_ticks,
-            &right_front_encoder_state,
-            RIGHT_FRONT_ENCODER_A_PIN,
-            RIGHT_FRONT_ENCODER_B_PIN,
-            RIGHT_FRONT_ENCODER_SIGN
+        const uint8_t new_state = read_encoder_state(
+            RIGHT_ENCODER_A_PIN,
+            RIGHT_ENCODER_B_PIN
         );
-    }
 
-    if (
-        gpio == LEFT_REAR_ENCODER_A_PIN ||
-        gpio == LEFT_REAR_ENCODER_B_PIN
-    ) {
-        update_encoder(
-            &left_rear_encoder_ticks,
-            &left_rear_encoder_state,
-            LEFT_REAR_ENCODER_A_PIN,
-            LEFT_REAR_ENCODER_B_PIN,
-            LEFT_REAR_ENCODER_SIGN
+        const uint8_t index = (uint8_t)(
+            (right_encoder_state << 2U) |
+            new_state
         );
-    }
 
-    if (
-        gpio == RIGHT_REAR_ENCODER_A_PIN ||
-        gpio == RIGHT_REAR_ENCODER_B_PIN
-    ) {
-        update_encoder(
-            &right_rear_encoder_ticks,
-            &right_rear_encoder_state,
-            RIGHT_REAR_ENCODER_A_PIN,
-            RIGHT_REAR_ENCODER_B_PIN,
-            RIGHT_REAR_ENCODER_SIGN
-        );
+        right_encoder_ticks +=
+            quadrature_table[index] *
+            RIGHT_ENCODER_SIGN;
+
+        right_encoder_state = new_state;
     }
 }
 
 
 static void encoder_init(void) {
     const uint encoder_pins[] = {
-        LEFT_FRONT_ENCODER_A_PIN,
-        LEFT_FRONT_ENCODER_B_PIN,
-        RIGHT_FRONT_ENCODER_A_PIN,
-        RIGHT_FRONT_ENCODER_B_PIN,
-        LEFT_REAR_ENCODER_A_PIN,
-        LEFT_REAR_ENCODER_B_PIN,
-        RIGHT_REAR_ENCODER_A_PIN,
-        RIGHT_REAR_ENCODER_B_PIN
+        LEFT_ENCODER_A_PIN,
+        LEFT_ENCODER_B_PIN,
+        RIGHT_ENCODER_A_PIN,
+        RIGHT_ENCODER_B_PIN
     };
-
-    const size_t encoder_pin_count =
-        sizeof(encoder_pins) /
-        sizeof(encoder_pins[0]);
 
     for (
         size_t index = 0;
-        index < encoder_pin_count;
+        index < sizeof(encoder_pins) / sizeof(encoder_pins[0]);
         index++
     ) {
         const uint pin = encoder_pins[index];
 
         gpio_init(pin);
         gpio_set_dir(pin, GPIO_IN);
+
+        /*
+         * 오픈 컬렉터 및 부동 입력을 방지한다.
+         * 외부 pull-up이 있어도 함께 사용 가능하다.
+         */
         gpio_pull_up(pin);
     }
 
-    left_front_encoder_state = read_encoder_state(
-        LEFT_FRONT_ENCODER_A_PIN,
-        LEFT_FRONT_ENCODER_B_PIN
+    left_encoder_state = read_encoder_state(
+        LEFT_ENCODER_A_PIN,
+        LEFT_ENCODER_B_PIN
     );
 
-    right_front_encoder_state = read_encoder_state(
-        RIGHT_FRONT_ENCODER_A_PIN,
-        RIGHT_FRONT_ENCODER_B_PIN
-    );
-
-    left_rear_encoder_state = read_encoder_state(
-        LEFT_REAR_ENCODER_A_PIN,
-        LEFT_REAR_ENCODER_B_PIN
-    );
-
-    right_rear_encoder_state = read_encoder_state(
-        RIGHT_REAR_ENCODER_A_PIN,
-        RIGHT_REAR_ENCODER_B_PIN
+    right_encoder_state = read_encoder_state(
+        RIGHT_ENCODER_A_PIN,
+        RIGHT_ENCODER_B_PIN
     );
 
     const uint32_t edge_events =
@@ -285,77 +224,71 @@ static void encoder_init(void) {
         GPIO_IRQ_EDGE_FALL;
 
     gpio_set_irq_enabled_with_callback(
-        encoder_pins[0],
+        LEFT_ENCODER_A_PIN,
         edge_events,
         true,
         &encoder_gpio_callback
     );
 
-    for (
-        size_t index = 1;
-        index < encoder_pin_count;
-        index++
-    ) {
-        gpio_set_irq_enabled(
-            encoder_pins[index],
-            edge_events,
-            true
-        );
-    }
+    gpio_set_irq_enabled(
+        LEFT_ENCODER_B_PIN,
+        edge_events,
+        true
+    );
+
+    gpio_set_irq_enabled(
+        RIGHT_ENCODER_A_PIN,
+        edge_events,
+        true
+    );
+
+    gpio_set_irq_enabled(
+        RIGHT_ENCODER_B_PIN,
+        edge_events,
+        true
+    );
 }
 
 
 static void encoder_reset(void) {
-    left_front_encoder_ticks = 0;
-    right_front_encoder_ticks = 0;
-    left_rear_encoder_ticks = 0;
-    right_rear_encoder_ticks = 0;
+    left_encoder_ticks = 0;
+    right_encoder_ticks = 0;
 }
 
 
 static void encoder_snapshot(
-    int32_t *left_front,
-    int32_t *right_front,
-    int32_t *left_rear,
-    int32_t *right_rear
+    int32_t *left_ticks,
+    int32_t *right_ticks
 ) {
-    *left_front = left_front_encoder_ticks;
-    *right_front = right_front_encoder_ticks;
-    *left_rear = left_rear_encoder_ticks;
-    *right_rear = right_rear_encoder_ticks;
+    *left_ticks = left_encoder_ticks;
+    *right_ticks = right_encoder_ticks;
 }
 
 
 static void send_encoder_response(
     const char *prefix
 ) {
-    int32_t left_front = 0;
-    int32_t right_front = 0;
-    int32_t left_rear = 0;
-    int32_t right_rear = 0;
+    int32_t left_ticks = 0;
+    int32_t right_ticks = 0;
 
     encoder_snapshot(
-        &left_front,
-        &right_front,
-        &left_rear,
-        &right_rear
+        &left_ticks,
+        &right_ticks
     );
 
     const uint64_t timestamp_ms = to_ms_since_boot(
         get_absolute_time()
     );
 
-    char message[160];
+    char message[128];
 
     snprintf(
         message,
         sizeof(message),
-        "%s,%ld,%ld,%ld,%ld,%llu",
+        "%s,%ld,%ld,%llu",
         prefix,
-        (long)left_front,
-        (long)right_front,
-        (long)left_rear,
-        (long)right_rear,
+        (long)left_ticks,
+        (long)right_ticks,
         (unsigned long long)timestamp_ms
     );
 

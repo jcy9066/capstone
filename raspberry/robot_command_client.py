@@ -43,6 +43,9 @@ class RobotCommandClient:
         self.ws_reconnect_delay_sec = (
             args.ws_reconnect_delay_sec
         )
+        self.encoder_interval_sec = (
+            args.encoder_interval_sec
+        )
 
         self.running = True
         self.current_mode = "auto"
@@ -128,13 +131,28 @@ class RobotCommandClient:
                         f"[ws] connected: {self.ws_url}"
                     )
 
-                    async for raw_message in websocket:
-                        message = json.loads(raw_message)
-
-                        await self.handle_command(
-                            websocket,
-                            message,
+                    encoder_task = asyncio.create_task(
+                        self.encoder_telemetry_loop(
+                            websocket
                         )
+                    )
+
+                    try:
+                        async for raw_message in websocket:
+                            message = json.loads(raw_message)
+
+                            await self.handle_command(
+                                websocket,
+                                message,
+                            )
+
+                    finally:
+                        encoder_task.cancel()
+
+                        try:
+                            await encoder_task
+                        except asyncio.CancelledError:
+                            pass
 
             except asyncio.CancelledError:
                 raise
@@ -150,6 +168,76 @@ class RobotCommandClient:
                 await asyncio.sleep(
                     self.ws_reconnect_delay_sec
                 )
+
+    async def encoder_telemetry_loop(
+        self,
+        websocket,
+    ) -> None:
+        while self.running:
+            try:
+                await asyncio.to_thread(
+                    self.motor.start_encoder_stream
+                )
+                break
+
+            except Exception as exc:
+                print(
+                    f"[encoder] UART 연결 실패: {exc}"
+                )
+
+                await asyncio.sleep(1.0)
+
+        previous_sequence = -1
+
+        while self.running:
+            snapshot = self.motor.encoder_snapshot()
+
+            if (
+                snapshot is not None
+                and snapshot["sequence"]
+                != previous_sequence
+            ):
+                previous_sequence = snapshot["sequence"]
+
+                message = {
+                    "type": "encoder",
+                    "robot_id": self.robot_id,
+                    "data": {
+                        "sequence": snapshot[
+                            "sequence"
+                        ],
+                        "left_front_ticks": snapshot[
+                            "left_front_ticks"
+                        ],
+                        "right_front_ticks": snapshot[
+                            "right_front_ticks"
+                        ],
+                        "left_rear_ticks": snapshot[
+                            "left_rear_ticks"
+                        ],
+                        "right_rear_ticks": snapshot[
+                            "right_rear_ticks"
+                        ],
+                        "pico_timestamp_ms": snapshot[
+                            "pico_timestamp_ms"
+                        ],
+                        "pi_timestamp": snapshot[
+                            "updated_at"
+                        ],
+                    },
+                }
+
+                await websocket.send(
+                    json.dumps(
+                        message,
+                        separators=(",", ":"),
+                    )
+                )
+
+            await asyncio.sleep(
+                self.encoder_interval_sec
+            )
+
 
     async def handle_command(
         self,
@@ -340,6 +428,17 @@ def parse_args() -> argparse.Namespace:
             os.getenv(
                 "WS_RECONNECT_DELAY_SEC",
                 "1.0",
+            )
+        ),
+    )
+
+    parser.add_argument(
+        "--encoder-interval-sec",
+        type=float,
+        default=float(
+            os.getenv(
+                "ENCODER_INTERVAL_SEC",
+                "0.05",
             )
         ),
     )
