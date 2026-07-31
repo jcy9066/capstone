@@ -32,6 +32,7 @@ if str(PERCEPTION_DIR) not in sys.path:
 from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
+from server.lidar_ros_bridge import LidarRosBridge
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
@@ -218,6 +219,8 @@ class RobotConnectionManager:
 
 
 connections = RobotConnectionManager()
+
+lidar_ros_bridge = None
 
 
 def cuda_status():
@@ -916,7 +919,49 @@ def start_inference_worker():
 
 @app.on_event("startup")
 async def startup():
+    global lidar_ros_bridge
+
     ensure_runtime_model_config(force=True, reason="startup")
+
+    lidar_enabled = (
+        os.getenv("LIDAR_ENABLE", "true")
+        .strip()
+        .lower()
+        in ("1", "true", "yes", "on")
+    )
+
+    if lidar_enabled and lidar_ros_bridge is None:
+        lidar_ros_bridge = LidarRosBridge(
+            ros_topic=os.getenv("LIDAR_ROS_TOPIC", "/scan"),
+            base_frame=os.getenv("LIDAR_BASE_FRAME", "base_link"),
+            lidar_frame=os.getenv("LIDAR_FRAME", "laser"),
+            lidar_x=float(os.getenv("LIDAR_X", "0.0")),
+            lidar_y=float(os.getenv("LIDAR_Y", "0.0")),
+            lidar_z=float(os.getenv("LIDAR_Z", "0.12")),
+            lidar_yaw=float(os.getenv("LIDAR_YAW", "0.0")),
+            dashboard_max_points=int(
+                os.getenv("LIDAR_DASHBOARD_MAX_POINTS", "360")
+            ),
+            use_source_timestamp=(
+                os.getenv(
+                    "LIDAR_USE_SOURCE_TIMESTAMP",
+                    "true",
+                )
+                .strip()
+                .lower()
+                in ("1", "true", "yes", "on")
+            ),
+        )
+        lidar_ros_bridge.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_lidar_bridge():
+    global lidar_ros_bridge
+
+    if lidar_ros_bridge is not None:
+        lidar_ros_bridge.close()
+        lidar_ros_bridge = None
 
 
 @app.get("/")
@@ -1780,6 +1825,123 @@ async def get_stream_status():
         status["gpu_memory_used_mb"] = gpu["gpu_memory_used_mb"]
         status["gpu_error"] = gpu["error"]
         return status
+
+
+@app.websocket("/ws/sensors/{robot_id}/lidar")
+async def lidar_sensor_websocket(
+    websocket: WebSocket,
+    robot_id: str,
+):
+    if lidar_ros_bridge is None:
+        await websocket.close(code=1011)
+        return
+
+    await websocket.accept()
+    lidar_ros_bridge.mark_connected(robot_id)
+
+    print(f"[lidar-ws] connected robot_id={robot_id}")
+
+    try:
+        while True:
+            raw_message = await websocket.receive_text()
+
+            try:
+                message = json.loads(raw_message)
+            except json.JSONDecodeError as exc:
+                print(
+                    f"[lidar-ws] invalid JSON "
+                    f"robot_id={robot_id}: {exc}"
+                )
+                continue
+
+            if not isinstance(message, dict):
+                continue
+
+            message_type = message.get("type")
+
+            if message_type == "sensor_hello":
+                message_robot_id = message.get("robot_id")
+
+                if (
+                    message_robot_id
+                    and message_robot_id != robot_id
+                ):
+                    await websocket.close(code=1008)
+                    return
+
+                continue
+
+            if message_type != "laser_scan":
+                continue
+
+            message_robot_id = message.get("robot_id")
+
+            if message_robot_id and message_robot_id != robot_id:
+                await websocket.close(code=1008)
+                return
+
+            message["robot_id"] = robot_id
+
+            try:
+                dashboard_scan = lidar_ros_bridge.submit(
+                    message
+                )
+            except (ValueError, RuntimeError) as exc:
+                print(
+                    f"[lidar-ws] rejected scan "
+                    f"robot_id={robot_id}: {exc}"
+                )
+                continue
+
+            received_at = time.time()
+
+            with state_lock:
+                navigation_state["robot_id"] = robot_id
+                navigation_state["scan"] = received_payload(
+                    dashboard_scan,
+                    received_at,
+                )
+                navigation_state["scan_updated_at"] = received_at
+
+            stats = lidar_ros_bridge.stats()
+
+            if stats["received"] % 100 == 0:
+                print(
+                    f"[lidar-ws] "
+                    f"robot_id={robot_id} "
+                    f"received={stats['received']} "
+                    f"published={stats['published']} "
+                    f"dropped={stats['dropped']} "
+                    f"points={stats['last_points']}"
+                )
+
+    except WebSocketDisconnect:
+        print(f"[lidar-ws] disconnected robot_id={robot_id}")
+
+    except Exception as exc:
+        print(
+            f"[lidar-ws] error "
+            f"robot_id={robot_id}: {exc}"
+        )
+
+    finally:
+        lidar_ros_bridge.mark_disconnected(robot_id)
+
+
+@app.get("/api/lidar/bridge")
+async def get_lidar_bridge_status():
+    if lidar_ros_bridge is None:
+        return {
+            "ok": False,
+            "enabled": False,
+            "error": "LiDAR ROS bridge is not running",
+        }
+
+    return {
+        "ok": True,
+        "enabled": True,
+        "stats": lidar_ros_bridge.stats(),
+    }
 
 
 @app.websocket("/ws/robot/{robot_id}")
