@@ -6,3 +6,9 @@ opencv-python==4.8.1.78
 python-dotenv==1.2.2
 numpy==1.26.4
 Jinja2==3.1.6
+
+## pi 전용 패키지
+# python-dotenv==1.2.2
+# requests==2.28.2
+# pyserial==3.5
+# websockets==12.0

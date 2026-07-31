@@ -936,10 +936,31 @@ function warnTrespasser() {
 }
 
 // ===================================================
-// 수동/자동 순찰 모드 토글
+// 수동/자동 순찰 모드 및 실제 주행 제어
 // ===================================================
 let currentPatrolMode = 'auto';
+
 const ROBOT_ID = 'pi-01';
+const MANUAL_SPEED = 0.35;
+const COMMAND_REPEAT_MS = 120;
+
+const DRIVE_KEYS = [
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'w',
+    'a',
+    's',
+    'd',
+];
+
+let pointerMoveInterval = null;
+let activePointerButton = null;
+
+const pressedKeys = new Set();
+let keyMoveInterval = null;
+
 
 function directionToCommand(direction) {
     const map = {
@@ -954,143 +975,503 @@ function directionToCommand(direction) {
         '제자리 회전(반시계)': 'rotate_left',
         '제자리 회전(시계)': 'rotate_right',
     };
+
     return map[direction] || direction;
 }
 
-function sendRobotCommand(payload) {
-    return fetch(`/api/robots/${ROBOT_ID}/command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    })
-        .then(response => response.json().then(data => ({ ok: response.ok && data.ok, data })))
-        .then(({ ok, data }) => {
-            if (!ok) console.warn('로봇 명령 전송 실패:', data);
+
+function sendRobotCommand(
+    payload,
+    keepalive = false,
+) {
+    return fetch(
+        `/api/robots/${ROBOT_ID}/command`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            keepalive,
+        },
+    )
+        .then(async response => {
+            const data = await response
+                .json()
+                .catch(() => ({}));
+
+            const ok = (
+                response.ok
+                && data.ok
+            );
+
+            if (!ok) {
+                console.warn(
+                    '로봇 명령 전송 실패:',
+                    data,
+                );
+            }
+
             return ok;
         })
         .catch(error => {
-            console.error('로봇 명령 통신 오류:', error);
+            console.error(
+                '로봇 명령 통신 오류:',
+                error,
+            );
+
             return false;
         });
 }
 
-function togglePatrolMode() {
-    const targetMode = currentPatrolMode === 'auto' ? 'manual' : 'auto';
-    const modeName   = targetMode === 'auto' ? '자동' : '수동';
 
-    if (confirm(`${modeName} 순찰 모드로 변경하시겠습니까?`)) {
-        currentPatrolMode = targetMode;
-        sendRobotCommand({ type: 'mode', mode: currentPatrolMode });
+function setPatrolModeUi(mode) {
+    const switchUi = document.getElementById(
+        'mode-switch-ui',
+    );
 
-        const switchUi    = document.getElementById('mode-switch-ui');
-        const dPadArea    = document.getElementById('d-pad-area');
-        const labelAuto   = document.getElementById('label-auto');
-        const labelManual = document.getElementById('label-manual');
+    const dPadArea = document.getElementById(
+        'd-pad-area',
+    );
 
-        if (currentPatrolMode === 'auto') {
-            switchUi.classList.remove('manual');
-            dPadArea.classList.add('disabled');
-            labelAuto.classList.add('active');   labelAuto.classList.remove('inactive');
-            labelManual.classList.add('inactive'); labelManual.classList.remove('active');
-        } else {
-            switchUi.classList.add('manual');
-            dPadArea.classList.remove('disabled');
-            labelAuto.classList.add('inactive');   labelAuto.classList.remove('active');
-            labelManual.classList.add('active');   labelManual.classList.remove('inactive');
-        }
+    const labelAuto = document.getElementById(
+        'label-auto',
+    );
+
+    const labelManual = document.getElementById(
+        'label-manual',
+    );
+
+    if (mode === 'auto') {
+        switchUi.classList.remove('manual');
+        dPadArea.classList.add('disabled');
+
+        labelAuto.classList.add('active');
+        labelAuto.classList.remove('inactive');
+
+        labelManual.classList.add('inactive');
+        labelManual.classList.remove('active');
+
+    } else {
+        switchUi.classList.add('manual');
+        dPadArea.classList.remove('disabled');
+
+        labelAuto.classList.add('inactive');
+        labelAuto.classList.remove('active');
+
+        labelManual.classList.add('active');
+        labelManual.classList.remove('inactive');
     }
 }
 
-// ===================================================
-// 로봇 이동 명령 (요구사항 5: 키보드 방향키 지원)
-// ===================================================
-window.moveRobot = function(direction) {
-    if (currentPatrolMode !== 'manual') {
-        console.warn("수동 순찰 모드에서만 로봇을 조작할 수 있습니다.");
+
+async function togglePatrolMode() {
+    const targetMode = (
+        currentPatrolMode === 'auto'
+            ? 'manual'
+            : 'auto'
+    );
+
+    const modeName = (
+        targetMode === 'auto'
+            ? '자동'
+            : '수동'
+    );
+
+    if (
+        !confirm(
+            `${modeName} 순찰 모드로 변경하시겠습니까?`,
+        )
+    ) {
         return;
     }
-    console.log(`로봇 이동 명령: ${direction}`);
-    sendRobotCommand({
+
+    stopAllLocalInputs(false);
+
+    const ok = await sendRobotCommand({
+        type: 'mode',
+        mode: targetMode,
+    });
+
+    if (!ok) {
+        alert(
+            '로봇이 연결되지 않아 '
+            + '모드를 변경하지 못했습니다.',
+        );
+        return;
+    }
+
+    currentPatrolMode = targetMode;
+    setPatrolModeUi(currentPatrolMode);
+}
+
+
+window.moveRobot = function moveRobot(direction) {
+    if (currentPatrolMode !== 'manual') {
+        console.warn(
+            '수동 순찰 모드에서만 '
+            + '로봇을 조작할 수 있습니다.',
+        );
+
+        return Promise.resolve(false);
+    }
+
+    return sendRobotCommand({
         type: 'move',
         direction: directionToCommand(direction),
-        speed: 0.4,
+        speed: MANUAL_SPEED,
     });
 };
 
-function stopRobot(reason = 'manual_stop') {
-    sendRobotCommand({ type: 'stop', reason });
+
+function stopRobot(
+    reason = 'manual_stop',
+    keepalive = false,
+) {
+    return sendRobotCommand(
+        {
+            type: 'stop',
+            reason,
+        },
+        keepalive,
+    );
 }
 
-// 키보드 방향키 이벤트 (요구사항 5)
-// 상하좌우 단독 → 4방향 / 두 키 동시 → 대각선 4방향
-const pressedKeys = new Set();
 
-// d-pad 버튼 인덱스 (3x3 그리드, rotate 제외)
-// 0:↖  1:↑  2:↗
-// 3:←  4:center(회전들)  5:→
-// 6:↙  7:↓  8:↘
-// querySelectorAll('.d-pad .d-btn:not(.rotate-btn)') 순서와 동일
+function emergencyStopRobot(
+    reason = 'dashboard_emergency_stop',
+    keepalive = false,
+) {
+    stopAllLocalInputs(false);
+
+    return sendRobotCommand(
+        {
+            type: 'emergency_stop',
+            reason,
+        },
+        keepalive,
+    );
+}
+
+
+function startButtonMove(
+    direction,
+    event,
+) {
+    if (currentPatrolMode !== 'manual') {
+        return;
+    }
+
+    event.preventDefault();
+
+    stopPointerMove(false);
+
+    activePointerButton = event.currentTarget;
+    activePointerButton.classList.add(
+        'active-key',
+    );
+
+    if (
+        activePointerButton.setPointerCapture
+        && event.pointerId !== undefined
+    ) {
+        try {
+            activePointerButton.setPointerCapture(
+                event.pointerId,
+            );
+        } catch (_) {
+            // Pointer capture 미지원 브라우저
+        }
+    }
+
+    moveRobot(direction);
+
+    pointerMoveInterval = setInterval(
+        () => moveRobot(direction),
+        COMMAND_REPEAT_MS,
+    );
+}
+
+
+function stopPointerMove(
+    sendStop = true,
+    reason = 'button_release',
+) {
+    const wasActive = (
+        pointerMoveInterval !== null
+        || activePointerButton !== null
+    );
+
+    if (pointerMoveInterval !== null) {
+        clearInterval(pointerMoveInterval);
+        pointerMoveInterval = null;
+    }
+
+    if (activePointerButton) {
+        activePointerButton.classList.remove(
+            'active-key',
+        );
+
+        activePointerButton = null;
+    }
+
+    if (
+        sendStop
+        && wasActive
+        && currentPatrolMode === 'manual'
+    ) {
+        stopRobot(reason);
+    }
+}
+
+
+function normalizeDriveKey(key) {
+    if (
+        [
+            'ArrowUp',
+            'ArrowDown',
+            'ArrowLeft',
+            'ArrowRight',
+        ].includes(key)
+    ) {
+        return key;
+    }
+
+    return String(key).toLowerCase();
+}
+
 
 function getDirectionFromKeys() {
-    const up    = pressedKeys.has('ArrowUp')    || pressedKeys.has('w');
-    const down  = pressedKeys.has('ArrowDown')  || pressedKeys.has('s');
-    const left  = pressedKeys.has('ArrowLeft')  || pressedKeys.has('a');
-    const right = pressedKeys.has('ArrowRight') || pressedKeys.has('d');
+    const up = (
+        pressedKeys.has('ArrowUp')
+        || pressedKeys.has('w')
+    );
 
-    if (up   && left)  return { direction: '↖', btnIndex: 0 };
-    if (up   && right) return { direction: '↗', btnIndex: 2 };
-    if (down && left)  return { direction: '↙', btnIndex: 6 };
-    if (down && right) return { direction: '↘', btnIndex: 8 };
-    if (up)            return { direction: '↑', btnIndex: 1 };
-    if (down)          return { direction: '↓', btnIndex: 7 };
-    if (left)          return { direction: '←', btnIndex: 3 };
-    if (right)         return { direction: '→', btnIndex: 5 };
+    const down = (
+        pressedKeys.has('ArrowDown')
+        || pressedKeys.has('s')
+    );
+
+    const left = (
+        pressedKeys.has('ArrowLeft')
+        || pressedKeys.has('a')
+    );
+
+    const right = (
+        pressedKeys.has('ArrowRight')
+        || pressedKeys.has('d')
+    );
+
+    if (up && left) {
+        return { direction: '↖' };
+    }
+
+    if (up && right) {
+        return { direction: '↗' };
+    }
+
+    if (down && left) {
+        return { direction: '↙' };
+    }
+
+    if (down && right) {
+        return { direction: '↘' };
+    }
+
+    if (up) {
+        return { direction: '↑' };
+    }
+
+    if (down) {
+        return { direction: '↓' };
+    }
+
+    if (left) {
+        return { direction: '←' };
+    }
+
+    if (right) {
+        return { direction: '→' };
+    }
+
     return null;
 }
 
-let keyMoveInterval = null;
+
+function highlightKeyboardButton(direction) {
+    const buttons = document.querySelectorAll(
+        '.d-pad .d-btn[data-drive-direction]',
+    );
+
+    buttons.forEach(button => {
+        button.classList.toggle(
+            'active-key',
+            button.dataset.driveDirection
+                === direction,
+        );
+    });
+}
+
 
 function startKeyMove() {
-    if (keyMoveInterval) return;
-    keyMoveInterval = setInterval(() => {
-        if (currentPatrolMode !== 'manual') return;
+    if (keyMoveInterval !== null) {
+        return;
+    }
+
+    const sendCurrentKeyDirection = () => {
+        if (currentPatrolMode !== 'manual') {
+            return;
+        }
+
         const result = getDirectionFromKeys();
-        if (!result) return;
+
+        if (!result) {
+            return;
+        }
 
         moveRobot(result.direction);
 
-        // 해당 버튼 시각적 하이라이트
-        const buttons = document.querySelectorAll('.d-pad .d-btn:not(.rotate-btn)');
-        buttons.forEach(b => b.classList.remove('active-key'));
-        if (result.btnIndex !== -1 && buttons[result.btnIndex]) {
-            buttons[result.btnIndex].classList.add('active-key');
-        }
-    }, 100);
+        highlightKeyboardButton(
+            result.direction,
+        );
+    };
+
+    sendCurrentKeyDirection();
+
+    keyMoveInterval = setInterval(
+        sendCurrentKeyDirection,
+        COMMAND_REPEAT_MS,
+    );
 }
 
-function stopKeyMove() {
-    if (keyMoveInterval) { clearInterval(keyMoveInterval); keyMoveInterval = null; }
-    const buttons = document.querySelectorAll('.d-pad .d-btn:not(.rotate-btn)');
-    buttons.forEach(b => b.classList.remove('active-key'));
-    if (currentPatrolMode === 'manual') stopRobot('key_release');
-}
 
-document.addEventListener('keydown', (event) => {
-    const dirKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'];
-    if (!dirKeys.includes(event.key)) return;
-    event.preventDefault();
-    if (currentPatrolMode !== 'manual') return;
-
-    pressedKeys.add(event.key);
-    startKeyMove();
-});
-
-document.addEventListener('keyup', (event) => {
-    pressedKeys.delete(event.key);
-    if (pressedKeys.size === 0 || !['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].some(k => pressedKeys.has(k))) {
-        stopKeyMove();
+function stopKeyMove(
+    sendStop = true,
+    reason = 'key_release',
+) {
+    if (keyMoveInterval !== null) {
+        clearInterval(keyMoveInterval);
+        keyMoveInterval = null;
     }
-});
+
+    pressedKeys.clear();
+    highlightKeyboardButton(null);
+
+    if (
+        sendStop
+        && currentPatrolMode === 'manual'
+    ) {
+        stopRobot(reason);
+    }
+}
+
+
+function stopAllLocalInputs(
+    sendStop = true,
+    reason = 'input_cancelled',
+) {
+    stopPointerMove(false);
+    stopKeyMove(false);
+
+    if (
+        sendStop
+        && currentPatrolMode === 'manual'
+    ) {
+        stopRobot(reason);
+    }
+}
+
+
+document.addEventListener(
+    'keydown',
+    event => {
+        const key = normalizeDriveKey(
+            event.key,
+        );
+
+        if (!DRIVE_KEYS.includes(key)) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (currentPatrolMode !== 'manual') {
+            return;
+        }
+
+        pressedKeys.add(key);
+        startKeyMove();
+    },
+);
+
+
+document.addEventListener(
+    'keyup',
+    event => {
+        const key = normalizeDriveKey(
+            event.key,
+        );
+
+        if (!DRIVE_KEYS.includes(key)) {
+            return;
+        }
+
+        pressedKeys.delete(key);
+
+        if (!getDirectionFromKeys()) {
+            stopKeyMove(
+                true,
+                'key_release',
+            );
+        }
+    },
+);
+
+
+document.addEventListener(
+    'pointerup',
+    () => stopPointerMove(
+        true,
+        'button_release',
+    ),
+);
+
+
+document.addEventListener(
+    'pointercancel',
+    () => stopPointerMove(
+        true,
+        'pointer_cancel',
+    ),
+);
+
+
+window.addEventListener(
+    'blur',
+    () => {
+        if (currentPatrolMode === 'manual') {
+            emergencyStopRobot(
+                'window_blur',
+            );
+        }
+    },
+);
+
+
+document.addEventListener(
+    'visibilitychange',
+    () => {
+        if (
+            document.hidden
+            && currentPatrolMode === 'manual'
+        ) {
+            emergencyStopRobot(
+                'page_hidden',
+                true,
+            );
+        }
+    },
+);
 
 // ===================================================
 // 사이드바 메뉴 (요구사항 7)

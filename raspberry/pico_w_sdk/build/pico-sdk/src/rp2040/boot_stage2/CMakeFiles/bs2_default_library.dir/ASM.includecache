@@ -1,0 +1,10 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/pico-sdk/src/rp2040/boot_stage2/bs2_default_padded_checksummed.S
+

@@ -1164,3 +1164,24 @@ body.login-page {
     .login-brand h1 { font-size: 21px; }
     .auth-actions { grid-template-columns: 1fr; }
 }
+
+/* 수동 주행 버튼 안전 입력 */
+.d-btn {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.stop-btn {
+    background-color: rgba(225, 29, 72, 0.12);
+    border-color: rgba(225, 29, 72, 0.45);
+    color: var(--danger-color);
+    font-size: 11px;
+}
+
+.stop-btn:hover,
+.stop-btn:active {
+    background-color: rgba(225, 29, 72, 0.24);
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
