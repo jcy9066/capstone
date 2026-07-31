@@ -91,9 +91,6 @@ class MotorController:
         self._reader_running = False
         self._reader_thread: Optional[threading.Thread] = None
 
-        # Pico가 재부팅되어 READY를 다시 보낸 상태.
-        self._pico_reboot_event = threading.Event()
-
         self._encoder_state = {
             "sequence": 0,
             "left_front_ticks": 0,
@@ -187,11 +184,7 @@ class MotorController:
             return
 
         if line.startswith("READY,"):
-            with self._state_lock:
-                self.current_motion = "stop"
-
-            self._pico_reboot_event.set()
-            print(f"[motor] Pico reboot detected: {line}")
+            print(f"[motor] {line}")
             return
 
         if line.startswith(("OK", "ERR")):
@@ -409,20 +402,6 @@ class MotorController:
         ).strip("_")
 
         return (cleaned or "stop")[:48]
-
-    def pico_reboot_pending(self) -> bool:
-        """Pico 재부팅 후 복구가 필요한지 반환한다."""
-        return self._pico_reboot_event.is_set()
-
-    def recover_after_pico_reboot(self) -> None:
-        """Pico 재부팅 후 모터 정지와 encoder stream을 복구한다."""
-        with self._command_lock:
-            self._ensure_connected_locked()
-            self._exchange_locked("STOP,pico_reboot_recovery")
-            self._exchange_locked("ENC_STREAM,1")
-
-        self._pico_reboot_event.clear()
-        print("[motor] encoder stream recovered after Pico reboot")
 
     def start_encoder_stream(self) -> None:
         """Pico UART 연결 및 엔코더 스트림 시작."""

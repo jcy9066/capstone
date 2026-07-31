@@ -190,18 +190,6 @@ class RobotCommandClient:
         previous_sequence = -1
 
         while self.running:
-            if self.motor.pico_reboot_pending():
-                try:
-                    await asyncio.to_thread(
-                        self.motor.recover_after_pico_reboot
-                    )
-                except Exception as exc:
-                    print(
-                        f"[encoder] Pico reboot 복구 실패: {exc}"
-                    )
-                    await asyncio.sleep(1.0)
-                    continue
-
             snapshot = self.motor.encoder_snapshot()
 
             if (
