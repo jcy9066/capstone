@@ -1,6 +1,4 @@
 /home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/CMakeFiles/pico_motor_controller.dir
-/home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/CMakeFiles/picotoolForceReconfigure.dir
-/home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/CMakeFiles/picotoolBuild.dir
 /home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/CMakeFiles/edit_cache.dir
 /home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/CMakeFiles/rebuild_cache.dir
 /home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/pico-sdk/CMakeFiles/edit_cache.dir

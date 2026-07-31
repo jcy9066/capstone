@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import threading
 import time
+from collections import deque
 from typing import Optional
 
 try:
@@ -35,12 +36,20 @@ class MotorControllerError(RuntimeError):
 
 class MotorController:
     """
-    Raspberry Pi에서 UART를 통해 Pico W로 모터 명령을 전달한다.
+    Raspberry Pi ↔ Pico W 단일 UART reader 구조.
 
-    프로토콜:
+    Pi → Pico:
+      PING
       MOVE,<direction>,<speed>
       STOP,<reason>
-      PING
+      ENC_RESET
+      ENC_STREAM,0|1
+
+    Pico → Pi:
+      OK,...
+      ERR,...
+      EVENT,FAILSAFE_STOP
+      EVENT,ENC,<LF>,<RF>,<LR>,<RR>,<pico_ms>
     """
 
     def __init__(
@@ -52,26 +61,200 @@ class MotorController:
     ) -> None:
         self.serial_port = serial_port
         self.baudrate = int(baudrate)
-        self.command_timeout_sec = max(0.1, float(command_timeout_sec))
-        self.serial_timeout_sec = max(0.05, float(serial_timeout_sec))
+        self.command_timeout_sec = max(
+            0.1,
+            float(command_timeout_sec),
+        )
+        self.serial_timeout_sec = max(
+            0.1,
+            float(serial_timeout_sec),
+        )
 
         self.last_command_at = 0.0
         self.current_motion = "stop"
 
         self._serial: Optional[object] = None
-        self._lock = threading.RLock()
+
+        # 명령은 반드시 한 번에 하나만 전송한다.
+        self._command_lock = threading.RLock()
+
+        # 연결 상태와 encoder 상태 보호.
+        self._state_lock = threading.RLock()
+
+        # UART write 보호.
+        self._write_lock = threading.Lock()
+
+        # reader thread가 받은 OK/ERR 응답 전달.
+        self._response_condition = threading.Condition()
+        self._response_queue: deque[str] = deque()
+
+        self._reader_running = False
+        self._reader_thread: Optional[threading.Thread] = None
+
+        self._encoder_state = {
+            "sequence": 0,
+            "left_front_ticks": 0,
+            "right_front_ticks": 0,
+            "left_rear_ticks": 0,
+            "right_rear_ticks": 0,
+            "pico_timestamp_ms": 0,
+            "updated_at": None,
+            "updated_monotonic": None,
+        }
 
     @property
     def connected(self) -> bool:
-        with self._lock:
+        with self._state_lock:
             return bool(
                 self._serial is not None
                 and self._serial.is_open
             )
 
+    def encoder_snapshot(self) -> Optional[dict]:
+        with self._state_lock:
+            if self._encoder_state["updated_at"] is None:
+                return None
+
+            snapshot = dict(self._encoder_state)
+
+        updated_monotonic = snapshot.pop(
+            "updated_monotonic",
+            None,
+        )
+
+        snapshot["age_sec"] = (
+            None
+            if updated_monotonic is None
+            else max(
+                0.0,
+                time.monotonic() - updated_monotonic,
+            )
+        )
+
+        return snapshot
+
+    def _serial_device(self):
+        with self._state_lock:
+            return self._serial
+
+    def _handle_encoder_event(self, line: str) -> None:
+        parts = line.split(",")
+
+        # EVENT,ENC,LF,RF,LR,RR,pico_ms
+        if len(parts) != 7:
+            print(f"[motor] 잘못된 encoder event: {line}")
+            return
+
+        try:
+            left_front = int(parts[2])
+            right_front = int(parts[3])
+            left_rear = int(parts[4])
+            right_rear = int(parts[5])
+            pico_timestamp_ms = int(parts[6])
+        except ValueError:
+            print(f"[motor] encoder 숫자 변환 실패: {line}")
+            return
+
+        with self._state_lock:
+            sequence = int(
+                self._encoder_state["sequence"]
+            ) + 1
+
+            self._encoder_state = {
+                "sequence": sequence,
+                "left_front_ticks": left_front,
+                "right_front_ticks": right_front,
+                "left_rear_ticks": left_rear,
+                "right_rear_ticks": right_rear,
+                "pico_timestamp_ms": pico_timestamp_ms,
+                "updated_at": time.time(),
+                "updated_monotonic": time.monotonic(),
+            }
+
+    def _handle_uart_line(self, line: str) -> None:
+        if line.startswith("EVENT,ENC,"):
+            self._handle_encoder_event(line)
+            return
+
+        if line == "EVENT,FAILSAFE_STOP":
+            with self._state_lock:
+                self.current_motion = "stop"
+
+            print("[motor] Pico failsafe stop")
+            return
+
+        if line.startswith("READY,"):
+            print(f"[motor] {line}")
+            return
+
+        if line.startswith(("OK", "ERR")):
+            with self._response_condition:
+                self._response_queue.append(line)
+                self._response_condition.notify_all()
+            return
+
+        print(f"[motor] unknown UART line: {line}")
+
+    def _reader_loop(self, serial_device) -> None:
+        try:
+            while True:
+                with self._state_lock:
+                    active = (
+                        self._reader_running
+                        and self._serial is serial_device
+                    )
+
+                if not active:
+                    break
+
+                try:
+                    raw = serial_device.readline()
+                except Exception as exc:
+                    with self._state_lock:
+                        still_active = (
+                            self._serial is serial_device
+                        )
+
+                    if still_active:
+                        print(
+                            f"[motor] UART reader 오류: {exc}"
+                        )
+
+                    break
+
+                if not raw:
+                    continue
+
+                line = raw.decode(
+                    "ascii",
+                    errors="replace",
+                ).strip()
+
+                if line:
+                    self._handle_uart_line(line)
+
+        finally:
+            try:
+                serial_device.close()
+            except Exception:
+                pass
+
+            with self._state_lock:
+                if self._serial is serial_device:
+                    self._serial = None
+                    self._reader_running = False
+
+            with self._response_condition:
+                self._response_condition.notify_all()
+
     def _close_serial_locked(self) -> None:
-        serial_device = self._serial
-        self._serial = None
+        with self._state_lock:
+            serial_device = self._serial
+            reader_thread = self._reader_thread
+
+            self._serial = None
+            self._reader_running = False
+            self._reader_thread = None
 
         if serial_device is not None:
             try:
@@ -79,69 +262,126 @@ class MotorController:
             except Exception:
                 pass
 
+        with self._response_condition:
+            self._response_queue.clear()
+            self._response_condition.notify_all()
+
+        if (
+            reader_thread is not None
+            and reader_thread is not threading.current_thread()
+        ):
+            reader_thread.join(timeout=0.5)
+
     def _exchange_locked(self, command: str) -> str:
-        if self._serial is None or not self._serial.is_open:
+        serial_device = self._serial_device()
+
+        if serial_device is None or not serial_device.is_open:
             raise MotorControllerError(
                 "Pico W UART가 연결되지 않았습니다."
             )
 
-        try:
-            self._serial.reset_input_buffer()
-            self._serial.write(
-                (command + "\n").encode("ascii")
-            )
-            self._serial.flush()
+        with self._response_condition:
+            self._response_queue.clear()
 
-            response = (
-                self._serial.readline()
-                .decode("ascii", errors="replace")
-                .strip()
-            )
+        try:
+            with self._write_lock:
+                serial_device.write(
+                    (command + "\n").encode("ascii")
+                )
+                serial_device.flush()
         except Exception as exc:
             self._close_serial_locked()
+
             raise MotorControllerError(
-                f"Pico W UART 통신 실패: {exc}"
+                f"Pico W UART 쓰기 실패: {exc}"
             ) from exc
 
-        if not response:
-            self._close_serial_locked()
-            raise MotorControllerError(
-                "Pico W 응답 시간 초과"
-            )
+        deadline = (
+            time.monotonic()
+            + self.serial_timeout_sec
+        )
 
-        if not response.startswith("OK"):
-            raise MotorControllerError(
-                f"Pico W 명령 거부: {response}"
-            )
+        while True:
+            with self._response_condition:
+                while not self._response_queue:
+                    remaining = deadline - time.monotonic()
 
-        return response
+                    if remaining <= 0:
+                        break
+
+                    self._response_condition.wait(
+                        timeout=remaining
+                    )
+
+                if self._response_queue:
+                    response = self._response_queue.popleft()
+                else:
+                    response = None
+
+            if response is not None:
+                if response.startswith("ERR"):
+                    raise MotorControllerError(
+                        f"Pico W 명령 거부: {response}"
+                    )
+
+                return response
+
+            if not self.connected:
+                raise MotorControllerError(
+                    "Pico W UART 연결이 끊겼습니다."
+                )
+
+            if time.monotonic() >= deadline:
+                self._close_serial_locked()
+
+                raise MotorControllerError(
+                    f"Pico W 응답 시간 초과: {command}"
+                )
 
     def _ensure_connected_locked(self) -> None:
-        if self._serial is not None and self._serial.is_open:
+        if self.connected:
             return
 
         if serial is None:
             raise MotorControllerError(
-                "pyserial이 설치되지 않았습니다. "
-                "python3 -m pip install "
-                "-r raspberry/requirements.txt 를 실행하십시오."
+                "pyserial이 설치되지 않았습니다."
             )
 
         try:
-            self._serial = serial.Serial(
+            serial_device = serial.Serial(
                 port=self.serial_port,
                 baudrate=self.baudrate,
-                timeout=self.serial_timeout_sec,
+                timeout=0.05,
                 write_timeout=self.serial_timeout_sec,
             )
 
+            with self._state_lock:
+                self._serial = serial_device
+                self._reader_running = True
+
+                self._reader_thread = threading.Thread(
+                    target=self._reader_loop,
+                    args=(serial_device,),
+                    daemon=True,
+                    name="pico-uart-reader",
+                )
+
+                reader_thread = self._reader_thread
+
+            reader_thread.start()
+
+            # reader thread가 시작될 시간을 준다.
+            time.sleep(0.05)
+
             self._exchange_locked("PING")
             self._exchange_locked("STOP,pi_connected")
+            self._exchange_locked("ENC_STREAM,1")
 
             print(
                 f"[motor] Pico W connected: "
                 f"{self.serial_port} @ {self.baudrate}"
             )
+            print("[motor] encoder stream enabled")
 
         except Exception:
             self._close_serial_locked()
@@ -155,6 +395,30 @@ class MotorController:
         ).strip("_")
 
         return (cleaned or "stop")[:48]
+
+    def start_encoder_stream(self) -> None:
+        """Pico UART 연결 및 엔코더 스트림 시작."""
+        with self._command_lock:
+            self._ensure_connected_locked()
+
+    def reset_encoders(self) -> None:
+        with self._command_lock:
+            self._ensure_connected_locked()
+            self._exchange_locked("ENC_RESET")
+
+            with self._state_lock:
+                sequence = self._encoder_state["sequence"]
+
+                self._encoder_state = {
+                    "sequence": sequence,
+                    "left_front_ticks": 0,
+                    "right_front_ticks": 0,
+                    "left_rear_ticks": 0,
+                    "right_rear_ticks": 0,
+                    "pico_timestamp_ms": 0,
+                    "updated_at": None,
+                    "updated_monotonic": None,
+                }
 
     def move(
         self,
@@ -184,15 +448,16 @@ class MotorController:
             self.stop(reason="zero_speed")
             return
 
-        with self._lock:
+        with self._command_lock:
             self._ensure_connected_locked()
 
             self._exchange_locked(
                 f"MOVE,{direction},{normalized_speed:.3f}"
             )
 
-            self.last_command_at = time.monotonic()
-            self.current_motion = direction
+            with self._state_lock:
+                self.last_command_at = time.monotonic()
+                self.current_motion = direction
 
     def stop(
         self,
@@ -201,9 +466,10 @@ class MotorController:
     ) -> None:
         error: Optional[Exception] = None
 
-        with self._lock:
-            self.current_motion = "stop"
-            self.last_command_at = time.monotonic()
+        with self._command_lock:
+            with self._state_lock:
+                self.current_motion = "stop"
+                self.last_command_at = time.monotonic()
 
             try:
                 self._ensure_connected_locked()
@@ -229,7 +495,7 @@ class MotorController:
             ) from error
 
     def failsafe_tick(self) -> None:
-        with self._lock:
+        with self._state_lock:
             expired = (
                 self.current_motion != "stop"
                 and time.monotonic() - self.last_command_at
@@ -245,10 +511,20 @@ class MotorController:
             )
 
     def close(self) -> None:
-        self.stop(
-            reason="controller_close",
-            suppress_errors=True,
-        )
+        with self._command_lock:
+            if self.connected:
+                try:
+                    self._exchange_locked(
+                        "STOP,controller_close"
+                    )
+                except Exception:
+                    pass
 
-        with self._lock:
+                try:
+                    self._exchange_locked(
+                        "ENC_STREAM,0"
+                    )
+                except Exception:
+                    pass
+
             self._close_serial_locked()
