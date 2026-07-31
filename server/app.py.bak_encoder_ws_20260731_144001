@@ -33,20 +33,13 @@ from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
 from server.lidar_ros_bridge import LidarRosBridge
-from server.encoder_ros_bridge import EncoderRosBridge
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
-STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
-
-app.mount(
-    "/static",
-    StaticFiles(directory=STATIC_DIR),
-    name="static",
-)
+app.mount("/static", StaticFiles(directory=ROOT_DIR / "frontend" / "static"), name="static")
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
@@ -109,18 +102,6 @@ robot_status = {
     "mode": "auto",
     "updated_at": None,
 }
-encoder_state = {
-    "robot_id": SERVER_ROBOT_ID,
-    "sequence": 0,
-    "left_front_ticks": 0,
-    "right_front_ticks": 0,
-    "left_rear_ticks": 0,
-    "right_rear_ticks": 0,
-    "pico_timestamp_ms": 0,
-    "pi_timestamp": None,
-    "updated_at": None,
-}
-
 NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
 NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
     enabled=os.getenv("NAV_DRY_RUN_ENABLED", "true").lower() == "true",
@@ -240,7 +221,6 @@ class RobotConnectionManager:
 connections = RobotConnectionManager()
 
 lidar_ros_bridge = None
-encoder_ros_bridge = None
 
 
 def cuda_status():
@@ -939,7 +919,7 @@ def start_inference_worker():
 
 @app.on_event("startup")
 async def startup():
-    global lidar_ros_bridge, encoder_ros_bridge
+    global lidar_ros_bridge
 
     ensure_runtime_model_config(force=True, reason="startup")
 
@@ -974,33 +954,10 @@ async def startup():
         )
         lidar_ros_bridge.start()
 
-    encoder_enabled = (
-        os.getenv("ENCODER_ROS_ENABLE", "true")
-        .strip()
-        .lower()
-        in ("1", "true", "yes", "on")
-    )
-
-    if (
-        encoder_enabled
-        and encoder_ros_bridge is None
-    ):
-        encoder_ros_bridge = EncoderRosBridge(
-            ros_topic=os.getenv(
-                "ENCODER_ROS_TOPIC",
-                "/wheel_ticks",
-            ),
-        )
-        encoder_ros_bridge.start()
-
 
 @app.on_event("shutdown")
 async def shutdown_lidar_bridge():
-    global lidar_ros_bridge, encoder_ros_bridge
-
-    if encoder_ros_bridge is not None:
-        encoder_ros_bridge.close()
-        encoder_ros_bridge = None
+    global lidar_ros_bridge
 
     if lidar_ros_bridge is not None:
         lidar_ros_bridge.close()
@@ -1383,35 +1340,6 @@ async def get_robot(robot_id: str):
         "status": status,
         "latest_result": result,
         "navigation": navigation,
-    }
-
-
-@app.get("/api/robots/{robot_id}/encoder")
-async def get_robot_encoder(robot_id: str):
-    with state_lock:
-        data = dict(encoder_state)
-
-    if (
-        data.get("updated_at") is None
-        or data.get("robot_id") != robot_id
-    ):
-        return JSONResponse(
-            {
-                "ok": False,
-                "robot_id": robot_id,
-                "error": "encoder unavailable",
-            },
-            status_code=404,
-        )
-
-    data["age_sec"] = max(
-        0.0,
-        time.time() - data["updated_at"],
-    )
-
-    return {
-        "ok": True,
-        "encoder": data,
     }
 
 
@@ -2028,88 +1956,12 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
                     robot_status.update(message.get("data", {}))
                     robot_status["robot_id"] = robot_id
                     robot_status["updated_at"] = time.time()
-            elif message.get("type") == "encoder":
-                data = message.get("data")
-
-                if not isinstance(data, dict):
-                    continue
-
-                try:
-                    received_encoder = {
-                        "robot_id": robot_id,
-                        "sequence": int(
-                            data.get("sequence", 0)
-                        ),
-                        "left_front_ticks": int(
-                            data["left_front_ticks"]
-                        ),
-                        "right_front_ticks": int(
-                            data["right_front_ticks"]
-                        ),
-                        "left_rear_ticks": int(
-                            data["left_rear_ticks"]
-                        ),
-                        "right_rear_ticks": int(
-                            data["right_rear_ticks"]
-                        ),
-                        "pico_timestamp_ms": int(
-                            data["pico_timestamp_ms"]
-                        ),
-                        "pi_timestamp": data.get(
-                            "pi_timestamp"
-                        ),
-                        "updated_at": time.time(),
-                    }
-
-                except (
-                    KeyError,
-                    TypeError,
-                    ValueError,
-                ):
-                    continue
-
-                with state_lock:
-                    encoder_state.update(
-                        received_encoder
-                    )
-
-                if encoder_ros_bridge is not None:
-                    try:
-                        encoder_ros_bridge.submit(
-                            received_encoder
-                        )
-                    except (
-                        ValueError,
-                        RuntimeError,
-                    ) as exc:
-                        print(
-                            f"[encoder-ros] rejected: "
-                            f"{exc}"
-                        )
-
             elif message.get("type") == "ack":
                 print(f"[ws] ack from {robot_id}: {message}")
     except WebSocketDisconnect:
         print(f"[ws] robot disconnected: {robot_id}")
     finally:
         await connections.disconnect(robot_id, websocket)
-
-
-@app.get("/api/encoder/bridge")
-async def get_encoder_bridge_status():
-    if encoder_ros_bridge is None:
-        return {
-            "ok": False,
-            "enabled": False,
-            "error": "Encoder ROS bridge is not running",
-        }
-
-    return {
-        "ok": True,
-        "enabled": True,
-        "topic": encoder_ros_bridge.ros_topic,
-        "stats": encoder_ros_bridge.stats(),
-    }
 
 
 @app.post("/api/robots/{robot_id}/command")
