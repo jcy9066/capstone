@@ -355,6 +355,13 @@ class MotorController:
                 write_timeout=self.serial_timeout_sec,
             )
 
+            # 이전 프로세스가 종료되기 전에 켜 둔 encoder stream을
+            # reader 시작 전에 정리한다.
+            serial_device.write(b"ENC_STREAM,0\n")
+            serial_device.flush()
+            time.sleep(0.1)
+            serial_device.reset_input_buffer()
+
             with self._state_lock:
                 self._serial = serial_device
                 self._reader_running = True
