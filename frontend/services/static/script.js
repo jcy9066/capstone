@@ -1509,3 +1509,32 @@ window.addEventListener('DOMContentLoaded', () => {
         switchUi.classList.remove('manual');
     }
 });
+
+// ===================================================
+// Session logout
+// ===================================================
+async function logout() {
+    const button = document.getElementById('logoutBtn');
+    if (button) button.disabled = true;
+    try {
+        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+        const csrfData = await csrfResponse.json();
+        if (!csrfResponse.ok || !csrfData.csrf_token) {
+            throw new Error('\ubcf4\uc548 \ud1a0\ud070\uc744 \uc900\ube44\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.');
+        }
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrfData.csrf_token },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+            throw new Error(data.detail || '\ub85c\uadf8\uc544\uc6c3\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.');
+        }
+        window.location.assign(data.redirect_url || '/login');
+    } catch (error) {
+        console.error('logout failed:', error);
+        alert(error.message || '\ub85c\uadf8\uc544\uc6c3\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.');
+        if (button) button.disabled = false;
+    }
+}

@@ -15,4 +15,4 @@ navigation/ros/log/
 # ROS2 test map
 navigation/maps/test_map.*
 
-
+tests/

@@ -9,6 +9,7 @@ USE dabom;
 CREATE TABLE `users` (
   `user_id` int NOT NULL AUTO_INCREMENT COMMENT '식별용',
   `email` varchar(100) NOT NULL COMMENT '로그인 ID',
+  `login_id` varchar(20) NOT NULL COMMENT 'login ID',
   `password_hash` varchar(255) NOT NULL COMMENT '해시 암호화 저장용',
   `name` varchar(20) NOT NULL,
   `phone_number` varchar(20) DEFAULT NULL,
@@ -19,9 +20,26 @@ CREATE TABLE `users` (
   `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '소프트 삭제',
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `UK_USERS_EMAIL` (`email`),
+  UNIQUE KEY `UK_USERS_LOGIN_ID` (`login_id`),
   UNIQUE KEY `UK_USERS_EMPLOYEE_NUMBER` (`employee_number`),
-  KEY `IDX_USERS_EMAIL` (`email`)
+  KEY `IDX_USERS_EMAIL` (`email`),
+  KEY `IDX_USERS_LOGIN_ID` (`login_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `email_verifications` (
+  `verification_id` char(36) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `code_hash` char(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `attempts` tinyint unsigned NOT NULL DEFAULT '0',
+  `verified_at` datetime DEFAULT NULL,
+  `consumed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`verification_id`),
+  KEY `IDX_EMAIL_VERIFICATIONS_EMAIL_CREATED` (`email`,`created_at`),
+  KEY `IDX_EMAIL_VERIFICATIONS_EMAIL_STATE` (`email`,`verified_at`,`consumed_at`,`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE `event_log` (
   `event_id` int NOT NULL AUTO_INCREMENT,
