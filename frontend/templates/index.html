@@ -34,6 +34,10 @@
                 <span class="sidebar-info-label">시스템</span>
                 <span class="sidebar-info-value">AI 순찰 로봇 v1.0</span>
             </div>
+            <div class="sidebar-divider"></div>
+            <button class="sidebar-logout-btn" id="logoutBtn" type="button" onclick="logout()">
+                &#x1F6AA; &#xB85C;&#xADF8;&#xC544;&#xC6C3;
+            </button>
         </div>
     </div>
 
@@ -49,12 +53,12 @@
             RAM:
             <span id="sys-ram">0.0</span>%
         </span>
-
+<!--
         <span>
             BAT:
             <span id="sys-battery">100</span>%
         </span>
-
+-->
         <span>
             PING:
             <span id="sys-internet">0</span>
@@ -428,7 +432,7 @@
         </div>
     </div>
 
-    <script src="static/script.js?v=20260622-lidar-live"></script>
+    <script src="static/script.js?v=20260731-auth-logout"></script>
 
     <!-- 실제 모터 구동 기준 방향 재매핑 -->
     <script src="static/control_mapping.js?v=20260730-control-remap"></script>

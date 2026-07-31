@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -20,6 +21,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import ClientDisconnect
+from starlette.middleware.sessions import SessionMiddleware
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT_DIR / ".env"
@@ -32,14 +34,36 @@ if str(PERCEPTION_DIR) not in sys.path:
 from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
-from server.lidar_ros_bridge import LidarRosBridge
-from server.encoder_ros_bridge import EncoderRosBridge
+try:
+    from server.lidar_ros_bridge import LidarRosBridge
+    from server.encoder_ros_bridge import EncoderRosBridge
+except ModuleNotFoundError as bridge_import_error:
+    LidarRosBridge = None
+    EncoderRosBridge = None
+    logging.getLogger(__name__).warning("ROS bridge dependencies are unavailable: %s", bridge_import_error)
+from server.auth_service import AuthError, AuthService
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY") or secrets.token_urlsafe(32)
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+EMAIL_CHALLENGE_COOKIE = "dabom_email_challenge"
+EMAIL_VERIFIED_COOKIE = "dabom_verified_email"
+EMAIL_COOKIE_PATH = "/api/auth"
+if not os.getenv("SESSION_SECRET_KEY"):
+    logging.getLogger(__name__).warning("SESSION_SECRET_KEY is missing; sessions will reset after server restart.")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET_KEY,
+    session_cookie="dabom_session",
+    same_site="lax",
+    https_only=COOKIE_SECURE,
+    max_age=60 * 60 * 8,
+)
+
 STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
 
 app.mount(
@@ -49,7 +73,182 @@ app.mount(
 )
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
+_auth_service = None
+_auth_service_lock = threading.Lock()
+
+
+def get_auth_service():
+    global _auth_service
+    with _auth_service_lock:
+        if _auth_service is None:
+            _auth_service = AuthService()
+        return _auth_service
+
+
+def issue_csrf_token(request: Request) -> str:
+    token = request.session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session["csrf_token"] = token
+    return token
+
+
+def csrf_failure(request: Request):
+    expected = request.session.get("csrf_token")
+    supplied = request.headers.get("X-CSRF-Token", "")
+    if expected and supplied and secrets.compare_digest(expected, supplied):
+        return None
+    return JSONResponse({"ok": False, "detail": "\ubcf4\uc548 \uac80\uc99d\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \ud398\uc774\uc9c0\ub97c \uc0c8\ub85c\uace0\uce68\ud55c \ub4a4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694."}, status_code=403)
+
+
+def auth_client_key(request: Request) -> str:
+    return request.client.host if request.client is not None else "unknown"
+
+
+async def auth_payload(request: Request):
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None, JSONResponse({"ok": False, "detail": "JSON \uc694\uccad \ubcf8\ubb38\uc774 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+    if not isinstance(payload, dict):
+        return None, JSONResponse({"ok": False, "detail": "JSON \uac1d\uccb4\uac00 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+    return payload, None
+
+
+async def call_auth(method_name: str, *args):
+    try:
+        method = getattr(get_auth_service(), method_name)
+        return await asyncio.to_thread(method, *args), None
+    except AuthError as exc:
+        return None, JSONResponse({"ok": False, "detail": exc.message}, status_code=exc.status_code)
+
+
+@app.get("/")
+async def auth_index(request: Request):
+    return RedirectResponse(url="/main" if request.session.get("user") else "/login", status_code=302)
+
+
+@app.get("/login")
+async def auth_login_page(request: Request):
+    if request.session.get("user"):
+        return RedirectResponse(url="/main", status_code=302)
+    return templates.TemplateResponse(request, "login.html", {"csrf_token": issue_csrf_token(request)})
+
+
+@app.get("/main")
+async def auth_main_page(request: Request):
+    if not request.session.get("user"):
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "index.html")
+
+
+@app.post("/api/auth/email/send")
+async def send_signup_email(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    result, error = await call_auth("send_email_verification", payload.get("email"), auth_client_key(request))
+    if error:
+        return error
+    challenge_token = result.pop("challenge_token")
+    response = JSONResponse({"ok": True, **result})
+    response.set_cookie(
+        EMAIL_CHALLENGE_COOKIE, challenge_token, max_age=result["expires_in_sec"],
+        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+    )
+    return response
+
+
+@app.post("/api/auth/email/verify")
+async def verify_signup_email(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    verified_token, error = await call_auth(
+        "verify_email_code", payload.get("email"), payload.get("code"), request.cookies.get(EMAIL_CHALLENGE_COOKIE)
+    )
+    if error:
+        return error
+    response = JSONResponse({"ok": True, "message": "\uc774\uba54\uc77c \uc778\uc99d\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4."})
+    response.delete_cookie(EMAIL_CHALLENGE_COOKIE, path=EMAIL_COOKIE_PATH)
+    response.set_cookie(
+        EMAIL_VERIFIED_COOKIE, verified_token,
+        max_age=get_auth_service().settings.verification_ttl_sec,
+        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+    )
+    return response
+
+
+@app.post("/api/auth/availability")
+async def check_signup_availability(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    result, error = await call_auth("check_availability", payload.get("field"), payload.get("value"))
+    if error:
+        return error
+    return {"ok": True, **result}
+
+
+@app.post("/api/auth/register")
+async def register_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    _, error = await call_auth("register", payload, request.cookies.get(EMAIL_VERIFIED_COOKIE))
+    if error:
+        return error
+    response = JSONResponse({"ok": True, "message": "\ud68c\uc6d0\uac00\uc785\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \ub85c\uadf8\uc778\ud574 \uc8fc\uc138\uc694."})
+    response.delete_cookie(EMAIL_VERIFIED_COOKIE, path=EMAIL_COOKIE_PATH)
+    return response
+
+
+@app.post("/api/auth/login")
+async def authenticate_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    user, error = await call_auth("login", payload.get("login_id"), payload.get("password"), auth_client_key(request))
+    if error:
+        return error
+    request.session.clear()
+    request.session["user"] = user
+    issue_csrf_token(request)
+    return {"ok": True, "redirect_url": "/main"}
+
+
+@app.post("/api/auth/logout")
+async def logout_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    request.session.clear()
+    issue_csrf_token(request)
+    return {"ok": True, "redirect_url": "/login"}
+
+
+
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
+@app.get("/api/auth/csrf")
+async def get_auth_csrf_token(request: Request):
+    return {"ok": True, "csrf_token": issue_csrf_token(request)}
+
+
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "21063"))
 PIPELINE = os.getenv("PIPELINE", "1")
@@ -950,7 +1149,7 @@ async def startup():
         in ("1", "true", "yes", "on")
     )
 
-    if lidar_enabled and lidar_ros_bridge is None:
+    if lidar_enabled and LidarRosBridge is not None and lidar_ros_bridge is None:
         lidar_ros_bridge = LidarRosBridge(
             ros_topic=os.getenv("LIDAR_ROS_TOPIC", "/scan"),
             base_frame=os.getenv("LIDAR_BASE_FRAME", "base_link"),
@@ -983,6 +1182,7 @@ async def startup():
 
     if (
         encoder_enabled
+        and EncoderRosBridge is not None
         and encoder_ros_bridge is None
     ):
         encoder_ros_bridge = EncoderRosBridge(
