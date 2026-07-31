@@ -19,6 +19,7 @@ ROBOT_ID="${ROBOT_ID:-pi-01}"
 STREAM_WIDTH="${STREAM_WIDTH:-640}"
 STREAM_HEIGHT="${STREAM_HEIGHT:-480}"
 STREAM_FPS="${STREAM_FPS:-15}"
+STREAM_BITRATE="${STREAM_BITRATE:-1000000}"
 STREAM_INFER="${STREAM_INFER:-false}"
 STREAM_RETRY_SEC="${STREAM_RETRY_SEC:-3}"
 CURL_CONNECT_TIMEOUT_SEC="${CURL_CONNECT_TIMEOUT_SEC:-5}"
@@ -65,6 +66,7 @@ stream_once() {
         --width "$STREAM_WIDTH" \
         --height "$STREAM_HEIGHT" \
         --framerate "$STREAM_FPS" \
+        --bitrate "$STREAM_BITRATE" \
         -o "$fifo_path" &
     camera_pid="$!"
 
@@ -100,7 +102,7 @@ stream_once() {
     return "$curl_status"
 }
 
-echo "[camera-stream] endpoint=$STREAM_URL width=${STREAM_WIDTH} height=${STREAM_HEIGHT} fps=${STREAM_FPS} infer=${STREAM_INFER}"
+echo "[camera-stream] endpoint=$STREAM_URL width=${STREAM_WIDTH} height=${STREAM_HEIGHT} fps=${STREAM_FPS} bitrate=${STREAM_BITRATE} infer=${STREAM_INFER}"
 while true; do
     if stream_once; then
         echo "[camera-stream] stream ended; reconnecting in ${STREAM_RETRY_SEC}s" >&2
