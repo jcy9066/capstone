@@ -1,24 +1,43 @@
 #include <stdbool.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "hardware/clocks.h"
+#include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "hardware/uart.h"
 #include "pico/stdlib.h"
 
 
+/* Pi ↔ Pico UART */
 #define CONTROL_UART uart0
 #define UART_BAUDRATE 115200
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
+/* MDD10A 모터 제어 */
 #define LEFT_PWM_PIN 2
 #define LEFT_DIR_PIN 3
 #define RIGHT_PWM_PIN 4
 #define RIGHT_DIR_PIN 5
+
+/* 좌·우 엔코더 */
+#define LEFT_ENCODER_A_PIN 6
+#define LEFT_ENCODER_B_PIN 7
+#define RIGHT_ENCODER_A_PIN 8
+#define RIGHT_ENCODER_B_PIN 9
+
+/*
+ * 전진 시 tick 부호가 반대인 경우 1과 -1을 바꾼다.
+ * 우선 실제 quadrature 신호를 그대로 사용한다.
+ */
+#define LEFT_ENCODER_SIGN 1
+#define RIGHT_ENCODER_SIGN 1
+
+#define ENCODER_REPORT_INTERVAL_MS 50U
 
 #define PWM_FREQUENCY_HZ 20000.0f
 #define PWM_WRAP 999U
@@ -28,8 +47,7 @@
 #define RX_BUFFER_SIZE 128U
 
 /*
- * 바퀴를 띄운 상태에서 전진 방향을 확인한다.
- * 해당 측이 반대로 회전하면 0과 1을 바꾼다.
+ * 현재 수동 조향에서 사용하던 설정을 유지한다.
  */
 #define LEFT_FORWARD_DIR_LEVEL 0
 #define RIGHT_FORWARD_DIR_LEVEL 0
@@ -50,8 +68,38 @@ static motor_channel_t right_motor;
 static bool is_moving = false;
 static uint64_t last_move_ms = 0;
 
+/*
+ * GPIO IRQ에서 갱신한다.
+ * int32_t 읽기/쓰기는 RP2040에서 원자적으로 처리된다.
+ */
+static volatile int32_t left_encoder_ticks = 0;
+static volatile int32_t right_encoder_ticks = 0;
 
-static float clamp_float(float value, float min_value, float max_value) {
+static volatile uint8_t left_encoder_state = 0;
+static volatile uint8_t right_encoder_state = 0;
+
+static bool encoder_stream_enabled = false;
+static uint64_t last_encoder_report_ms = 0;
+
+
+/*
+ * 이전 AB 상태와 현재 AB 상태로 quadrature 방향을 계산한다.
+ *
+ * index = previous_state << 2 | current_state
+ */
+static const int8_t quadrature_table[16] = {
+     0,  1, -1,  0,
+    -1,  0,  0,  1,
+     1,  0,  0, -1,
+     0, -1,  1,  0
+};
+
+
+static float clamp_float(
+    float value,
+    float min_value,
+    float max_value
+) {
     if (value < min_value) {
         return min_value;
     }
@@ -64,9 +112,192 @@ static float clamp_float(float value, float min_value, float max_value) {
 }
 
 
-static void uart_reply(const char *message) {
+static void uart_send_line(const char *message) {
     uart_puts(CONTROL_UART, message);
     uart_putc_raw(CONTROL_UART, '\n');
+}
+
+
+static void uart_reply(const char *message) {
+    uart_send_line(message);
+}
+
+
+static uint8_t read_encoder_state(
+    uint a_pin,
+    uint b_pin
+) {
+    const uint8_t a = gpio_get(a_pin) ? 1U : 0U;
+    const uint8_t b = gpio_get(b_pin) ? 1U : 0U;
+
+    return (uint8_t)((a << 1U) | b);
+}
+
+
+static void encoder_gpio_callback(
+    uint gpio,
+    uint32_t events
+) {
+    (void)events;
+
+    if (
+        gpio == LEFT_ENCODER_A_PIN ||
+        gpio == LEFT_ENCODER_B_PIN
+    ) {
+        const uint8_t new_state = read_encoder_state(
+            LEFT_ENCODER_A_PIN,
+            LEFT_ENCODER_B_PIN
+        );
+
+        const uint8_t index = (uint8_t)(
+            (left_encoder_state << 2U) |
+            new_state
+        );
+
+        left_encoder_ticks +=
+            quadrature_table[index] *
+            LEFT_ENCODER_SIGN;
+
+        left_encoder_state = new_state;
+    }
+
+    if (
+        gpio == RIGHT_ENCODER_A_PIN ||
+        gpio == RIGHT_ENCODER_B_PIN
+    ) {
+        const uint8_t new_state = read_encoder_state(
+            RIGHT_ENCODER_A_PIN,
+            RIGHT_ENCODER_B_PIN
+        );
+
+        const uint8_t index = (uint8_t)(
+            (right_encoder_state << 2U) |
+            new_state
+        );
+
+        right_encoder_ticks +=
+            quadrature_table[index] *
+            RIGHT_ENCODER_SIGN;
+
+        right_encoder_state = new_state;
+    }
+}
+
+
+static void encoder_init(void) {
+    const uint encoder_pins[] = {
+        LEFT_ENCODER_A_PIN,
+        LEFT_ENCODER_B_PIN,
+        RIGHT_ENCODER_A_PIN,
+        RIGHT_ENCODER_B_PIN
+    };
+
+    for (
+        size_t index = 0;
+        index < sizeof(encoder_pins) / sizeof(encoder_pins[0]);
+        index++
+    ) {
+        const uint pin = encoder_pins[index];
+
+        gpio_init(pin);
+        gpio_set_dir(pin, GPIO_IN);
+
+        /*
+         * 오픈 컬렉터 및 부동 입력을 방지한다.
+         * 외부 pull-up이 있어도 함께 사용 가능하다.
+         */
+        gpio_pull_up(pin);
+    }
+
+    left_encoder_state = read_encoder_state(
+        LEFT_ENCODER_A_PIN,
+        LEFT_ENCODER_B_PIN
+    );
+
+    right_encoder_state = read_encoder_state(
+        RIGHT_ENCODER_A_PIN,
+        RIGHT_ENCODER_B_PIN
+    );
+
+    const uint32_t edge_events =
+        GPIO_IRQ_EDGE_RISE |
+        GPIO_IRQ_EDGE_FALL;
+
+    gpio_set_irq_enabled_with_callback(
+        LEFT_ENCODER_A_PIN,
+        edge_events,
+        true,
+        &encoder_gpio_callback
+    );
+
+    gpio_set_irq_enabled(
+        LEFT_ENCODER_B_PIN,
+        edge_events,
+        true
+    );
+
+    gpio_set_irq_enabled(
+        RIGHT_ENCODER_A_PIN,
+        edge_events,
+        true
+    );
+
+    gpio_set_irq_enabled(
+        RIGHT_ENCODER_B_PIN,
+        edge_events,
+        true
+    );
+}
+
+
+static void encoder_reset(void) {
+    left_encoder_ticks = 0;
+    right_encoder_ticks = 0;
+}
+
+
+static void encoder_snapshot(
+    int32_t *left_ticks,
+    int32_t *right_ticks
+) {
+    *left_ticks = left_encoder_ticks;
+    *right_ticks = right_encoder_ticks;
+}
+
+
+static void send_encoder_response(
+    const char *prefix
+) {
+    int32_t left_ticks = 0;
+    int32_t right_ticks = 0;
+
+    encoder_snapshot(
+        &left_ticks,
+        &right_ticks
+    );
+
+    const uint64_t timestamp_ms = to_ms_since_boot(
+        get_absolute_time()
+    );
+
+    char message[128];
+
+    snprintf(
+        message,
+        sizeof(message),
+        "%s,%ld,%ld,%llu",
+        prefix,
+        (long)left_ticks,
+        (long)right_ticks,
+        (unsigned long long)timestamp_ms
+    );
+
+    uart_send_line(message);
+}
+
+
+static void send_encoder_event(void) {
+    send_encoder_response("EVENT,ENC");
 }
 
 
@@ -84,22 +315,43 @@ static void motor_channel_init(
     gpio_set_dir(dir_pin, GPIO_OUT);
     gpio_put(dir_pin, forward_dir_level);
 
-    gpio_set_function(pwm_pin, GPIO_FUNC_PWM);
+    gpio_set_function(
+        pwm_pin,
+        GPIO_FUNC_PWM
+    );
 
-    motor->slice = pwm_gpio_to_slice_num(pwm_pin);
-    motor->channel = pwm_gpio_to_channel(pwm_pin);
+    motor->slice = pwm_gpio_to_slice_num(
+        pwm_pin
+    );
+
+    motor->channel = pwm_gpio_to_channel(
+        pwm_pin
+    );
 
     pwm_config config = pwm_get_default_config();
 
-    pwm_config_set_wrap(&config, PWM_WRAP);
+    pwm_config_set_wrap(
+        &config,
+        PWM_WRAP
+    );
 
     const float clock_divider =
         (float)clock_get_hz(clk_sys) /
-        (PWM_FREQUENCY_HZ * (float)(PWM_WRAP + 1U));
+        (
+            PWM_FREQUENCY_HZ *
+            (float)(PWM_WRAP + 1U)
+        );
 
-    pwm_config_set_clkdiv(&config, clock_divider);
+    pwm_config_set_clkdiv(
+        &config,
+        clock_divider
+    );
 
-    pwm_init(motor->slice, &config, true);
+    pwm_init(
+        motor->slice,
+        &config,
+        true
+    );
 
     pwm_set_chan_level(
         motor->slice,
@@ -119,7 +371,8 @@ static void motor_set_signed_speed(
         1.0f
     );
 
-    const bool forward = signed_speed >= 0.0f;
+    const bool forward =
+        signed_speed >= 0.0f;
 
     gpio_put(
         motor->dir_pin,
@@ -169,45 +422,64 @@ static bool direction_to_wheel_speeds(
     float *left_speed,
     float *right_speed
 ) {
-    const float inner = speed * CURVE_INNER_RATIO;
+    const float inner =
+        speed * CURVE_INNER_RATIO;
 
     if (strcmp(direction, "forward") == 0) {
         *left_speed = speed;
         *right_speed = speed;
 
-    } else if (strcmp(direction, "backward") == 0) {
+    } else if (
+        strcmp(direction, "backward") == 0
+    ) {
         *left_speed = -speed;
         *right_speed = -speed;
 
-    } else if (strcmp(direction, "left") == 0) {
+    } else if (
+        strcmp(direction, "left") == 0
+    ) {
         *left_speed = 0.0f;
         *right_speed = speed;
 
-    } else if (strcmp(direction, "right") == 0) {
+    } else if (
+        strcmp(direction, "right") == 0
+    ) {
         *left_speed = speed;
         *right_speed = 0.0f;
 
-    } else if (strcmp(direction, "forward_left") == 0) {
+    } else if (
+        strcmp(direction, "forward_left") == 0
+    ) {
         *left_speed = inner;
         *right_speed = speed;
 
-    } else if (strcmp(direction, "forward_right") == 0) {
+    } else if (
+        strcmp(direction, "forward_right") == 0
+    ) {
         *left_speed = speed;
         *right_speed = inner;
 
-    } else if (strcmp(direction, "backward_left") == 0) {
+    } else if (
+        strcmp(direction, "backward_left") == 0
+    ) {
         *left_speed = -speed;
         *right_speed = -inner;
 
-    } else if (strcmp(direction, "backward_right") == 0) {
+    } else if (
+        strcmp(direction, "backward_right") == 0
+    ) {
         *left_speed = -inner;
         *right_speed = -speed;
 
-    } else if (strcmp(direction, "rotate_left") == 0) {
+    } else if (
+        strcmp(direction, "rotate_left") == 0
+    ) {
         *left_speed = -speed;
         *right_speed = speed;
 
-    } else if (strcmp(direction, "rotate_right") == 0) {
+    } else if (
+        strcmp(direction, "rotate_right") == 0
+    ) {
         *left_speed = speed;
         *right_speed = -speed;
 
@@ -226,12 +498,14 @@ static void move_motors(
     float left_speed = 0.0f;
     float right_speed = 0.0f;
 
-    if (!direction_to_wheel_speeds(
+    if (
+        !direction_to_wheel_speeds(
             direction,
             speed,
             &left_speed,
             &right_speed
-        )) {
+        )
+    ) {
         stop_motors();
         uart_reply("ERR,invalid direction");
         return;
@@ -259,6 +533,34 @@ static void move_motors(
 }
 
 
+static bool parse_enabled_value(
+    const char *value,
+    bool *enabled
+) {
+    if (
+        strcmp(value, "1") == 0 ||
+        strcmp(value, "on") == 0 ||
+        strcmp(value, "ON") == 0 ||
+        strcmp(value, "true") == 0
+    ) {
+        *enabled = true;
+        return true;
+    }
+
+    if (
+        strcmp(value, "0") == 0 ||
+        strcmp(value, "off") == 0 ||
+        strcmp(value, "OFF") == 0 ||
+        strcmp(value, "false") == 0
+    ) {
+        *enabled = false;
+        return true;
+    }
+
+    return false;
+}
+
+
 static void handle_command(char *line) {
     char *save_pointer = NULL;
 
@@ -283,6 +585,55 @@ static void handle_command(char *line) {
         return;
     }
 
+    if (strcmp(command, "ENC_GET") == 0) {
+        send_encoder_response("OK,ENC");
+        return;
+    }
+
+    if (strcmp(command, "ENC_RESET") == 0) {
+        encoder_reset();
+        uart_reply("OK,ENC_RESET");
+        return;
+    }
+
+    if (strcmp(command, "ENC_STREAM") == 0) {
+        char *enabled_text = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+
+        bool enabled = false;
+
+        if (
+            enabled_text == NULL ||
+            !parse_enabled_value(
+                enabled_text,
+                &enabled
+            )
+        ) {
+            uart_reply(
+                "ERR,ENC_STREAM requires 0 or 1"
+            );
+            return;
+        }
+
+        encoder_stream_enabled = enabled;
+
+        last_encoder_report_ms =
+            to_ms_since_boot(
+                get_absolute_time()
+            );
+
+        uart_reply(
+            enabled
+                ? "OK,ENC_STREAM,1"
+                : "OK,ENC_STREAM,0"
+        );
+
+        return;
+    }
+
     if (strcmp(command, "MOVE") == 0) {
         char *direction = strtok_r(
             NULL,
@@ -301,9 +652,11 @@ static void handle_command(char *line) {
             speed_text == NULL
         ) {
             stop_motors();
+
             uart_reply(
                 "ERR,MOVE requires direction and speed"
             );
+
             return;
         }
 
@@ -390,17 +743,29 @@ int main(void) {
         RIGHT_FORWARD_DIR_LEVEL
     );
 
+    encoder_init();
+    encoder_reset();
     stop_motors();
 
     sleep_ms(100);
 
-    uart_reply("READY,PICO_W_MOTOR");
+    /*
+     * 자동 EVENT 출력은 기본적으로 꺼져 있다.
+     * 따라서 기존 Pi MotorController와 충돌하지 않는다.
+     */
+    encoder_stream_enabled = false;
+
+    uart_reply(
+        "READY,PICO_W_MOTOR_ENCODER"
+    );
 
     char receive_buffer[RX_BUFFER_SIZE];
     size_t receive_length = 0;
 
     while (true) {
-        while (uart_is_readable(CONTROL_UART)) {
+        while (
+            uart_is_readable(CONTROL_UART)
+        ) {
             const char character =
                 uart_getc(CONTROL_UART);
 
@@ -438,12 +803,12 @@ int main(void) {
             }
         }
 
-        if (is_moving) {
-            const uint64_t now_ms =
-                to_ms_since_boot(
-                    get_absolute_time()
-                );
+        const uint64_t now_ms =
+            to_ms_since_boot(
+                get_absolute_time()
+            );
 
+        if (is_moving) {
             if (
                 now_ms - last_move_ms >
                 COMMAND_TIMEOUT_MS
@@ -454,6 +819,15 @@ int main(void) {
                     "EVENT,FAILSAFE_STOP"
                 );
             }
+        }
+
+        if (
+            encoder_stream_enabled &&
+            now_ms - last_encoder_report_ms >=
+                ENCODER_REPORT_INTERVAL_MS
+        ) {
+            last_encoder_report_ms = now_ms;
+            send_encoder_event();
         }
 
         sleep_ms(1);
