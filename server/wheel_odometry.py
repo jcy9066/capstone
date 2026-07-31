@@ -10,7 +10,7 @@ import time
 import rclpy
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
-from rclpy.executors import SingleThreadedExecutor
+from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Int64MultiArray
 from tf2_ros import TransformBroadcaster
@@ -334,7 +334,7 @@ class WheelOdometryRunner:
         try:
             self.executor.spin()
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, ExternalShutdownException):
             pass
 
         finally:

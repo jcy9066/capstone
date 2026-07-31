@@ -40,7 +40,13 @@ load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
-app.mount("/static", StaticFiles(directory=ROOT_DIR / "frontend" / "static"), name="static")
+STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
+
+app.mount(
+    "/static",
+    StaticFiles(directory=STATIC_DIR),
+    name="static",
+)
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
