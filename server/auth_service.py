@@ -70,7 +70,7 @@ class AuthSettings:
             try:
                 return max(minimum, int(os.getenv(name, str(default))))
             except ValueError as exc:
-                raise AuthError(f"Invalid {name} configuration.", 503) from exc
+                raise AuthError(f"{name} 설정값이 올바르지 않습니다.", 503) from exc
 
         secret = os.getenv("EMAIL_VERIFICATION_SECRET") or os.getenv("SESSION_SECRET_KEY")
         if not secret:
@@ -372,7 +372,7 @@ def _read_email_jwt(self: AuthService, token: Any, expected_purpose: str) -> dic
     import json
 
     if not isinstance(token, str) or not token:
-        raise AuthError("??? ?? ??? ?? ? ????. ????? ?? ??? ???.", 403)
+        raise AuthError("이메일 인증 정보가 없습니다. 인증 절차를 다시 진행해 주세요.", 403)
     try:
         header_segment, payload_segment, signature_segment = token.split(".")
         signing_input = f"{header_segment}.{payload_segment}"
@@ -383,9 +383,9 @@ def _read_email_jwt(self: AuthService, token: Any, expected_purpose: str) -> dic
         header = json.loads(_jwt_b64decode(header_segment).decode("utf-8"))
         payload = json.loads(_jwt_b64decode(payload_segment).decode("utf-8"))
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise AuthError("???? ?? ??? ?? ?????. ????? ?? ??? ???.", 403) from exc
+        raise AuthError("이메일 인증 정보가 유효하지 않습니다. 인증 절차를 다시 진행해 주세요.", 403) from exc
     if not hmac.compare_digest(expected_signature, supplied_signature):
-        raise AuthError("???? ?? ??? ?? ?????. ????? ?? ??? ???.", 403)
+        raise AuthError("이메일 인증 정보가 유효하지 않습니다. 인증 절차를 다시 진행해 주세요.", 403)
     if (
         not isinstance(header, dict)
         or header.get("alg") != "HS256"
@@ -395,13 +395,13 @@ def _read_email_jwt(self: AuthService, token: Any, expected_purpose: str) -> dic
         or payload.get("typ") != expected_purpose
         or not isinstance(payload.get("email"), str)
     ):
-        raise AuthError("???? ?? ??? ?? ?????. ????? ?? ??? ???.", 403)
+        raise AuthError("이메일 인증 정보가 유효하지 않습니다. 인증 절차를 다시 진행해 주세요.", 403)
     try:
         expires_at = int(payload["exp"])
     except (KeyError, TypeError, ValueError) as exc:
-        raise AuthError("???? ?? ??? ?? ?????. ????? ?? ??? ???.", 403) from exc
+        raise AuthError("이메일 인증 정보가 유효하지 않습니다. 인증 절차를 다시 진행해 주세요.", 403) from exc
     if expires_at < int(time.time()):
-        raise AuthError("??? ?? ??? ???????. ????? ?? ??? ???.", 403)
+        raise AuthError("이메일 인증이 만료되었습니다. 인증 절차를 다시 진행해 주세요.", 403)
     return payload
 
 
@@ -410,13 +410,26 @@ def _jwt_send_email_verification(self: AuthService, email_value: Any, client_key
     # JWT design has no pre-registration DB write and no resend-rate storage.
     del client_key
     email = self.normalize_email(email_value)
+
+    try: # 이메일 중복 검사
+        with self.database.transaction() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM users WHERE email = %s LIMIT 1",
+                    (email,),
+                )
+                if cursor.fetchone() is not None:
+                    raise AuthError("이미 가입된 이메일입니다.", 409)
+    except DatabaseConfigurationError as exc:
+        raise AuthError("인증 데이터베이스를 사용할 수 없습니다.", 503) from exc
+    
     code = f"{secrets.randbelow(1_000_000):06d}"
     code_proof = self._code_hash(f"jwt:{email}", code)
     challenge_token = _issue_email_jwt(self, "email_code", email, code_proof)
     try:
         self.email_service.send_verification_code(email, code, max(1, self.settings.verification_ttl_sec // 60))
     except EmailDeliveryError as exc:
-        raise AuthError("?? ???? ???? ?????. Gmail SMTP ??? ??? ???.", 503) from exc
+        raise AuthError("인증 이메일을 발송하지 못했습니다. Gmail SMTP 설정을 확인해 주세요.", 503) from exc
     return {"expires_in_sec": self.settings.verification_ttl_sec, "challenge_token": challenge_token}
 
 
@@ -424,14 +437,14 @@ def _jwt_verify_email_code(self: AuthService, email_value: Any, code_value: Any,
     email = self.normalize_email(email_value)
     code = str(code_value or "").strip()
     if not re.fullmatch(r"\d{6}", code):
-        raise AuthError("????? 6?? ?????.")
+        raise AuthError("인증번호는 6자리 숫자입니다.")
     challenge = _read_email_jwt(self, challenge_token, "email_code")
     if not hmac.compare_digest(challenge["email"], email):
-        raise AuthError("??? ??? ???? ??? ???? ???? ????.", 403)
+        raise AuthError("인증 요청 이메일과 입력 이메일이 일치하지 않습니다.", 403)
     expected_proof = challenge.get("code_proof")
     actual_proof = self._code_hash(f"jwt:{email}", code)
     if not isinstance(expected_proof, str) or not hmac.compare_digest(expected_proof, actual_proof):
-        raise AuthError("????? ???? ????.")
+        raise AuthError("인증번호가 일치하지 않습니다.")
     return _issue_email_jwt(self, "email_verified", email)
 
 
@@ -439,15 +452,15 @@ def _jwt_register(self: AuthService, payload: dict[str, Any], verified_token: An
     verified = _read_email_jwt(self, verified_token, "email_verified")
     email = self.normalize_email(payload.get("email"))
     if not hmac.compare_digest(verified["email"], email):
-        raise AuthError("??? ???? ?? ???? ???? ????.", 403)
+        raise AuthError("인증된 이메일과 가입 이메일이 일치하지 않습니다.", 403)
     # The original registration implementation verifies email_verifications.
     # Its database-only portion is reproduced here without any verification-table access.
     if bcrypt is None:
-        raise AuthError("???? ?? ??? ??? ? ????. requirements ??? ??? ???.", 503)
+        raise AuthError("비밀번호 보안 모듈을 사용할 수 없습니다. requirements 설치를 확인해 주세요.", 503)
     login_id = self.normalize_login_id(payload.get("login_id"))
     password = self.validate_password(payload.get("password"))
     if password != str(payload.get("password_confirm") or ""):
-        raise AuthError("????? ???? ??? ???? ????.")
+        raise AuthError("비밀번호와 비밀번호 확인이 일치하지 않습니다.")
     name = self._normalize_name(payload.get("name"))
     phone = self._normalize_phone(payload.get("phone_number"))
     employee_number = self._normalize_employee_number(payload.get("employee_number"))
@@ -461,17 +474,19 @@ def _jwt_register(self: AuthService, payload: dict[str, Any], verified_token: An
                 duplicate = cursor.fetchone()
                 if duplicate is not None:
                     if duplicate["email"] == email:
-                        raise AuthError("?? ??? ??????.", 409)
+                        raise AuthError("이미 가입된 이메일입니다.", 409)
+
                     if duplicate["login_id"] == login_id:
-                        raise AuthError("??? ? ?? ID???.", 409)
-                    raise AuthError("?? ?? ?? ?????.", 409)
+                        raise AuthError("이미 사용 중인 로그인 ID입니다.", 409)
+
+                    raise AuthError("이미 사용 중인 사번입니다.", 409)
                 password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
                 cursor.execute(
                     "INSERT INTO users (email, login_id, password_hash, name, phone_number, employee_number) VALUES (%s, %s, %s, %s, %s, %s)",
                     (email, login_id, password_hash, name, phone, employee_number),
                 )
     except DatabaseConfigurationError as exc:
-        raise AuthError("??? ??????? ??? ? ????.", 503) from exc
+        raise AuthError("인증 데이터베이스를 사용할 수 없습니다.", 503) from exc
 
 
 AuthService._issue_email_jwt = _issue_email_jwt
@@ -484,7 +499,7 @@ AuthService.register = _jwt_register
 # optional login_id column so the existing users table is not altered.
 def _email_only_check_availability(self: AuthService, field: str, value: Any) -> dict[str, bool]:
     if field != "employee_number":
-        raise AuthError("???? ?? ?? ?? ?????.")
+        raise AuthError("지원하지 않는 중복 확인 항목입니다.")
     employee_number = self._normalize_employee_number(value)
     try:
         with self.database.transaction() as connection:
@@ -492,19 +507,19 @@ def _email_only_check_availability(self: AuthService, field: str, value: Any) ->
                 cursor.execute("SELECT 1 FROM users WHERE employee_number = %s LIMIT 1", (employee_number,))
                 return {"available": cursor.fetchone() is None}
     except DatabaseConfigurationError as exc:
-        raise AuthError("??? ??????? ??? ? ????.", 503) from exc
+        raise AuthError("인증 데이터베이스를 사용할 수 없습니다.", 503) from exc
 
 
 def _email_only_register(self: AuthService, payload: dict[str, Any], verified_token: Any) -> None:
     verified = self._read_email_jwt(verified_token, "email_verified")
     email = self.normalize_email(payload.get("email"))
     if not hmac.compare_digest(verified["email"], email):
-        raise AuthError("??? ???? ?? ???? ???? ????.", 403)
+        raise AuthError("인증된 이메일과 가입 이메일이 일치하지 않습니다.", 403)
     if bcrypt is None:
-        raise AuthError("???? ?? ??? ??? ? ????. requirements ??? ??? ???.", 503)
+        raise AuthError("비밀번호 보안 모듈을 사용할 수 없습니다. requirements 설치를 확인해 주세요.", 503)
     password = self.validate_password(payload.get("password"))
     if password != str(payload.get("password_confirm") or ""):
-        raise AuthError("????? ???? ??? ???? ????.")
+        raise AuthError("비밀번호와 비밀번호 확인이 일치하지 않습니다.")
     name = self._normalize_name(payload.get("name"))
     phone = self._normalize_phone(payload.get("phone_number"))
     employee_number = self._normalize_employee_number(payload.get("employee_number"))
@@ -518,20 +533,20 @@ def _email_only_register(self: AuthService, payload: dict[str, Any], verified_to
                 duplicate = cursor.fetchone()
                 if duplicate is not None:
                     if duplicate["email"] == email:
-                        raise AuthError("?? ??? ??????.", 409)
-                    raise AuthError("?? ?? ?? ?????.", 409)
+                        raise AuthError("이미 가입된 이메일입니다.", 409) # 문자 깨짐 수정
+                    raise AuthError("이미 사용 중인 사번입니다.", 409)
                 password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
                 cursor.execute(
                     "INSERT INTO users (email, password_hash, name, phone_number, employee_number) VALUES (%s, %s, %s, %s, %s)",
                     (email, password_hash, name, phone, employee_number),
                 )
     except DatabaseConfigurationError as exc:
-        raise AuthError("??? ??????? ??? ? ????.", 503) from exc
+        raise AuthError("인증 데이터베이스를 사용할 수 없습니다.", 503) from exc
 
 
 def _email_only_login(self: AuthService, email_value: Any, password_value: Any, client_key: str) -> dict[str, Any]:
     if bcrypt is None:
-        raise AuthError("???? ?? ??? ??? ? ????. requirements ??? ??? ???.", 503)
+        raise AuthError("비밀번호 보안 모듈을 사용할 수 없습니다. requirements 설치를 확인해 주세요.", 503)
     email = self.normalize_email(email_value)
     password = str(password_value or "")
     self.limiter.ensure_allowed(f"login:{client_key}:{email}", self.settings.login_limit, self.settings.login_window_sec)
@@ -544,11 +559,11 @@ def _email_only_login(self: AuthService, email_value: Any, password_value: Any, 
                 )
                 user = cursor.fetchone()
                 if user is None or bool(user["is_deleted"]) or not bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8")):
-                    raise AuthError("??? ?? ????? ???? ????.", 401)
+                    raise AuthError("이메일 또는 비밀번호가 올바르지 않습니다.", 401)
                 cursor.execute("UPDATE users SET login_at = %s WHERE user_id = %s", (_utcnow(), user["user_id"]))
                 return {"user_id": int(user["user_id"]), "login_id": user["email"], "name": user["name"]}
     except DatabaseConfigurationError as exc:
-        raise AuthError("??? ??????? ??? ? ????.", 503) from exc
+        raise AuthError("인증 데이터베이스를 사용할 수 없습니다.", 503) from exc
 
 
 AuthService.check_availability = _email_only_check_availability

@@ -6,6 +6,7 @@ import requests
 import rclpy
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
 from sensor_msgs.msg import LaserScan
 from tf2_ros import Buffer, TransformException, TransformListener
@@ -82,7 +83,12 @@ class MapBridge(Node):
 
         self.map_subscription = self.create_subscription(OccupancyGrid, self.map_topic, self.on_map, 1)
         if self.send_scan:
-            self.scan_subscription = self.create_subscription(LaserScan, self.scan_topic, self.on_scan, 5)
+            self.scan_subscription = self.create_subscription(
+                LaserScan,
+                self.scan_topic,
+                self.on_scan,
+                qos_profile_sensor_data,
+            )
         else:
             self.scan_subscription = None
 
