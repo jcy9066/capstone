@@ -33,14 +33,52 @@ setInterval(() => {
 // ===================================================
 function fetchRobotStatus() {
     fetch('/get_status')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('sys-cpu-usage').innerText = data.cpu_usage;
-            document.getElementById('sys-cpu-temp').innerText = data.cpu_temp;
-            document.getElementById('sys-ram').innerText = data.ram_usage;
-            document.getElementById('sys-internet').innerText = data.internet;
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(
+                    `status HTTP ${response.status}`,
+                );
+            }
+
+            return response.json();
         })
-        .catch(error => console.error('상태 업데이트 오류:', error));
+        .then(data => {
+            document.getElementById(
+                'sys-cpu-usage',
+            ).innerText = data.cpu_usage;
+
+            document.getElementById(
+                'sys-cpu-temp',
+            ).innerText = data.cpu_temp;
+
+            document.getElementById(
+                'sys-ram',
+            ).innerText = data.ram_usage;
+
+            document.getElementById(
+                'sys-internet',
+            ).innerText = data.internet;
+
+            const reportedMode = String(
+                data.mode || '',
+            )
+                .trim()
+                .toLowerCase();
+
+            if (
+                reportedMode === 'auto'
+                || reportedMode === 'manual'
+            ) {
+                currentPatrolMode = reportedMode;
+                setPatrolModeUi(reportedMode);
+            }
+        })
+        .catch(error => {
+            console.error(
+                '상태 업데이트 오류:',
+                error,
+            );
+        });
 }
 setInterval(fetchRobotStatus, 1000);
 
@@ -937,7 +975,8 @@ function warnTrespasser() {
 // ===================================================
 // 수동/자동 순찰 모드 및 실제 주행 제어
 // ===================================================
-let currentPatrolMode = 'auto';
+let currentPatrolMode = null;
+let modeChangePending = false;
 
 const ROBOT_ID = 'pi-01';
 const MANUAL_SPEED = 0.35;
@@ -1065,6 +1104,22 @@ function setPatrolModeUi(mode) {
 
 
 async function togglePatrolMode() {
+    if (modeChangePending) {
+        return;
+    }
+
+    if (
+        currentPatrolMode !== 'auto'
+        && currentPatrolMode !== 'manual'
+    ) {
+        alert(
+            '로봇의 현재 모드를 아직 '
+            + '확인하지 못했습니다.',
+        );
+
+        return;
+    }
+
     const targetMode = (
         currentPatrolMode === 'auto'
             ? 'manual'
@@ -1086,22 +1141,37 @@ async function togglePatrolMode() {
     }
 
     stopAllLocalInputs(false);
+    modeChangePending = true;
 
-    const ok = await sendRobotCommand({
-        type: 'mode',
-        mode: targetMode,
-    });
+    try {
+        const ok = await sendRobotCommand({
+            type: 'mode',
+            mode: targetMode,
+        });
 
-    if (!ok) {
-        alert(
-            '로봇이 연결되지 않아 '
-            + '모드를 변경하지 못했습니다.',
+        if (!ok) {
+            alert(
+                '로봇이 연결되지 않아 '
+                + '모드를 변경하지 못했습니다.',
+            );
+
+            return;
+        }
+
+        /*
+         * 여기서 currentPatrolMode와 UI를
+         * 직접 변경하지 않는다.
+         *
+         * Pi가 실제 모드를 서버에 보고하면
+         * fetchRobotStatus()가 화면에 반영한다.
+         */
+        setTimeout(
+            fetchRobotStatus,
+            300,
         );
-        return;
+    } finally {
+        modeChangePending = false;
     }
-
-    currentPatrolMode = targetMode;
-    setPatrolModeUi(currentPatrolMode);
 }
 
 
@@ -1500,13 +1570,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('darkMode');
     if (saved === '1') toggleDarkMode();
 
-    // D-Pad 초기 상태 동기화
-    const dPadArea = document.getElementById('d-pad-area');
-    const switchUi = document.getElementById('mode-switch-ui');
-    if (currentPatrolMode !== 'manual') {
-        dPadArea.classList.add('disabled');
-        switchUi.classList.remove('manual');
-    }
+    // Pi가 보고한 실제 모드로 초기 UI 동기화
+    fetchRobotStatus();
 });
 
 // ===================================================
