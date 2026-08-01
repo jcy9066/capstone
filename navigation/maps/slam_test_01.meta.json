@@ -1,0 +1,22 @@
+{
+  "map_name": "slam_test_01",
+  "robot_id": "pi-01",
+  "frame_id": "map",
+  "source_timestamp": "2026-07-28T05:42:51.138138Z",
+  "saved_at": 1785217372.0002737,
+  "saved_at_iso": "2026-07-28T05:42:52Z",
+  "resolution": 0.05000000074505806,
+  "width": 75,
+  "height": 60,
+  "origin": {
+    "x": -1.8973912730079803,
+    "y": -1.4085686828198345,
+    "yaw": 0.0
+  },
+  "files": {
+    "pgm": "navigation/maps/slam_test_01.pgm",
+    "yaml": "navigation/maps/slam_test_01.yaml",
+    "meta": "navigation/maps/slam_test_01.meta.json",
+    "raw": "navigation/maps/slam_test_01.raw.json"
+  }
+}

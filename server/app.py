@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
@@ -20,6 +21,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import ClientDisconnect
+from starlette.middleware.sessions import SessionMiddleware
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT_DIR / ".env"
@@ -32,15 +34,221 @@ if str(PERCEPTION_DIR) not in sys.path:
 from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
+try:
+    from server.lidar_ros_bridge import LidarRosBridge
+    from server.encoder_ros_bridge import EncoderRosBridge
+except ModuleNotFoundError as bridge_import_error:
+    LidarRosBridge = None
+    EncoderRosBridge = None
+    logging.getLogger(__name__).warning("ROS bridge dependencies are unavailable: %s", bridge_import_error)
+from server.auth_service import AuthError, AuthService
+from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
-app.mount("/static", StaticFiles(directory=ROOT_DIR / "frontend" / "static"), name="static")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY") or secrets.token_urlsafe(32)
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+EMAIL_CHALLENGE_COOKIE = "dabom_email_challenge"
+EMAIL_VERIFIED_COOKIE = "dabom_verified_email"
+EMAIL_COOKIE_PATH = "/api/auth"
+if not os.getenv("SESSION_SECRET_KEY"):
+    logging.getLogger(__name__).warning("SESSION_SECRET_KEY is missing; sessions will reset after server restart.")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET_KEY,
+    session_cookie="dabom_session",
+    same_site="lax",
+    https_only=COOKIE_SECURE,
+    max_age=60 * 60 * 8,
+)
+
+STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
+
+app.mount(
+    "/static",
+    StaticFiles(directory=STATIC_DIR),
+    name="static",
+)
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
+_auth_service = None
+_auth_service_lock = threading.Lock()
+
+
+def get_auth_service():
+    global _auth_service
+    with _auth_service_lock:
+        if _auth_service is None:
+            _auth_service = AuthService()
+        return _auth_service
+
+
+def issue_csrf_token(request: Request) -> str:
+    token = request.session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session["csrf_token"] = token
+    return token
+
+
+def csrf_failure(request: Request):
+    expected = request.session.get("csrf_token")
+    supplied = request.headers.get("X-CSRF-Token", "")
+    if expected and supplied and secrets.compare_digest(expected, supplied):
+        return None
+    return JSONResponse({"ok": False, "detail": "\ubcf4\uc548 \uac80\uc99d\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \ud398\uc774\uc9c0\ub97c \uc0c8\ub85c\uace0\uce68\ud55c \ub4a4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694."}, status_code=403)
+
+
+def auth_client_key(request: Request) -> str:
+    return request.client.host if request.client is not None else "unknown"
+
+
+async def auth_payload(request: Request):
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None, JSONResponse({"ok": False, "detail": "JSON \uc694\uccad \ubcf8\ubb38\uc774 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+    if not isinstance(payload, dict):
+        return None, JSONResponse({"ok": False, "detail": "JSON \uac1d\uccb4\uac00 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+    return payload, None
+
+
+async def call_auth(method_name: str, *args):
+    try:
+        method = getattr(get_auth_service(), method_name)
+        return await asyncio.to_thread(method, *args), None
+    except AuthError as exc:
+        return None, JSONResponse({"ok": False, "detail": exc.message}, status_code=exc.status_code)
+
+
+@app.get("/")
+async def auth_index(request: Request):
+    return RedirectResponse(url="/main" if request.session.get("user") else "/login", status_code=302)
+
+
+@app.get("/login")
+async def auth_login_page(request: Request):
+    if request.session.get("user"):
+        return RedirectResponse(url="/main", status_code=302)
+    return templates.TemplateResponse(request, "login.html", {"csrf_token": issue_csrf_token(request)})
+
+
+@app.get("/main")
+async def auth_main_page(request: Request):
+    if not request.session.get("user"):
+        return RedirectResponse(url="/login", status_code=302)
+    return templates.TemplateResponse(request, "index.html")
+
+
+@app.post("/api/auth/email/send")
+async def send_signup_email(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    result, error = await call_auth("send_email_verification", payload.get("email"), auth_client_key(request))
+    if error:
+        return error
+    challenge_token = result.pop("challenge_token")
+    response = JSONResponse({"ok": True, **result})
+    response.set_cookie(
+        EMAIL_CHALLENGE_COOKIE, challenge_token, max_age=result["expires_in_sec"],
+        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+    )
+    return response
+
+
+@app.post("/api/auth/email/verify")
+async def verify_signup_email(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    verified_token, error = await call_auth(
+        "verify_email_code", payload.get("email"), payload.get("code"), request.cookies.get(EMAIL_CHALLENGE_COOKIE)
+    )
+    if error:
+        return error
+    response = JSONResponse({"ok": True, "message": "\uc774\uba54\uc77c \uc778\uc99d\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4."})
+    response.delete_cookie(EMAIL_CHALLENGE_COOKIE, path=EMAIL_COOKIE_PATH)
+    response.set_cookie(
+        EMAIL_VERIFIED_COOKIE, verified_token,
+        max_age=get_auth_service().settings.verification_ttl_sec,
+        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+    )
+    return response
+
+
+@app.post("/api/auth/availability")
+async def check_signup_availability(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    result, error = await call_auth("check_availability", payload.get("field"), payload.get("value"))
+    if error:
+        return error
+    return {"ok": True, **result}
+
+
+@app.post("/api/auth/register")
+async def register_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    _, error = await call_auth("register", payload, request.cookies.get(EMAIL_VERIFIED_COOKIE))
+    if error:
+        return error
+    response = JSONResponse({"ok": True, "message": "\ud68c\uc6d0\uac00\uc785\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \ub85c\uadf8\uc778\ud574 \uc8fc\uc138\uc694."})
+    response.delete_cookie(EMAIL_VERIFIED_COOKIE, path=EMAIL_COOKIE_PATH)
+    return response
+
+
+@app.post("/api/auth/login")
+async def authenticate_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    user, error = await call_auth("login", payload.get("login_id"), payload.get("password"), auth_client_key(request))
+    if error:
+        return error
+    request.session.clear()
+    request.session["user"] = user
+    issue_csrf_token(request)
+    return {"ok": True, "redirect_url": "/main"}
+
+
+@app.post("/api/auth/logout")
+async def logout_user(request: Request):
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    request.session.clear()
+    issue_csrf_token(request)
+    return {"ok": True, "redirect_url": "/login"}
+
+
+
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
+@app.get("/api/auth/csrf")
+async def get_auth_csrf_token(request: Request):
+    return {"ok": True, "csrf_token": issue_csrf_token(request)}
+
+
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "21063"))
 PIPELINE = os.getenv("PIPELINE", "1")
@@ -100,12 +308,37 @@ robot_status = {
     "mode": "auto",
     "updated_at": None,
 }
+encoder_state = {
+    "robot_id": SERVER_ROBOT_ID,
+    "sequence": 0,
+    "left_front_ticks": 0,
+    "right_front_ticks": 0,
+    "left_rear_ticks": 0,
+    "right_rear_ticks": 0,
+    "pico_timestamp_ms": 0,
+    "pi_timestamp": None,
+    "updated_at": None,
+}
+
 NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
+    enabled=os.getenv("NAV_DRY_RUN_ENABLED", "true").lower() == "true",
+    stop_distance_m=float(os.getenv("NAV_STOP_DISTANCE_M", "0.45")),
+    slow_distance_m=float(os.getenv("NAV_SLOW_DISTANCE_M", "0.90")),
+    normal_linear_mps=float(os.getenv("NAV_NORMAL_LINEAR_MPS", "0.25")),
+    slow_linear_mps=float(os.getenv("NAV_SLOW_LINEAR_MPS", "0.10")),
+    turn_angular_rps=float(os.getenv("NAV_TURN_ANGULAR_RPS", "0.65")),
+    scan_timeout_sec=float(os.getenv("NAV_SCAN_TIMEOUT_SEC", "1.0")),
+)
+# This server has no actuator implementation. Keep the safety state false even
+# if an external environment file accidentally requests otherwise.
+MOTOR_OUTPUT_ENABLED = False
 navigation_state = {
     "robot_id": SERVER_ROBOT_ID,
     "map": None,
     "pose": None,
     "scan": None,
+    "decision": None,
     "map_updated_at": None,
     "pose_updated_at": None,
     "scan_updated_at": None,
@@ -204,6 +437,9 @@ class RobotConnectionManager:
 
 
 connections = RobotConnectionManager()
+
+lidar_ros_bridge = None
+encoder_ros_bridge = None
 
 
 def cuda_status():
@@ -902,7 +1138,73 @@ def start_inference_worker():
 
 @app.on_event("startup")
 async def startup():
+    global lidar_ros_bridge, encoder_ros_bridge
+
     ensure_runtime_model_config(force=True, reason="startup")
+
+    lidar_enabled = (
+        os.getenv("LIDAR_ENABLE", "true")
+        .strip()
+        .lower()
+        in ("1", "true", "yes", "on")
+    )
+
+    if lidar_enabled and LidarRosBridge is not None and lidar_ros_bridge is None:
+        lidar_ros_bridge = LidarRosBridge(
+            ros_topic=os.getenv("LIDAR_ROS_TOPIC", "/scan"),
+            base_frame=os.getenv("LIDAR_BASE_FRAME", "base_link"),
+            lidar_frame=os.getenv("LIDAR_FRAME", "laser"),
+            lidar_x=float(os.getenv("LIDAR_X", "0.0")),
+            lidar_y=float(os.getenv("LIDAR_Y", "0.0")),
+            lidar_z=float(os.getenv("LIDAR_Z", "0.12")),
+            lidar_yaw=float(os.getenv("LIDAR_YAW", "0.0")),
+            dashboard_max_points=int(
+                os.getenv("LIDAR_DASHBOARD_MAX_POINTS", "360")
+            ),
+            use_source_timestamp=(
+                os.getenv(
+                    "LIDAR_USE_SOURCE_TIMESTAMP",
+                    "true",
+                )
+                .strip()
+                .lower()
+                in ("1", "true", "yes", "on")
+            ),
+        )
+        lidar_ros_bridge.start()
+
+    encoder_enabled = (
+        os.getenv("ENCODER_ROS_ENABLE", "true")
+        .strip()
+        .lower()
+        in ("1", "true", "yes", "on")
+    )
+
+    if (
+        encoder_enabled
+        and EncoderRosBridge is not None
+        and encoder_ros_bridge is None
+    ):
+        encoder_ros_bridge = EncoderRosBridge(
+            ros_topic=os.getenv(
+                "ENCODER_ROS_TOPIC",
+                "/wheel_ticks",
+            ),
+        )
+        encoder_ros_bridge.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_lidar_bridge():
+    global lidar_ros_bridge, encoder_ros_bridge
+
+    if encoder_ros_bridge is not None:
+        encoder_ros_bridge.close()
+        encoder_ros_bridge = None
+
+    if lidar_ros_bridge is not None:
+        lidar_ros_bridge.close()
+        lidar_ros_bridge = None
 
 
 @app.get("/")
@@ -969,6 +1271,7 @@ async def get_status():
 
 def build_navigation_status(now=None):
     now = now or time.time()
+    decision = build_navigation_decision(now)
     last_times = [
         value for value in (
             navigation_state.get("map_updated_at"),
@@ -1001,8 +1304,25 @@ def build_navigation_status(now=None):
         "map_updated_at": navigation_state.get("map_updated_at"),
         "pose_updated_at": navigation_state.get("pose_updated_at"),
         "scan_updated_at": navigation_state.get("scan_updated_at"),
+        "dry_run": True,
+        "motor_output_enabled": MOTOR_OUTPUT_ENABLED,
+        "decision_action": decision["action"],
+        "decision_reason": decision["reason"],
     }
 
+
+
+def build_navigation_decision(now=None):
+    """Refresh the display-only decision from the latest scan while locked."""
+    decision = plan_scan(
+        navigation_state.get("scan"),
+        navigation_state.get("scan_updated_at"),
+        NAV_DRY_RUN_CONFIG,
+        now=now,
+    )
+    decision["robot_id"] = navigation_state.get("robot_id", SERVER_ROBOT_ID)
+    navigation_state["decision"] = decision
+    return decision
 
 def received_payload(data, received_at):
     payload = dict(data)
@@ -1170,14 +1490,16 @@ async def update_navigation_pose(request: Request):
 
 @app.post("/navigation/scan")
 async def update_navigation_scan(request: Request):
-    data = await request.json()
-    if not data:
-        return JSONResponse({"ok": False, "error": "empty scan payload"}, status_code=400)
+    try:
+        data = validate_scan_payload(await request.json())
+    except (TypeError, ValueError) as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
     received_at = time.time()
     with state_lock:
         navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
         navigation_state["scan"] = received_payload(data, received_at)
         navigation_state["scan_updated_at"] = received_at
+        build_navigation_decision(received_at)
     return {"ok": True}
 
 
@@ -1185,6 +1507,12 @@ async def update_navigation_scan(request: Request):
 async def get_navigation_status():
     with state_lock:
         return build_navigation_status()
+
+@app.get("/api/navigation/decision")
+async def get_navigation_decision():
+    with state_lock:
+        return {"ok": True, **build_navigation_decision()}
+
 
 
 @app.get("/api/navigation/map")
@@ -1255,6 +1583,35 @@ async def get_robot(robot_id: str):
         "status": status,
         "latest_result": result,
         "navigation": navigation,
+    }
+
+
+@app.get("/api/robots/{robot_id}/encoder")
+async def get_robot_encoder(robot_id: str):
+    with state_lock:
+        data = dict(encoder_state)
+
+    if (
+        data.get("updated_at") is None
+        or data.get("robot_id") != robot_id
+    ):
+        return JSONResponse(
+            {
+                "ok": False,
+                "robot_id": robot_id,
+                "error": "encoder unavailable",
+            },
+            status_code=404,
+        )
+
+    data["age_sec"] = max(
+        0.0,
+        time.time() - data["updated_at"],
+    )
+
+    return {
+        "ok": True,
+        "encoder": data,
     }
 
 
@@ -1742,6 +2099,123 @@ async def get_stream_status():
         return status
 
 
+@app.websocket("/ws/sensors/{robot_id}/lidar")
+async def lidar_sensor_websocket(
+    websocket: WebSocket,
+    robot_id: str,
+):
+    if lidar_ros_bridge is None:
+        await websocket.close(code=1011)
+        return
+
+    await websocket.accept()
+    lidar_ros_bridge.mark_connected(robot_id)
+
+    print(f"[lidar-ws] connected robot_id={robot_id}")
+
+    try:
+        while True:
+            raw_message = await websocket.receive_text()
+
+            try:
+                message = json.loads(raw_message)
+            except json.JSONDecodeError as exc:
+                print(
+                    f"[lidar-ws] invalid JSON "
+                    f"robot_id={robot_id}: {exc}"
+                )
+                continue
+
+            if not isinstance(message, dict):
+                continue
+
+            message_type = message.get("type")
+
+            if message_type == "sensor_hello":
+                message_robot_id = message.get("robot_id")
+
+                if (
+                    message_robot_id
+                    and message_robot_id != robot_id
+                ):
+                    await websocket.close(code=1008)
+                    return
+
+                continue
+
+            if message_type != "laser_scan":
+                continue
+
+            message_robot_id = message.get("robot_id")
+
+            if message_robot_id and message_robot_id != robot_id:
+                await websocket.close(code=1008)
+                return
+
+            message["robot_id"] = robot_id
+
+            try:
+                dashboard_scan = lidar_ros_bridge.submit(
+                    message
+                )
+            except (ValueError, RuntimeError) as exc:
+                print(
+                    f"[lidar-ws] rejected scan "
+                    f"robot_id={robot_id}: {exc}"
+                )
+                continue
+
+            received_at = time.time()
+
+            with state_lock:
+                navigation_state["robot_id"] = robot_id
+                navigation_state["scan"] = received_payload(
+                    dashboard_scan,
+                    received_at,
+                )
+                navigation_state["scan_updated_at"] = received_at
+
+            stats = lidar_ros_bridge.stats()
+
+            if stats["received"] % 100 == 0:
+                print(
+                    f"[lidar-ws] "
+                    f"robot_id={robot_id} "
+                    f"received={stats['received']} "
+                    f"published={stats['published']} "
+                    f"dropped={stats['dropped']} "
+                    f"points={stats['last_points']}"
+                )
+
+    except WebSocketDisconnect:
+        print(f"[lidar-ws] disconnected robot_id={robot_id}")
+
+    except Exception as exc:
+        print(
+            f"[lidar-ws] error "
+            f"robot_id={robot_id}: {exc}"
+        )
+
+    finally:
+        lidar_ros_bridge.mark_disconnected(robot_id)
+
+
+@app.get("/api/lidar/bridge")
+async def get_lidar_bridge_status():
+    if lidar_ros_bridge is None:
+        return {
+            "ok": False,
+            "enabled": False,
+            "error": "LiDAR ROS bridge is not running",
+        }
+
+    return {
+        "ok": True,
+        "enabled": True,
+        "stats": lidar_ros_bridge.stats(),
+    }
+
+
 @app.websocket("/ws/robot/{robot_id}")
 async def robot_websocket(websocket: WebSocket, robot_id: str):
     await connections.connect(robot_id, websocket)
@@ -1754,12 +2228,88 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
                     robot_status.update(message.get("data", {}))
                     robot_status["robot_id"] = robot_id
                     robot_status["updated_at"] = time.time()
+            elif message.get("type") == "encoder":
+                data = message.get("data")
+
+                if not isinstance(data, dict):
+                    continue
+
+                try:
+                    received_encoder = {
+                        "robot_id": robot_id,
+                        "sequence": int(
+                            data.get("sequence", 0)
+                        ),
+                        "left_front_ticks": int(
+                            data["left_front_ticks"]
+                        ),
+                        "right_front_ticks": int(
+                            data["right_front_ticks"]
+                        ),
+                        "left_rear_ticks": int(
+                            data["left_rear_ticks"]
+                        ),
+                        "right_rear_ticks": int(
+                            data["right_rear_ticks"]
+                        ),
+                        "pico_timestamp_ms": int(
+                            data["pico_timestamp_ms"]
+                        ),
+                        "pi_timestamp": data.get(
+                            "pi_timestamp"
+                        ),
+                        "updated_at": time.time(),
+                    }
+
+                except (
+                    KeyError,
+                    TypeError,
+                    ValueError,
+                ):
+                    continue
+
+                with state_lock:
+                    encoder_state.update(
+                        received_encoder
+                    )
+
+                if encoder_ros_bridge is not None:
+                    try:
+                        encoder_ros_bridge.submit(
+                            received_encoder
+                        )
+                    except (
+                        ValueError,
+                        RuntimeError,
+                    ) as exc:
+                        print(
+                            f"[encoder-ros] rejected: "
+                            f"{exc}"
+                        )
+
             elif message.get("type") == "ack":
                 print(f"[ws] ack from {robot_id}: {message}")
     except WebSocketDisconnect:
         print(f"[ws] robot disconnected: {robot_id}")
     finally:
         await connections.disconnect(robot_id, websocket)
+
+
+@app.get("/api/encoder/bridge")
+async def get_encoder_bridge_status():
+    if encoder_ros_bridge is None:
+        return {
+            "ok": False,
+            "enabled": False,
+            "error": "Encoder ROS bridge is not running",
+        }
+
+    return {
+        "ok": True,
+        "enabled": True,
+        "topic": encoder_ros_bridge.ros_topic,
+        "stats": encoder_ros_bridge.stats(),
+    }
 
 
 @app.post("/api/robots/{robot_id}/command")

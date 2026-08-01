@@ -18,32 +18,65 @@
             <span class="sidebar-title">⚙️ 설정</span>
             <button class="sidebar-close" onclick="closeSidebar()">✕</button>
         </div>
+
         <div class="sidebar-body">
             <div class="sidebar-item">
                 <span class="sidebar-item-label">🌙 다크 모드</span>
+
                 <div class="dark-toggle" id="darkToggle" onclick="toggleDarkMode()">
                     <div class="dark-toggle-slider"></div>
                 </div>
             </div>
+
             <div class="sidebar-divider"></div>
+
             <div class="sidebar-info">
                 <span class="sidebar-info-label">시스템</span>
                 <span class="sidebar-info-value">AI 순찰 로봇 v1.0</span>
             </div>
+            <div class="sidebar-divider"></div>
+            <button class="sidebar-logout-btn" id="logoutBtn" type="button" onclick="logout()">
+                &#x1F6AA; &#xB85C;&#xADF8;&#xC544;&#xC6C3;
+            </button>
         </div>
     </div>
 
     <div class="system-status-bar">
-        <span>CPU: <span id="sys-cpu-usage">0.0</span>% / <span id="sys-cpu-temp">0.0</span>°C</span>
-        <span>RAM: <span id="sys-ram">0.0</span>%</span>
-        <span>BAT: <span id="sys-battery">100</span>%</span>
-        <span>PING: <span id="sys-internet">0</span></span>
+        <span>
+            CPU:
+            <span id="sys-cpu-usage">0.0</span>%
+            /
+            <span id="sys-cpu-temp">0.0</span>°C
+        </span>
+
+        <span>
+            RAM:
+            <span id="sys-ram">0.0</span>%
+        </span>
+<!--
+        <span>
+            BAT:
+            <span id="sys-battery">100</span>%
+        </span>
+-->
+        <span>
+            PING:
+            <span id="sys-internet">0</span>
+        </span>
     </div>
 
     <header>
-        <button class="menu-btn" id="menuBtn" onclick="openSidebar()" title="메뉴">
-            <span></span><span></span><span></span>
+        <button
+            class="menu-btn"
+            id="menuBtn"
+            onclick="openSidebar()"
+            title="메뉴"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
         </button>
+
         <div class="header-center">
             <div class="live-badge">LIVE</div>
             <h1>AI 순찰 로봇 관제 센터</h1>
@@ -51,111 +84,357 @@
     </header>
 
     <div class="dashboard-container">
-        
+
         <div class="card" id="camera-card">
             <div class="card-header">
-                <h2 class="card-title">실시간 카메라 (YOLO11x-pose)</h2>
+                <h2 class="card-title">
+                    실시간 카메라 (YOLO11x-pose)
+                </h2>
             </div>
-            
+
             <div class="screen-content" id="video-wrapper">
-                <div id="no-camera-msg" class="no-camera-bg" style="display: none;">카메라 신호 대기 중</div>
-                <img id="camera-stream" src="{{ url_for('video_feed') }}" alt="" onerror="handleCameraError()">
-                
-                <div class="overlay-controls top-left" id="camera-controls">
-                    <button class="icon-btn" onclick="toggleFullscreen('video-wrapper')">전체화면</button>
+                <div
+                    id="no-camera-msg"
+                    class="no-camera-bg"
+                    style="display: none;"
+                >
+                    카메라 신호 대기 중
                 </div>
 
-                <div class="overlay-datetime" id="camera-datetime">0000-00-00 00:00:00</div>
-                
-                <div class="overlay-detection-vertical" id="detection-data">
-                    <span class="detection-title">--Now Object List--</span>
+                <img
+                    id="camera-stream"
+                    src="{{ url_for('video_feed') }}"
+                    alt=""
+                    onerror="handleCameraError()"
+                >
+
+                <div
+                    class="overlay-controls top-left"
+                    id="camera-controls"
+                >
+                    <button
+                        class="icon-btn"
+                        onclick="toggleFullscreen('video-wrapper')"
+                    >
+                        전체화면
+                    </button>
                 </div>
 
-                <div class="minimap-overlay" id="minimap-overlay">
-                    <canvas id="lidar-map-canvas" class="lidar-map-canvas" aria-label="LiDAR map visualization"></canvas>
-                    <div class="lidar-live-badge offline" id="lidar-live-badge">OFFLINE</div>
-                    <div class="lidar-map-status" id="lidar-map-status">MAP AREA</div>
-                    <div class="lidar-map-meta" id="lidar-map-meta">LiDAR OFFLINE</div>
-                    <div class="lidar-stale-overlay visible" id="lidar-stale-overlay">
-                        <div class="lidar-stale-title" id="lidar-stale-title">LiDAR OFFLINE</div>
-                        <div class="lidar-stale-detail" id="lidar-stale-detail">NO SCAN DATA</div>
+                <div
+                    class="overlay-datetime"
+                    id="camera-datetime"
+                >
+                    0000-00-00 00:00:00
+                </div>
+
+                <div
+                    class="overlay-detection-vertical"
+                    id="detection-data"
+                >
+                    <span class="detection-title">
+                        --Now Object List--
+                    </span>
+                </div>
+
+                <div
+                    class="minimap-overlay"
+                    id="minimap-overlay"
+                >
+                    <canvas
+                        id="lidar-map-canvas"
+                        class="lidar-map-canvas"
+                        aria-label="LiDAR map visualization"
+                    ></canvas>
+
+                    <div
+                        class="lidar-live-badge offline"
+                        id="lidar-live-badge"
+                    >
+                        OFFLINE
                     </div>
-                    <button class="lidar-map-save-btn" id="lidarMapSaveBtn" onclick="saveCurrentNavigationMap()" title="현재 LiDAR map 저장">SAVE</button>
-                    <button class="minimap-expand-btn" id="minimapExpandBtn" onclick="toggleMinimapExpand()" title="미니맵 확대">⛶</button>
+
+                    <div
+                        class="lidar-map-status"
+                        id="lidar-map-status"
+                    >
+                        MAP AREA
+                    </div>
+
+                    <div
+                        class="lidar-map-meta"
+                        id="lidar-map-meta"
+                    >
+                        LiDAR OFFLINE
+                    </div>
+
+                    <div
+                        class="lidar-stale-overlay visible"
+                        id="lidar-stale-overlay"
+                    >
+                        <div
+                            class="lidar-stale-title"
+                            id="lidar-stale-title"
+                        >
+                            LiDAR OFFLINE
+                        </div>
+
+                        <div
+                            class="lidar-stale-detail"
+                            id="lidar-stale-detail"
+                        >
+                            NO SCAN DATA
+                        </div>
+                    </div>
+
+                    <button
+                        class="lidar-map-save-btn"
+                        id="lidarMapSaveBtn"
+                        onclick="saveCurrentNavigationMap()"
+                        title="현재 LiDAR map 저장"
+                    >
+                        SAVE
+                    </button>
+
+                    <button
+                        class="minimap-expand-btn"
+                        id="minimapExpandBtn"
+                        onclick="toggleMinimapExpand()"
+                        title="미니맵 확대"
+                    >
+                        ⛶
+                    </button>
                 </div>
             </div>
 
             <div class="map-bookmark-panel">
-                <button class="mb-btn" onclick="openModal('bookmarkModal')">📋 북마크 보기</button>
-                <button class="mb-btn bookmark-record-btn" onclick="recordBookmark()">📌 현재 화면 기록</button>
-                <button class="mb-btn" onclick="openModal('galleryModal')">🖼 갤러리</button>
+                <button
+                    class="mb-btn"
+                    onclick="openModal('bookmarkModal')"
+                >
+                    📋 북마크 보기
+                </button>
+
+                <button
+                    class="mb-btn bookmark-record-btn"
+                    onclick="recordBookmark()"
+                >
+                    📌 현재 화면 기록
+                </button>
+
+                <button
+                    class="mb-btn"
+                    onclick="openModal('galleryModal')"
+                >
+                    🖼 갤러리
+                </button>
             </div>
         </div>
 
         <div class="right-panel">
-            
+
             <div class="card alert-card">
                 <div class="card-header">
-                    <h2 class="card-title text-danger">⚠️ 실시간 위험/경고 알림</h2>
-                    <button class="clear-btn" onclick="clearAlerts()">알림 지우기</button>
+                    <h2 class="card-title text-danger">
+                        ⚠️ 실시간 위험/경고 알림
+                    </h2>
+
+                    <button
+                        class="clear-btn"
+                        onclick="clearAlerts()"
+                    >
+                        알림 지우기
+                    </button>
                 </div>
-                <div class="alert-container" id="alertBox">
+
+                <div
+                    class="alert-container"
+                    id="alertBox"
+                >
                     <div class="alert-entry alert-info">
-                        <span class="alert-time">시스템</span>
-                        <span class="alert-message">위험 감지 시스템이 활성화되었습니다.</span>
+                        <span class="alert-time">
+                            시스템
+                        </span>
+
+                        <span class="alert-message">
+                            위험 감지 시스템이 활성화되었습니다.
+                        </span>
                     </div>
                 </div>
             </div>
 
             <div class="control-grid">
-                <button class="card action-btn" onclick="openModal('statusModal')">기기 상태 로그</button>
-                <div class="split-btn-container">
-                    <button class="card action-btn action-report" onclick="reportDanger()">🚨 신고</button>
-                    <button class="card action-btn action-warning" onclick="warnTrespasser()">⚠️ 경고</button> 
-                </div>
-                <button class="card action-btn" onclick="openModal('patrolModal')">순찰 기록</button>
+                <button
+                    class="card action-btn"
+                    onclick="openModal('statusModal')"
+                >
+                    기기 상태 로그
+                </button>
 
-                <div class="card action-btn" onclick="togglePatrolMode()" style="flex-direction: row; gap: 12px; cursor: pointer;">
-                    <span id="label-auto" class="mode-text active">🤖 자동 순찰</span>
-                    <div class="toggle-switch" id="mode-switch-ui">
+                <div class="split-btn-container">
+                    <button
+                        class="card action-btn action-report"
+                        onclick="reportDanger()"
+                    >
+                        🚨 신고
+                    </button>
+
+                    <button
+                        class="card action-btn action-warning"
+                        onclick="warnTrespasser()"
+                    >
+                        ⚠️ 경고
+                    </button>
+                </div>
+
+                <button
+                    class="card action-btn"
+                    onclick="openModal('patrolModal')"
+                >
+                    순찰 기록
+                </button>
+
+                <div
+                    class="card action-btn"
+                    onclick="togglePatrolMode()"
+                    style="
+                        flex-direction: row;
+                        gap: 12px;
+                        cursor: pointer;
+                    "
+                >
+                    <span
+                        id="label-auto"
+                        class="mode-text active"
+                    >
+                        🤖 자동 순찰
+                    </span>
+
+                    <div
+                        class="toggle-switch"
+                        id="mode-switch-ui"
+                    >
                         <div class="toggle-slider"></div>
                     </div>
-                    <span id="label-manual" class="mode-text inactive">🎮 수동 순찰</span>
+
+                    <span
+                        id="label-manual"
+                        class="mode-text inactive"
+                    >
+                        🎮 수동 순찰
+                    </span>
                 </div>
-                
-                <div class="card d-pad-container disabled" id="d-pad-area">
+
+                <div
+                    class="card d-pad-container disabled"
+                    id="d-pad-area"
+                >
                     <div class="d-pad">
-                        <button class="d-btn" onclick="moveRobot('↖')">↖</button>
-                        <button class="d-btn" onclick="moveRobot('↑')">↑</button>
-                        <button class="d-btn" onclick="moveRobot('↗')">↗</button>
-                        <button class="d-btn" onclick="moveRobot('←')">←</button>
-                        <div class="d-center-split">
-                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(반시계)')">↺</button>
-                            <button class="d-btn rotate-btn" onclick="moveRobot('제자리 회전(시계)')">↻</button>
-                        </div>
-                        <button class="d-btn" onclick="moveRobot('→')">→</button>
-                        <button class="d-btn" onclick="moveRobot('↙')">↙</button>
-                        <button class="d-btn" onclick="moveRobot('↓')">↓</button>
-                        <button class="d-btn" onclick="moveRobot('↘')">↘</button>
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↖')"
+                            title="좌회전"
+                        >
+                            ↖
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↑')"
+                            title="전진"
+                        >
+                            ↑
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↗')"
+                            title="우회전"
+                        >
+                            ↗
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('←')"
+                            title="반시계 방향 회전"
+                        >
+                            ←
+                        </button>
+
+                        <!-- 중앙 정지 및 회전 버튼 제거 -->
+                        <!-- 3×3 D-Pad 배치를 유지하기 위한 빈 칸 -->
+                        <div
+                            class="d-center-split"
+                            aria-hidden="true"
+                        ></div>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('→')"
+                            title="시계 방향 회전"
+                        >
+                            →
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↙')"
+                            title="왼쪽으로 후진"
+                        >
+                            ↙
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↓')"
+                            title="후진"
+                        >
+                            ↓
+                        </button>
+
+                        <button
+                            class="d-btn"
+                            onclick="moveRobot('↘')"
+                            title="오른쪽으로 후진"
+                        >
+                            ↘
+                        </button>
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <div id="commonModal" class="modal">
+    <div
+        id="commonModal"
+        class="modal"
+    >
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">모달 제목</h2>
-                <span class="close-btn" onclick="closeModal()">&times;</span>
+                <h2 id="modalTitle">
+                    모달 제목
+                </h2>
+
+                <span
+                    class="close-btn"
+                    onclick="closeModal()"
+                >
+                    &times;
+                </span>
             </div>
-            <div id="modalBody" class="modal-body">
+
+            <div
+                id="modalBody"
+                class="modal-body"
+            >
                 모달 내용이 여기에 들어갑니다.
             </div>
         </div>
     </div>
 
-    <script src="static/script.js?v=20260622-lidar-live"></script>
+    <script src="static/script.js?v=20260731-auth-logout"></script>
+
+    <!-- 실제 모터 구동 기준 방향 재매핑 -->
+    <script src="static/control_mapping.js?v=20260730-control-remap"></script>
 </body>
 </html>
