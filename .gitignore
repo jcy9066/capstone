@@ -16,3 +16,5 @@ navigation/ros/log/
 navigation/maps/test_map.*
 
 tests/
+
+logs/
