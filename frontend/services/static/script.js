@@ -38,7 +38,6 @@ function fetchRobotStatus() {
             document.getElementById('sys-cpu-usage').innerText = data.cpu_usage;
             document.getElementById('sys-cpu-temp').innerText = data.cpu_temp;
             document.getElementById('sys-ram').innerText = data.ram_usage;
-            document.getElementById('sys-battery').innerText = data.battery;
             document.getElementById('sys-internet').innerText = data.internet;
         })
         .catch(error => console.error('상태 업데이트 오류:', error));

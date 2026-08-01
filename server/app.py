@@ -1,4 +1,5 @@
 import asyncio
+from importlib.util import module_from_spec, spec_from_file_location
 import gc
 import json
 import logging
@@ -42,6 +43,7 @@ except ModuleNotFoundError as bridge_import_error:
     EncoderRosBridge = None
     logging.getLogger(__name__).warning("ROS bridge dependencies are unavailable: %s", bridge_import_error)
 from server.auth_service import AuthError, AuthService
+from server.navigation_map_api import NavigationMapApi
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
@@ -437,6 +439,24 @@ class RobotConnectionManager:
 
 
 connections = RobotConnectionManager()
+
+# Load the dashboard-only routes without importing frontend.__init__.
+_system_control_spec = spec_from_file_location(
+    "dabom_system_control",
+    ROOT_DIR / "frontend" / "system_control.py",
+)
+if _system_control_spec is None or _system_control_spec.loader is None:
+    raise RuntimeError("Unable to load system control routes.")
+_system_control_module = module_from_spec(_system_control_spec)
+_system_control_spec.loader.exec_module(_system_control_module)
+_system_control_module.attach_system_control_routes(app)
+
+navigation_map_api = NavigationMapApi(
+    app=app,
+    root_dir=ROOT_DIR,
+    map_dir=NAVIGATION_MAP_DIR,
+    csrf_failure=csrf_failure,
+)
 
 lidar_ros_bridge = None
 encoder_ros_bridge = None
@@ -1193,10 +1213,17 @@ async def startup():
         )
         encoder_ros_bridge.start()
 
+    if not navigation_map_api.start():
+        logging.getLogger(__name__).warning(
+            "Navigation ROS control is unavailable; map loading will remain disabled."
+        )
+
 
 @app.on_event("shutdown")
 async def shutdown_lidar_bridge():
     global lidar_ros_bridge, encoder_ros_bridge
+
+    navigation_map_api.close()
 
     if encoder_ros_bridge is not None:
         encoder_ros_bridge.close()
@@ -1547,8 +1574,8 @@ async def save_current_navigation_map(request: Request):
 
 
 @app.get("/api/navigation/maps")
-async def get_saved_navigation_maps():
-    return {"ok": True, "maps": list_saved_navigation_maps()}
+async def get_saved_navigation_maps(request: Request):
+    return await navigation_map_api.list_maps(request)
 
 
 @app.get("/api/navigation/pose")
