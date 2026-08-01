@@ -16,3 +16,9 @@ navigation/ros/log/
 navigation/maps/test_map.*
 
 tests/
+
+logs/
+
+# pico w build
+raspberry/pico_w_sdk/build/
+*.bak

@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -600,6 +601,41 @@ static void move_motors(
 }
 
 
+static void drive_motors(
+    float left_speed,
+    float right_speed
+) {
+    /*
+     * DRIVE 입력은 -1.0 ~ 1.0 범위의 정규화된 PWM 명령이다.
+     * 범위 검증은 command parser에서 먼저 수행한다.
+     */
+    motor_set_signed_speed(
+        &left_motor,
+        left_speed
+    );
+
+    motor_set_signed_speed(
+        &right_motor,
+        right_speed
+    );
+
+    if (
+        left_speed == 0.0f &&
+        right_speed == 0.0f
+    ) {
+        is_moving = false;
+    } else {
+        last_move_ms = to_ms_since_boot(
+            get_absolute_time()
+        );
+
+        is_moving = true;
+    }
+
+    uart_reply("OK,DRIVE");
+}
+
+
 static bool parse_enabled_value(
     const char *value,
     bool *enabled
@@ -696,6 +732,88 @@ static void handle_command(char *line) {
             enabled
                 ? "OK,ENC_STREAM,1"
                 : "OK,ENC_STREAM,0"
+        );
+
+        return;
+    }
+
+    if (strcmp(command, "DRIVE") == 0) {
+        char *left_text = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+
+        char *right_text = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+
+        char *extra_argument = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+
+        if (
+            left_text == NULL ||
+            right_text == NULL ||
+            extra_argument != NULL
+        ) {
+            stop_motors();
+
+            uart_reply(
+                "ERR,DRIVE requires left and right"
+            );
+
+            return;
+        }
+
+        char *left_end = NULL;
+        char *right_end = NULL;
+
+        const float left_speed = strtof(
+            left_text,
+            &left_end
+        );
+
+        const float right_speed = strtof(
+            right_text,
+            &right_end
+        );
+
+        if (
+            left_end == left_text ||
+            *left_end != '\0' ||
+            right_end == right_text ||
+            *right_end != '\0' ||
+            !isfinite(left_speed) ||
+            !isfinite(right_speed)
+        ) {
+            stop_motors();
+            uart_reply("ERR,invalid DRIVE speed");
+            return;
+        }
+
+        if (
+            left_speed < -1.0f ||
+            left_speed > 1.0f ||
+            right_speed < -1.0f ||
+            right_speed > 1.0f
+        ) {
+            stop_motors();
+
+            uart_reply(
+                "ERR,DRIVE speed out of range"
+            );
+
+            return;
+        }
+
+        drive_motors(
+            left_speed,
+            right_speed
         );
 
         return;

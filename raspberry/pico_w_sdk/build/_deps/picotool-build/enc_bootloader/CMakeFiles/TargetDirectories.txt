@@ -1,2 +1,0 @@
-/home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/_deps/picotool-build/enc_bootloader/CMakeFiles/edit_cache.dir
-/home/dabom_user/dabom_capstone/raspberry/pico_w_sdk/build/_deps/picotool-build/enc_bootloader/CMakeFiles/rebuild_cache.dir
