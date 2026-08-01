@@ -46,7 +46,7 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import (
     FindPackageShare,
 )
-
+from launch.conditions import IfCondition
 
 def generate_launch_description():
     pkg_share = FindPackageShare(
@@ -89,6 +89,13 @@ def generate_launch_description():
     )
     start_fake_odom = LaunchConfiguration(
         "start_fake_odom"
+    )
+    DeclareLaunchArgument(
+        "start_nav2_command_bridge",
+        default_value="true",
+    ),
+    start_nav2_command_bridge = LaunchConfiguration(
+        "start_nav2_command_bridge"
     )
 
     # ---------------------------------------------------------
@@ -276,6 +283,37 @@ def generate_launch_description():
             ]
         ),
     )
+    # ---------------------------------------------------------
+    # Nav2 command bridge
+    # ---------------------------------------------------------
+    # /cmd_vel_nav_dry_run을 좌우 바퀴 속도로 변환하고
+    # 서버의 dry-run command API로 전달한다.
+    #
+    # 브리지와 서버 모두 실제 모터 출력을 비활성화한 상태다.
+    nav2_command_bridge = Node(
+        package="patrol_navigation",
+        executable="nav2_command_bridge",
+        name="nav2_command_bridge",
+        output="screen",
+        condition=IfCondition(
+            start_nav2_command_bridge
+        ),
+        parameters=[
+            {
+                "cmd_vel_topic": (
+                    "/cmd_vel_nav_dry_run"
+                ),
+                "wheel_track_m": 0.201,
+                "max_wheel_mps": 0.50,
+                "twist_timeout_sec": 0.50,
+                "server_base_url": (
+                    server_base_url
+                ),
+                "robot_id": robot_id,
+                "request_timeout_sec": 0.25,
+            }
+        ],
+    )
 
     # ---------------------------------------------------------
     # Navigation lifecycle manager
@@ -426,6 +464,9 @@ def generate_launch_description():
             bt_navigator,
             waypoint_follower,
             velocity_smoother,
+
+            # Nav2 Twist → 서버 dry-run API
+            nav2_command_bridge,
 
             # lifecycle activation
             lifecycle_manager_navigation,

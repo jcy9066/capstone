@@ -2756,24 +2756,198 @@ async def get_encoder_bridge_status():
 
 
 @app.post("/api/robots/{robot_id}/command")
-async def send_robot_command(robot_id: str, request: Request):
-    payload = await request.json()
+async def send_robot_command(
+    robot_id: str,
+    request: Request,
+):
+    try:
+        payload = await request.json()
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "invalid JSON body",
+            },
+            status_code=400,
+        )
+
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "JSON object required",
+            },
+            status_code=400,
+        )
+
+    command_type = str(
+        payload.get("type", "move")
+    ).strip()
+
+    if not command_type:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "command type is required",
+            },
+            status_code=400,
+        )
+
     command = {
-        "command_id": payload.get("command_id", str(uuid4())),
-        "type": payload.get("type", "move"),
-        "issued_at": time.time(),
         **payload,
+        "command_id": str(
+            payload.get("command_id")
+            or uuid4()
+        ),
+        "type": command_type,
+        "issued_at": time.time(),
     }
 
-    delivered = await connections.send_command(robot_id, command)
-    status_code = 200 if delivered else 409
+    # Nav2 dry-run 명령은 서버까지만 수신하고
+    # Pi WebSocket으로 전달하지 않는다.
+    nav2_dry_run = (
+        command.get("source")
+        == "nav2_command_bridge"
+        and command.get("dry_run") is True
+        and command_type in {
+            "auto_drive",
+            "stop",
+        }
+    )
+
+    if command_type == "auto_drive":
+        try:
+            raw_left = command.get("left_mps")
+            raw_right = command.get("right_mps")
+
+            if (
+                isinstance(raw_left, bool)
+                or isinstance(raw_right, bool)
+            ):
+                raise ValueError(
+                    "boolean wheel speed"
+                )
+
+            left_mps = float(raw_left)
+            right_mps = float(raw_right)
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "left_mps and right_mps "
+                        "must be finite numbers"
+                    ),
+                },
+                status_code=400,
+            )
+
+        if (
+            not np.isfinite(left_mps)
+            or not np.isfinite(right_mps)
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "NaN or Infinity is not allowed"
+                    ),
+                },
+                status_code=400,
+            )
+
+        max_wheel_mps = 0.50
+
+        if (
+            abs(left_mps) > max_wheel_mps
+            or abs(right_mps) > max_wheel_mps
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "wheel speed exceeds "
+                        f"{max_wheel_mps:.2f} m/s"
+                    ),
+                },
+                status_code=400,
+            )
+
+        command["left_mps"] = left_mps
+        command["right_mps"] = right_mps
+
+        # 서버의 두 번째 자율주행 출력 안전장치.
+        if not MOTOR_OUTPUT_ENABLED:
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "accepted": True,
+                    "delivered": False,
+                    "blocked": True,
+                    "dry_run": True,
+                    "motor_output_enabled": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": None,
+                },
+                status_code=200,
+            )
+
+    if nav2_dry_run:
+        return JSONResponse(
+            {
+                "ok": True,
+                "accepted": True,
+                "delivered": False,
+                "blocked": True,
+                "dry_run": True,
+                "motor_output_enabled": (
+                    MOTOR_OUTPUT_ENABLED
+                ),
+                "robot_id": robot_id,
+                "command": command,
+                "error": None,
+            },
+            status_code=200,
+        )
+
+    delivered = await connections.send_command(
+        robot_id,
+        command,
+    )
+
+    status_code = (
+        200 if delivered else 409
+    )
+
     return JSONResponse(
         {
             "ok": delivered,
             "delivered": delivered,
+            "blocked": False,
             "robot_id": robot_id,
             "command": command,
-            "error": None if delivered else "robot not connected",
+            "error": (
+                None
+                if delivered
+                else "robot not connected"
+            ),
         },
         status_code=status_code,
     )
