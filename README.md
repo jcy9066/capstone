@@ -193,6 +193,181 @@ LiDAR: /scan 지속 발행
 Odometry: /odom 및 odom -> base\_link TF 발행
 Pi: /ws/robot/pi-01 연결
 ```
+## Codex 개발 자동화 구성
+
+본 프로젝트는 Codex 기반 개발을 위해 Skill, Hook, Sub-Agent, MCP를 사용한다.
+
+```text
+dabom_capstone/
+├─ AGENTS.md
+├─ .agents/
+│  └─ skills/
+│     ├─ implement-feature/SKILL.md
+│     ├─ validate-server/
+│     │  ├─ SKILL.md
+│     │  └─ scripts/validate_server.py
+│     ├─ validate-dashboard/
+│     │  ├─ SKILL.md
+│     │  └─ references/
+│     │     ├─ dashboard_flows.md
+│     │     └─ expected_states.md
+│     ├─ validate-navigation/
+│     │  ├─ SKILL.md
+│     │  ├─ scripts/validate_navigation.py
+│     │  └─ references/ros_interfaces.md
+│     ├─ validate-raspberry/
+│     │  ├─ SKILL.md
+│     │  ├─ scripts/validate_uart_protocol.py
+│     │  └─ references/uart_protocol.md
+│     └─ review-change/
+│        ├─ SKILL.md
+│        └─ scripts/review_change.py
+└─ .codex/
+   ├─ config.toml
+   ├─ hooks.json
+   ├─ agents/
+   │  ├─ code-explorer.toml
+   │  ├─ dashboard-reviewer.toml
+   │  ├─ ros-reviewer.toml
+   │  ├─ hardware-reviewer.toml
+   │  └─ test-reviewer.toml
+   └─ hooks/
+      ├─ pre_tool_policy.py
+      └─ validate_on_stop.py
+```
+
+### AGENTS.md
+
+루트에 하나만 유지하며 다음 공통 규칙을 정의한다.
+
+* 통합 서버 기준은 `server/app.py`이다.
+* ROS 2 package는 `navigation/ros/patrol_navigation/`이다.
+* Raspberry Pi client는 `raspberry/robot_command_client.py`이다.
+* Pico W firmware 기준은 `raspberry/pico_w_sdk/main.c`이다.
+* 수정 전 실제 import, API, launch 및 실행 경로를 확인한다.
+* 요청 범위 밖 파일은 수정하지 않는다.
+* 변경 영역에 해당하는 검증 Skill을 실행한다.
+* 하드웨어 미연결 상태에서 실제 동작을 검증했다고 표현하지 않는다.
+* 모터, GPIO, Pico W flash는 명시적 요청 없이 실행하지 않는다.
+* `.env`, token, weight, build 결과 및 runtime 생성물을 커밋하지 않는다.
+* Codex는 Git repository 상태를 변경하지 않는다.
+
+### Skills
+
+* `implement-feature`: 영향 범위 조사, 코드 수정, 영역별 검증 및 결과 보고
+* `validate-server`: FastAPI, 인증, WebSocket, DB, Python 및 API 검증
+* `validate-dashboard`: Playwright MCP를 이용한 로그인, UI, console, network 검증
+* `validate-navigation`: ROS 2 package, launch, config, TF, topic 및 Nav2 검증
+* `validate-raspberry`: Pi/Pico UART protocol, encoder, timeout 및 failsafe 검증
+* `review-change`: secret, backup, build 결과, 생성 지도, 중복 파일 및 테스트 누락 확인
+
+Browser 검증에서는 실제 이동, 신고, 경고 방송, ROS process 변경, 지도 삭제 등 파괴적 동작을 수행하지 않는다.
+
+### Hooks
+
+#### `pre_tool_policy.py`
+
+다음 Git 변경 명령을 차단한다.
+
+```text
+git add, commit, push, pull, fetch, merge, rebase,
+cherry-pick, revert, reset, restore, checkout,
+switch, stash, tag, clean, branch 생성·삭제
+```
+
+다음 읽기 명령은 허용한다.
+
+```text
+git status, diff, log, show, grep, ls-files,
+ls-tree, rev-parse, blame, remote -v,
+branch --show-current, branch --list
+```
+
+또한 실제 모터 제어, `/cmd_vel` publish, GPIO 변경, Pico W flash, serial 이동 명령을 차단한다.
+
+#### `validate_on_stop.py`
+
+변경 영역별 필수 검증을 확인한다.
+
+```text
+server/ 변경        → validate-server
+frontend/ 변경      → validate-dashboard
+server/app.py 변경  → validate-server + validate-dashboard
+navigation/ 변경    → validate-navigation
+raspberry/ 변경     → validate-raspberry
+전체 변경           → review-change
+```
+
+### Sub-Agents
+
+* `code-explorer`: entry point, import 관계, 영향 범위, 중복·미사용 코드 조사
+* `dashboard-reviewer`: Playwright 기반 실제 웹 대시보드 검증
+* `ros-reviewer`: ROS 2, SLAM, AMCL, Nav2, TF 및 topic 검토
+* `hardware-reviewer`: Pi, Pico W, UART, encoder 및 failsafe 검토
+* `test-reviewer`: 최종 diff, regression 및 테스트 누락 검토
+
+Sub-Agent는 기본적으로 read-only로 사용하며 같은 파일을 동시에 수정하지 않는다.
+
+### MCP
+
+#### Playwright Browser MCP
+
+다음 검증에 사용한다.
+
+* 로그인 및 session
+* UI 렌더링
+* JavaScript console 오류
+* network request 실패
+* modal, sidebar 및 상태 표시
+* 카메라, LiDAR, 로봇 연결 및 navigation UI
+
+#### GitHub MCP
+
+다음 읽기 기능을 허용한다.
+
+* 원격 branch와 파일 조회
+* 코드 검색
+* commit과 diff 조회
+* PR, Issue, review 조회
+* GitHub Actions 상태와 로그 조회
+
+Issue, PR comment 등 비코드 쓰기는 사용자 승인 후 실행한다.
+
+다음 기능은 비활성화한다.
+
+* 파일 생성·수정·삭제
+* commit 및 branch 생성
+* PR merge
+* tag 및 release 생성
+* workflow 및 repository 설정 변경
+
+Runtime MCP, ROS MCP, DB MCP, Raspberry Pi MCP는 사용하지 않는다.
+
+### 전체 흐름
+
+```text
+사용자 요청
+→ AGENTS.md 적용
+→ implement-feature
+→ code-explorer 분석
+→ 코드 수정
+→ 영역별 검증 Skill
+→ 분야별 Sub-Agent 검토
+→ review-change
+→ validate_on_stop
+→ 변경 및 검증 결과 보고
+```
+
+최종 역할은 다음과 같다.
+
+```text
+Skill       → 작업 절차와 검증
+Hook        → 위험 작업 차단과 검증 강제
+Sub-Agent   → 분야별 독립 검토
+Playwright  → 실제 웹 브라우저 검증
+GitHub MCP  → 원격 GitHub 정보 조회
+버전 관리   → 사용자가 직접 수행
+```
 
 ## 현재 진행 상황
 
