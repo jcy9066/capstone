@@ -1,6 +1,0 @@
-image: test_map_20260801.pgm
-resolution: 0.05000000074505806
-origin: [-6.15294755289184, -1.4797042823211675, 0.0]
-negate: 0
-occupied_thresh: 0.65
-free_thresh: 0.196

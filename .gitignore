@@ -13,12 +13,14 @@ navigation/ros/install/
 navigation/ros/log/
 
 # ROS2 test map
-navigation/maps/test_map.*
-
-tests/
-
+navigation/maps/*
 logs/
+!navigation/maps/slam_test_01.yaml
+!navigation/maps/slam_test_01.pgm
+!navigation/maps/slam_test_01.raw.json
+!navigation/maps/slam_test_01.meta.json
 
 # pico w build
 raspberry/pico_w_sdk/build/
 *.bak
+*.bak_*
