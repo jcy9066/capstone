@@ -1,0 +1,30 @@
+{
+  "description": "dabom_capstone Codex safety and validation hooks",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write|mcp__.*github.*|mcp__.*playwright.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_policy.py\"",
+            "timeout": 10,
+            "statusMessage": "프로젝트 안전 정책 확인 중"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/validate_on_stop.py\"",
+            "timeout": 30,
+            "statusMessage": "필수 검증 수행 여부 확인 중"
+          }
+        ]
+      }
+    ]
+  }
+}
