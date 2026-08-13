@@ -1,0 +1,80 @@
+# dabom_capstone 프로젝트 전용 Codex 설정
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 4
+default_subagent_reasoning_effort = "high"
+
+
+# ============================================================
+# Playwright Browser MCP
+# ============================================================
+
+[mcp_servers.playwright]
+command = "npx"
+args = [
+  "-y",
+  "@playwright/mcp@latest",
+  "--headless",
+  "--console-level",
+  "warning",
+  "--viewport-size",
+  "1440x900",
+  "--allowed-origins",
+  "http://127.0.0.1:21063;http://localhost:21063",
+  "--output-dir",
+  ".playwright-mcp"
+]
+
+enabled = true
+required = false
+default_tools_approval_mode = "approve"
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+
+
+# ============================================================
+# GitHub MCP
+# ============================================================
+#
+# GitHub Personal Access Token은 파일에 작성하지 않는다.
+# Codex 실행 전에 환경 변수로 전달한다.
+#
+# export GITHUB_PERSONAL_ACCESS_TOKEN="<TOKEN>"
+#
+# 허용:
+# - 원격 파일, branch, commit, diff 조회
+# - 코드 검색
+# - Issue 및 PR 조회
+# - Issue/PR 작성 및 comment는 사용자 승인 후 실행
+# - GitHub Actions 상태 및 로그 조회
+#
+# 차단:
+# - 파일 생성, 수정, 삭제
+# - commit 및 branch 생성
+# - push
+# - PR merge
+# - PR branch 갱신
+# - GitHub Actions 실행
+
+# ============================================================
+# GitHub Remote MCP
+# ============================================================
+
+[mcp_servers.github]
+url = "https://api.githubcopilot.com/mcp/"
+
+# .codex/.env.github에서 shell 환경으로 불러오는 변수명
+bearer_token_env_var = "GITHUB_PERSONAL_ACCESS_TOKEN"
+
+# 현재는 원격 GitHub 정보를 읽는 용도로만 사용한다.
+http_headers = {
+  "X-MCP-Toolsets" = "context,repos,git,issues,pull_requests,actions,labels",
+  "X-MCP-Readonly" = "true"
+}
+
+enabled = true
+required = false
+default_tools_approval_mode = "writes"
+startup_timeout_sec = 30
+tool_timeout_sec = 120
