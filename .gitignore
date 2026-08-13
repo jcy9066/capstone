@@ -25,5 +25,6 @@ raspberry/pico_w_sdk/build/
 *.bak
 *.bak_*
 
-# github MCP token
-.codex/.env.github
+# playwright
+.playwright-mcp/
+
