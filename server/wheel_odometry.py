@@ -90,10 +90,25 @@ class WheelOdometryNode(Node):
         self.previous_ticks = None
         self.previous_time_sec = None
 
+        # 엔코더 callback에서 계산한 최신 속도다.
+        self.latest_linear_velocity = 0.0
+        self.latest_angular_velocity = 0.0
+        self.last_encoder_time_sec = None
+        self.has_encoder_data = False
+
+        # 정지 상태에서도 /odom과 TF를 계속 발행한다.
+        self.publish_rate_hz = 20.0
+        self.velocity_timeout_sec = 0.25
+
         self.received = 0
         self.published = 0
         self.last_ticks = None
         self.last_update_at = None
+
+        self.publish_timer = self.create_timer(
+            1.0 / self.publish_rate_hz,
+            self.publish_timer_callback,
+        )
 
         self.get_logger().info(
             "wheel odometry started "
@@ -129,15 +144,14 @@ class WheelOdometryNode(Node):
         self.last_ticks = ticks
         self.last_update_at = time.time()
 
+        self.last_encoder_time_sec = now_sec
+        self.has_encoder_data = True
+
         if self.previous_ticks is None:
             self.previous_ticks = ticks
             self.previous_time_sec = now_sec
-
-            self.publish_odometry(
-                now=now,
-                linear_velocity=0.0,
-                angular_velocity=0.0,
-            )
+            self.latest_linear_velocity = 0.0
+            self.latest_angular_velocity = 0.0
             return
 
         delta_ticks = [
@@ -203,6 +217,32 @@ class WheelOdometryNode(Node):
 
         self.previous_ticks = ticks
         self.previous_time_sec = now_sec
+
+        self.latest_linear_velocity = linear_velocity
+        self.latest_angular_velocity = angular_velocity
+
+    def publish_timer_callback(self) -> None:
+        """최신 위치를 20Hz로 계속 발행한다."""
+        if not self.has_encoder_data:
+            return
+
+        now = self.get_clock().now()
+        now_sec = now.nanoseconds / 1_000_000_000.0
+
+        encoder_is_stale = (
+            self.last_encoder_time_sec is None
+            or (
+                now_sec - self.last_encoder_time_sec
+                > self.velocity_timeout_sec
+            )
+        )
+
+        if encoder_is_stale:
+            linear_velocity = 0.0
+            angular_velocity = 0.0
+        else:
+            linear_velocity = self.latest_linear_velocity
+            angular_velocity = self.latest_angular_velocity
 
         self.publish_odometry(
             now=now,

@@ -1,4 +1,5 @@
 import asyncio
+from importlib.util import module_from_spec, spec_from_file_location
 import gc
 import json
 import logging
@@ -40,8 +41,12 @@ try:
 except ModuleNotFoundError as bridge_import_error:
     LidarRosBridge = None
     EncoderRosBridge = None
-    logging.getLogger(__name__).warning("ROS bridge dependencies are unavailable: %s", bridge_import_error)
+    logging.getLogger(__name__).warning(
+        "ROS bridge dependencies are unavailable: %s",
+        bridge_import_error,
+    )
 from server.auth_service import AuthError, AuthService
+from server.navigation_map_api import NavigationMapApi
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
@@ -54,7 +59,9 @@ EMAIL_CHALLENGE_COOKIE = "dabom_email_challenge"
 EMAIL_VERIFIED_COOKIE = "dabom_verified_email"
 EMAIL_COOKIE_PATH = "/api/auth"
 if not os.getenv("SESSION_SECRET_KEY"):
-    logging.getLogger(__name__).warning("SESSION_SECRET_KEY is missing; sessions will reset after server restart.")
+    logging.getLogger(__name__).warning(
+        "SESSION_SECRET_KEY is missing; sessions will reset after server restart."
+    )
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
@@ -65,12 +72,7 @@ app.add_middleware(
 )
 
 STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
-
-app.mount(
-    "/static",
-    StaticFiles(directory=STATIC_DIR),
-    name="static",
-)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
 _auth_service = None
@@ -98,7 +100,13 @@ def csrf_failure(request: Request):
     supplied = request.headers.get("X-CSRF-Token", "")
     if expected and supplied and secrets.compare_digest(expected, supplied):
         return None
-    return JSONResponse({"ok": False, "detail": "\ubcf4\uc548 \uac80\uc99d\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \ud398\uc774\uc9c0\ub97c \uc0c8\ub85c\uace0\uce68\ud55c \ub4a4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694."}, status_code=403)
+    return JSONResponse(
+        {
+            "ok": False,
+            "detail": "보안 검증에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.",
+        },
+        status_code=403,
+    )
 
 
 def auth_client_key(request: Request) -> str:
@@ -109,9 +117,15 @@ async def auth_payload(request: Request):
     try:
         payload = await request.json()
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return None, JSONResponse({"ok": False, "detail": "JSON \uc694\uccad \ubcf8\ubb38\uc774 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+        return None, JSONResponse(
+            {"ok": False, "detail": "JSON 요청 본문이 필요합니다."},
+            status_code=400,
+        )
     if not isinstance(payload, dict):
-        return None, JSONResponse({"ok": False, "detail": "JSON \uac1d\uccb4\uac00 \ud544\uc694\ud569\ub2c8\ub2e4."}, status_code=400)
+        return None, JSONResponse(
+            {"ok": False, "detail": "JSON 객체가 필요합니다."},
+            status_code=400,
+        )
     return payload, None
 
 
@@ -120,19 +134,29 @@ async def call_auth(method_name: str, *args):
         method = getattr(get_auth_service(), method_name)
         return await asyncio.to_thread(method, *args), None
     except AuthError as exc:
-        return None, JSONResponse({"ok": False, "detail": exc.message}, status_code=exc.status_code)
+        return None, JSONResponse(
+            {"ok": False, "detail": exc.message},
+            status_code=exc.status_code,
+        )
 
 
 @app.get("/")
 async def auth_index(request: Request):
-    return RedirectResponse(url="/main" if request.session.get("user") else "/login", status_code=302)
+    return RedirectResponse(
+        url="/main" if request.session.get("user") else "/login",
+        status_code=302,
+    )
 
 
 @app.get("/login")
 async def auth_login_page(request: Request):
     if request.session.get("user"):
         return RedirectResponse(url="/main", status_code=302)
-    return templates.TemplateResponse(request, "login.html", {"csrf_token": issue_csrf_token(request)})
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"csrf_token": issue_csrf_token(request)},
+    )
 
 
 @app.get("/main")
@@ -150,14 +174,23 @@ async def send_signup_email(request: Request):
     payload, payload_error = await auth_payload(request)
     if payload_error:
         return payload_error
-    result, error = await call_auth("send_email_verification", payload.get("email"), auth_client_key(request))
+    result, error = await call_auth(
+        "send_email_verification",
+        payload.get("email"),
+        auth_client_key(request),
+    )
     if error:
         return error
     challenge_token = result.pop("challenge_token")
     response = JSONResponse({"ok": True, **result})
     response.set_cookie(
-        EMAIL_CHALLENGE_COOKIE, challenge_token, max_age=result["expires_in_sec"],
-        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+        EMAIL_CHALLENGE_COOKIE,
+        challenge_token,
+        max_age=result["expires_in_sec"],
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        path=EMAIL_COOKIE_PATH,
     )
     return response
 
@@ -171,16 +204,23 @@ async def verify_signup_email(request: Request):
     if payload_error:
         return payload_error
     verified_token, error = await call_auth(
-        "verify_email_code", payload.get("email"), payload.get("code"), request.cookies.get(EMAIL_CHALLENGE_COOKIE)
+        "verify_email_code",
+        payload.get("email"),
+        payload.get("code"),
+        request.cookies.get(EMAIL_CHALLENGE_COOKIE),
     )
     if error:
         return error
-    response = JSONResponse({"ok": True, "message": "\uc774\uba54\uc77c \uc778\uc99d\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4."})
+    response = JSONResponse({"ok": True, "message": "이메일 인증이 완료되었습니다."})
     response.delete_cookie(EMAIL_CHALLENGE_COOKIE, path=EMAIL_COOKIE_PATH)
     response.set_cookie(
-        EMAIL_VERIFIED_COOKIE, verified_token,
+        EMAIL_VERIFIED_COOKIE,
+        verified_token,
         max_age=get_auth_service().settings.verification_ttl_sec,
-        httponly=True, secure=COOKIE_SECURE, samesite="strict", path=EMAIL_COOKIE_PATH,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        path=EMAIL_COOKIE_PATH,
     )
     return response
 
@@ -193,7 +233,11 @@ async def check_signup_availability(request: Request):
     payload, payload_error = await auth_payload(request)
     if payload_error:
         return payload_error
-    result, error = await call_auth("check_availability", payload.get("field"), payload.get("value"))
+    result, error = await call_auth(
+        "check_availability",
+        payload.get("field"),
+        payload.get("value"),
+    )
     if error:
         return error
     return {"ok": True, **result}
@@ -207,10 +251,19 @@ async def register_user(request: Request):
     payload, payload_error = await auth_payload(request)
     if payload_error:
         return payload_error
-    _, error = await call_auth("register", payload, request.cookies.get(EMAIL_VERIFIED_COOKIE))
+    _, error = await call_auth(
+        "register",
+        payload,
+        request.cookies.get(EMAIL_VERIFIED_COOKIE),
+    )
     if error:
         return error
-    response = JSONResponse({"ok": True, "message": "\ud68c\uc6d0\uac00\uc785\uc774 \uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4. \ub85c\uadf8\uc778\ud574 \uc8fc\uc138\uc694."})
+    response = JSONResponse(
+        {
+            "ok": True,
+            "message": "회원가입이 완료되었습니다. 로그인해 주세요.",
+        }
+    )
     response.delete_cookie(EMAIL_VERIFIED_COOKIE, path=EMAIL_COOKIE_PATH)
     return response
 
@@ -223,7 +276,12 @@ async def authenticate_user(request: Request):
     payload, payload_error = await auth_payload(request)
     if payload_error:
         return payload_error
-    user, error = await call_auth("login", payload.get("login_id"), payload.get("password"), auth_client_key(request))
+    user, error = await call_auth(
+        "login",
+        payload.get("login_id"),
+        payload.get("password"),
+        auth_client_key(request),
+    )
     if error:
         return error
     request.session.clear()
@@ -242,8 +300,9 @@ async def logout_user(request: Request):
     return {"ok": True, "redirect_url": "/login"}
 
 
-
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
+
+
 @app.get("/api/auth/csrf")
 async def get_auth_csrf_token(request: Request):
     return {"ok": True, "csrf_token": issue_csrf_token(request)}
@@ -321,6 +380,15 @@ encoder_state = {
 }
 
 NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+VALID_NAVIGATION_MODES = frozenset(
+    {"scan_only", "mapping", "localization", "localization_nav2"}
+)
+NAVIGATION_MODE_LABELS = {
+    "scan_only": "Scan only",
+    "mapping": "Mapping",
+    "localization": "Localization",
+    "localization_nav2": "Localization + Nav2",
+}
 NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
     enabled=os.getenv("NAV_DRY_RUN_ENABLED", "true").lower() == "true",
     stop_distance_m=float(os.getenv("NAV_STOP_DISTANCE_M", "0.45")),
@@ -335,6 +403,8 @@ NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
 MOTOR_OUTPUT_ENABLED = False
 navigation_state = {
     "robot_id": SERVER_ROBOT_ID,
+    "mode": None,
+    "mode_updated_at": None,
     "map": None,
     "pose": None,
     "scan": None,
@@ -438,6 +508,24 @@ class RobotConnectionManager:
 
 connections = RobotConnectionManager()
 
+# Load the dashboard-only routes without importing frontend.__init__.
+_system_control_spec = spec_from_file_location(
+    "dabom_system_control",
+    ROOT_DIR / "frontend" / "system_control.py",
+)
+if _system_control_spec is None or _system_control_spec.loader is None:
+    raise RuntimeError("Unable to load system control routes.")
+_system_control_module = module_from_spec(_system_control_spec)
+_system_control_spec.loader.exec_module(_system_control_module)
+_system_control_module.attach_system_control_routes(app)
+
+navigation_map_api = NavigationMapApi(
+    app=app,
+    root_dir=ROOT_DIR,
+    map_dir=NAVIGATION_MAP_DIR,
+    csrf_failure=csrf_failure,
+)
+
 lidar_ros_bridge = None
 encoder_ros_bridge = None
 
@@ -460,7 +548,9 @@ def cuda_status():
         status["resolved_device"] = resolved_device
         status["available"] = True
         status["gpu_name"] = torch.cuda.get_device_name(index)
-        status["gpu_memory_used_mb"] = round(torch.cuda.memory_allocated(index) / (1024 * 1024), 1)
+        status["gpu_memory_used_mb"] = round(
+            torch.cuda.memory_allocated(index) / (1024 * 1024), 1
+        )
     except Exception as exc:
         status["error"] = str(exc)
     return status
@@ -493,7 +583,12 @@ def env_value(values, name, default):
 
 
 def env_bool(values, name, default):
-    return env_value(values, name, default).strip().lower() in ("1", "true", "yes", "on")
+    return env_value(values, name, default).strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def read_runtime_model_config():
@@ -509,17 +604,38 @@ def read_runtime_model_config():
         "inference_enabled": inference_enabled,
         "visualization_enabled": visualization_enabled,
         "model_active": inference_enabled or visualization_enabled,
-        "stream_infer_every_n": max(1, int(env_value(values, "STREAM_INFER_EVERY_N", "1"))),
-        "inference_max_fps": max(0.1, float(env_value(values, "INFERENCE_MAX_FPS", str(STREAM_FPS)))),
-        "adaptive_batching_enabled": env_bool(values, "ADAPTIVE_BATCHING_ENABLED", "true"),
-        "adaptive_batch_max_wait_ms": max(0.0, float(env_value(values, "ADAPTIVE_BATCH_MAX_WAIT_MS", "8"))),
-        "action_display_ttl_sec": max(0.1, float(env_value(values, "ACTION_DISPLAY_TTL_SEC", "1.0"))),
-        "trigger_suspicious_visual_enabled": env_bool(values, "TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true"),
-        "inference_max_result_age_sec": float(env_value(values, "INFERENCE_MAX_RESULT_AGE_SEC", "3.0")),
-        "inference_drop_older_than_sec": float(env_value(values, "INFERENCE_DROP_OLDER_THAN_SEC", "2.0")),
+        "stream_infer_every_n": max(
+            1, int(env_value(values, "STREAM_INFER_EVERY_N", "1"))
+        ),
+        "inference_max_fps": max(
+            0.1,
+            float(env_value(values, "INFERENCE_MAX_FPS", str(STREAM_FPS))),
+        ),
+        "adaptive_batching_enabled": env_bool(
+            values, "ADAPTIVE_BATCHING_ENABLED", "true"
+        ),
+        "adaptive_batch_max_wait_ms": max(
+            0.0,
+            float(env_value(values, "ADAPTIVE_BATCH_MAX_WAIT_MS", "8")),
+        ),
+        "action_display_ttl_sec": max(
+            0.1,
+            float(env_value(values, "ACTION_DISPLAY_TTL_SEC", "1.0")),
+        ),
+        "trigger_suspicious_visual_enabled": env_bool(
+            values, "TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true"
+        ),
+        "inference_max_result_age_sec": float(
+            env_value(values, "INFERENCE_MAX_RESULT_AGE_SEC", "3.0")
+        ),
+        "inference_drop_older_than_sec": float(
+            env_value(values, "INFERENCE_DROP_OLDER_THAN_SEC", "2.0")
+        ),
         "cuda_device_index": cuda_device_index,
         "device": device,
-        "gpu_required_for_inference": env_bool(values, "GPU_REQUIRED_FOR_INFERENCE", "true"),
+        "gpu_required_for_inference": env_bool(
+            values, "GPU_REQUIRED_FOR_INFERENCE", "true"
+        ),
     }
 
 
@@ -540,7 +656,9 @@ def apply_runtime_model_config(config):
     ADAPTIVE_BATCHING_ENABLED = config["adaptive_batching_enabled"]
     ADAPTIVE_BATCH_MAX_WAIT_MS = config["adaptive_batch_max_wait_ms"]
     ACTION_DISPLAY_TTL_SEC = config["action_display_ttl_sec"]
-    TRIGGER_SUSPICIOUS_VISUAL_ENABLED = config["trigger_suspicious_visual_enabled"]
+    TRIGGER_SUSPICIOUS_VISUAL_ENABLED = config[
+        "trigger_suspicious_visual_enabled"
+    ]
     INFERENCE_MAX_RESULT_AGE_SEC = config["inference_max_result_age_sec"]
     INFERENCE_DROP_OLDER_THAN_SEC = config["inference_drop_older_than_sec"]
     CUDA_DEVICE_INDEX = config["cuda_device_index"]
@@ -551,11 +669,7 @@ def apply_runtime_model_config(config):
 
 
 def runtime_model_signature(config):
-    return (
-        config["pipeline"],
-        config["model_active"],
-        config["device"],
-    )
+    return config["pipeline"], config["model_active"], config["device"]
 
 
 def detach_frame_processor():
@@ -634,7 +748,10 @@ def reload_model_pipeline(config, reason="env", initial=False):
         set_model_state(pipeline_name=pipeline["name"], error=None)
         start_inference_worker()
         env_reload_state["last_loaded_at"] = time.time()
-        print(f"[model] pipeline loaded: {pipeline['name']} device={config['device']} reason={reason}")
+        print(
+            f"[model] pipeline loaded: {pipeline['name']} "
+            f"device={config['device']} reason={reason}"
+        )
         return True
     except Exception as exc:
         error = str(exc)
@@ -647,12 +764,20 @@ def reload_model_pipeline(config, reason="env", initial=False):
 
 def ensure_runtime_model_config(force=False, reason="env"):
     now = time.time()
-    if not force and now - env_reload_state["last_check_at"] < ENV_RELOAD_CHECK_INTERVAL_SEC:
+    if (
+        not force
+        and now - env_reload_state["last_check_at"]
+        < ENV_RELOAD_CHECK_INTERVAL_SEC
+    ):
         return
 
     with model_reload_lock:
         now = time.time()
-        if not force and now - env_reload_state["last_check_at"] < ENV_RELOAD_CHECK_INTERVAL_SEC:
+        if (
+            not force
+            and now - env_reload_state["last_check_at"]
+            < ENV_RELOAD_CHECK_INTERVAL_SEC
+        ):
             return
         env_reload_state["last_check_at"] = now
 
@@ -673,16 +798,24 @@ def ensure_runtime_model_config(force=False, reason="env"):
             error = f"runtime env parse failed: {exc}"
             env_reload_state["mtime_ns"] = mtime_ns
             env_reload_state["last_error"] = error
-            set_model_state(pipeline_name=latest_result.get("pipeline"), error=error)
+            set_model_state(
+                pipeline_name=latest_result.get("pipeline"),
+                error=error,
+            )
             print(f"[model] {error}")
             return
+
         apply_runtime_model_config(config)
         signature = runtime_model_signature(config)
         env_reload_state["mtime_ns"] = mtime_ns
 
         if force or signature != env_reload_state["signature"]:
             env_reload_state["signature"] = signature
-            success = reload_model_pipeline(config, reason=reason, initial=force)
+            success = reload_model_pipeline(
+                config,
+                reason=reason,
+                initial=force,
+            )
             env_reload_state["last_error"] = None if success else model_error
         else:
             env_reload_state["last_error"] = None
@@ -722,7 +855,10 @@ def inference_result_is_fresh(now=None):
     now = now or time.time()
     with state_lock:
         last_result_at = inference_stats.get("last_result_at")
-    return last_result_at is not None and now - last_result_at <= INFERENCE_MAX_RESULT_AGE_SEC
+    return (
+        last_result_at is not None
+        and now - last_result_at <= INFERENCE_MAX_RESULT_AGE_SEC
+    )
 
 
 def clamp_box(box, width, height):
@@ -743,8 +879,23 @@ def draw_overlay_label(frame, text, origin, color):
     thickness = 2
     (text_w, text_h), baseline = cv2.getTextSize(text, font, scale, thickness)
     y = max(text_h + 8, y)
-    cv2.rectangle(frame, (x, y - text_h - baseline - 6), (x + text_w + 8, y + baseline), color, -1)
-    cv2.putText(frame, text, (x + 4, y - 4), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+    cv2.rectangle(
+        frame,
+        (x, y - text_h - baseline - 6),
+        (x + text_w + 8, y + baseline),
+        color,
+        -1,
+    )
+    cv2.putText(
+        frame,
+        text,
+        (x + 4, y - 4),
+        font,
+        scale,
+        (255, 255, 255),
+        thickness,
+        cv2.LINE_AA,
+    )
 
 
 PERSON_BASE_COLOR = (120, 220, 120)
@@ -759,9 +910,23 @@ def draw_translucent_box(frame, pt1, pt2, color, opacity=PERSON_BASE_OPACITY):
 
 
 DEFAULT_SKELETON_LINKS = [
-    (15, 13), (13, 11), (16, 14), (14, 12), (11, 12), (5, 11),
-    (6, 12), (5, 6), (5, 7), (6, 8), (7, 9), (8, 10),
-    (1, 2), (0, 1), (0, 2), (1, 3), (2, 4),
+    (15, 13),
+    (13, 11),
+    (16, 14),
+    (14, 12),
+    (11, 12),
+    (5, 11),
+    (6, 12),
+    (5, 6),
+    (5, 7),
+    (6, 8),
+    (7, 9),
+    (8, 10),
+    (1, 2),
+    (0, 1),
+    (0, 2),
+    (1, 3),
+    (2, 4),
 ]
 
 
@@ -780,7 +945,11 @@ def draw_skeleton_points(frame, skeleton, color):
         if 0 <= x < width and 0 <= y < height:
             cv2.circle(frame, (x, y), 2, color, -1)
 
-    links = getattr(getattr(frame_processor, "action_analyzer", None), "skeleton_links", DEFAULT_SKELETON_LINKS)
+    links = getattr(
+        getattr(frame_processor, "action_analyzer", None),
+        "skeleton_links",
+        DEFAULT_SKELETON_LINKS,
+    )
     for start, end in links:
         if start >= len(points) or end >= len(points):
             continue
@@ -788,7 +957,12 @@ def draw_skeleton_points(frame, skeleton, color):
         x2, y2 = points[end]
         if (x1, y1) == (0, 0) or (x2, y2) == (0, 0):
             continue
-        if 0 <= x1 < width and 0 <= y1 < height and 0 <= x2 < width and 0 <= y2 < height:
+        if (
+            0 <= x1 < width
+            and 0 <= y1 < height
+            and 0 <= x2 < width
+            and 0 <= y2 < height
+        ):
             cv2.line(frame, (x1, y1), (x2, y2), color, 1)
 
 
@@ -801,9 +975,20 @@ def draw_detection_overlay(frame, detection):
     confidence_level = detection.get("confidence_level")
     is_suspicious = bool(
         confidence_level == "suspicious"
-        or (TRIGGER_SUSPICIOUS_VISUAL_ENABLED and confidence_level == "trigger_suspicious")
+        or (
+            TRIGGER_SUSPICIOUS_VISUAL_ENABLED
+            and confidence_level == "trigger_suspicious"
+        )
     )
-    color = (0, 0, 255) if (is_danger or not is_person) else ((0, 165, 255) if (has_action_label or is_suspicious) else PERSON_BASE_COLOR)
+    color = (
+        (0, 0, 255)
+        if (is_danger or not is_person)
+        else (
+            (0, 165, 255)
+            if (has_action_label or is_suspicious)
+            else PERSON_BASE_COLOR
+        )
+    )
     label = detection.get("label") or ("" if is_person else "WEAPON")
     score = detection.get("score")
     if score is not None and detection.get("label"):
@@ -854,17 +1039,31 @@ def collect_action_results(frame, tracked_boxes):
 
 def select_action_result(model_action, heuristic_action):
     if model_action and heuristic_action:
-        if bool(heuristic_action.get("is_danger")) and not bool(model_action.get("is_danger")):
+        if bool(heuristic_action.get("is_danger")) and not bool(
+            model_action.get("is_danger")
+        ):
             return heuristic_action
-        if bool(model_action.get("is_danger")) and not bool(heuristic_action.get("is_danger")):
+        if bool(model_action.get("is_danger")) and not bool(
+            heuristic_action.get("is_danger")
+        ):
             return model_action
-        return model_action if float(model_action.get("score", 0.0)) >= float(heuristic_action.get("score", 0.0)) else heuristic_action
+        return (
+            model_action
+            if float(model_action.get("score", 0.0))
+            >= float(heuristic_action.get("score", 0.0))
+            else heuristic_action
+        )
     return model_action or heuristic_action
 
 
 def process_frame_for_dashboard(frame):
     if frame_processor is None:
-        return {"frame": frame, "detections": [], "danger": False, "timings": {}}
+        return {
+            "frame": frame,
+            "detections": [],
+            "danger": False,
+            "timings": {},
+        }
 
     detector_started = time.time()
     tracked_boxes = frame_processor.detector.track(frame)
@@ -876,8 +1075,15 @@ def process_frame_for_dashboard(frame):
 
     action_started = time.time()
     action_results = collect_action_results(frame, tracked_boxes)
-    skeletons_by_id = {oid: result[0] for oid, result in action_results.items() if result and result[0] is not None}
-    violence_results = frame_processor.violence_heuristic.update(tracked_boxes, skeletons_by_id)
+    skeletons_by_id = {
+        oid: result[0]
+        for oid, result in action_results.items()
+        if result and result[0] is not None
+    }
+    violence_results = frame_processor.violence_heuristic.update(
+        tracked_boxes,
+        skeletons_by_id,
+    )
     action_ms = (time.time() - action_started) * 1000
 
     render_started = time.time()
@@ -923,7 +1129,11 @@ def process_frame_for_dashboard(frame):
                 frame_processor.action_display_buffer[oid] = selected_action
 
             current_action = frame_processor.action_display_buffer.get(oid)
-            if current_action and now - current_action.get("updated_at", 0.0) > ACTION_DISPLAY_TTL_SEC:
+            if (
+                current_action
+                and now - current_action.get("updated_at", 0.0)
+                > ACTION_DISPLAY_TTL_SEC
+            ):
                 frame_processor.action_display_buffer.pop(oid, None)
                 current_action = None
 
@@ -931,12 +1141,17 @@ def process_frame_for_dashboard(frame):
                 detection["label"] = current_action["label"]
                 detection["score"] = float(current_action["score"])
                 detection["danger"] = bool(current_action["is_danger"])
-                detection["confidence_level"] = current_action.get("confidence_level")
+                detection["confidence_level"] = current_action.get(
+                    "confidence_level"
+                )
                 if current_action["is_danger"]:
                     danger = True
                     color = (0, 0, 255)
                     detection["visual_state"] = "danger"
-                    label = f"!!! {current_action['label']} !!! {current_action['score'] * 100:.0f}%"
+                    label = (
+                        f"!!! {current_action['label']} !!! "
+                        f"{current_action['score'] * 100:.0f}%"
+                    )
                     frame_processor.notifier.send_alert_async(
                         f"위험 행동 감지: {current_action['label']}",
                         frame.copy(),
@@ -944,7 +1159,10 @@ def process_frame_for_dashboard(frame):
                 else:
                     color = (0, 165, 255)
                     detection["visual_state"] = "suspicious"
-                    label = f"[{current_action['label']}] {current_action['score'] * 100:.0f}%"
+                    label = (
+                        f"[{current_action['label']}] "
+                        f"{current_action['score'] * 100:.0f}%"
+                    )
             elif TRIGGER_SUSPICIOUS_VISUAL_ENABLED and state == 1:
                 color = (0, 165, 255)
                 detection["confidence_level"] = "trigger_suspicious"
@@ -960,7 +1178,11 @@ def process_frame_for_dashboard(frame):
         # else:
         #     cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
         if skeleton is not None:
-            frame_processor.action_analyzer.draw_skeleton(display_frame, skeleton, color)
+            frame_processor.action_analyzer.draw_skeleton(
+                display_frame,
+                skeleton,
+                color,
+            )
         draw_overlay_label(display_frame, label, (x1, y1 - 8), color)
         detections.append(detection)
 
@@ -974,7 +1196,9 @@ def process_frame_for_dashboard(frame):
             "trigger_ms": round(trigger_ms, 1),
             "action_ms": round(action_ms, 1),
             "render_ms": round(render_ms, 1),
-            "person_count": sum(1 for obj in tracked_boxes if obj.get("cls", 0) == 0),
+            "person_count": sum(
+                1 for obj in tracked_boxes if obj.get("cls", 0) == 0
+            ),
             "detection_count": len(tracked_boxes),
         },
     }
@@ -1080,7 +1304,15 @@ def inference_worker():
             frame_seq = inference_slot["frame_seq"]
             captured_at = inference_slot["captured_at"]
             stream_id = inference_slot["stream_id"]
-            inference_slot.update({"frame": None, "robot_id": None, "frame_seq": None, "captured_at": None, "stream_id": None})
+            inference_slot.update(
+                {
+                    "frame": None,
+                    "robot_id": None,
+                    "frame_seq": None,
+                    "captured_at": None,
+                    "stream_id": None,
+                }
+            )
             inference_stats["last_started_at"] = now
 
         if stream_id is not None:
@@ -1090,7 +1322,10 @@ def inference_worker():
                 inference_stats["dropped"] += 1
                 continue
 
-        if captured_at is not None and time.time() - captured_at > INFERENCE_DROP_OLDER_THAN_SEC:
+        if (
+            captured_at is not None
+            and time.time() - captured_at > INFERENCE_DROP_OLDER_THAN_SEC
+        ):
             inference_stats["dropped"] += 1
             continue
 
@@ -1108,7 +1343,10 @@ def inference_worker():
                     inference_stats["dropped"] += 1
                     continue
 
-            display_frame_seq = publish_preview_frame(processed["frame"], robot_id=robot_id)
+            display_frame_seq = publish_preview_frame(
+                processed["frame"],
+                robot_id=robot_id,
+            )
             result = build_empty_result(robot_id)
             result["detections"] = processed["detections"]
             result["danger"] = processed["danger"]
@@ -1132,7 +1370,10 @@ def start_inference_worker():
     global inference_worker_thread
     if inference_worker_thread is not None:
         return
-    inference_worker_thread = threading.Thread(target=inference_worker, daemon=True)
+    inference_worker_thread = threading.Thread(
+        target=inference_worker,
+        daemon=True,
+    )
     inference_worker_thread.start()
 
 
@@ -1143,9 +1384,7 @@ async def startup():
     ensure_runtime_model_config(force=True, reason="startup")
 
     lidar_enabled = (
-        os.getenv("LIDAR_ENABLE", "true")
-        .strip()
-        .lower()
+        os.getenv("LIDAR_ENABLE", "true").strip().lower()
         in ("1", "true", "yes", "on")
     )
 
@@ -1162,21 +1401,14 @@ async def startup():
                 os.getenv("LIDAR_DASHBOARD_MAX_POINTS", "360")
             ),
             use_source_timestamp=(
-                os.getenv(
-                    "LIDAR_USE_SOURCE_TIMESTAMP",
-                    "true",
-                )
-                .strip()
-                .lower()
+                os.getenv("LIDAR_USE_SOURCE_TIMESTAMP", "true").strip().lower()
                 in ("1", "true", "yes", "on")
             ),
         )
         lidar_ros_bridge.start()
 
     encoder_enabled = (
-        os.getenv("ENCODER_ROS_ENABLE", "true")
-        .strip()
-        .lower()
+        os.getenv("ENCODER_ROS_ENABLE", "true").strip().lower()
         in ("1", "true", "yes", "on")
     )
 
@@ -1186,17 +1418,21 @@ async def startup():
         and encoder_ros_bridge is None
     ):
         encoder_ros_bridge = EncoderRosBridge(
-            ros_topic=os.getenv(
-                "ENCODER_ROS_TOPIC",
-                "/wheel_ticks",
-            ),
+            ros_topic=os.getenv("ENCODER_ROS_TOPIC", "/wheel_ticks")
         )
         encoder_ros_bridge.start()
+
+    if not navigation_map_api.start():
+        logging.getLogger(__name__).warning(
+            "Navigation ROS control is unavailable; map loading will remain disabled."
+        )
 
 
 @app.on_event("shutdown")
 async def shutdown_lidar_bridge():
     global lidar_ros_bridge, encoder_ros_bridge
+
+    navigation_map_api.close()
 
     if encoder_ros_bridge is not None:
         encoder_ros_bridge.close()
@@ -1225,12 +1461,19 @@ async def main(request: Request):
 @app.post("/send_telegram")
 async def send_telegram():
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        return JSONResponse({"status": "error", "error": "telegram env missing"}, status_code=500)
+        return JSONResponse(
+            {"status": "error", "error": "telegram env missing"},
+            status_code=500,
+        )
 
     message = "[긴급] 순찰 로봇 위험 감지! 관제 센터에서 신고가 접수되었습니다."
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
-        response = requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message}, timeout=5)
+        response = requests.post(
+            url,
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
+            timeout=5,
+        )
         if response.status_code == 200:
             return {"status": "success"}
         return JSONResponse({"status": "error"}, status_code=500)
@@ -1245,7 +1488,10 @@ async def update_status(request: Request):
     global robot_status
     data = await request.json()
     if not data:
-        return JSONResponse({"ok": False, "error": "empty status"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": "empty status"},
+            status_code=400,
+        )
 
     with state_lock:
         robot_status.update(
@@ -1269,11 +1515,36 @@ async def get_status():
         return dict(robot_status)
 
 
+def parse_navigation_mode(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("navigation payload must be a JSON object")
+
+    raw_mode = payload.get("navigation_mode")
+    if raw_mode is None:
+        return None
+
+    mode = str(raw_mode).strip().lower()
+    if mode not in VALID_NAVIGATION_MODES:
+        allowed = ", ".join(sorted(VALID_NAVIGATION_MODES))
+        raise ValueError(
+            f"unsupported navigation_mode: {mode}. allowed: {allowed}"
+        )
+    return mode
+
+
+def store_navigation_mode(mode, received_at):
+    if mode is None:
+        return
+    navigation_state["mode"] = mode
+    navigation_state["mode_updated_at"] = received_at
+
+
 def build_navigation_status(now=None):
     now = now or time.time()
     decision = build_navigation_decision(now)
     last_times = [
-        value for value in (
+        value
+        for value in (
             navigation_state.get("map_updated_at"),
             navigation_state.get("pose_updated_at"),
             navigation_state.get("scan_updated_at"),
@@ -1281,20 +1552,33 @@ def build_navigation_status(now=None):
         if value is not None
     ]
     last_update_at = max(last_times) if last_times else None
-    last_update_age_sec = None if last_update_at is None else max(0.0, now - last_update_at)
+    last_update_age_sec = (
+        None
+        if last_update_at is None
+        else max(0.0, now - last_update_at)
+    )
+    mode = navigation_state.get("mode")
+
     if last_update_at is None:
         nav_status = "offline"
     elif last_update_age_sec > NAVIGATION_TIMEOUT_SEC:
         nav_status = "stale"
+    elif mode in VALID_NAVIGATION_MODES:
+        nav_status = mode
     elif navigation_state.get("map") is not None:
+        # Backward compatibility with older map_bridge payloads.
         nav_status = "mapping"
     elif navigation_state.get("scan") is not None:
         nav_status = "scan_only"
     else:
         nav_status = "online"
+
     return {
         "robot_id": navigation_state.get("robot_id", SERVER_ROBOT_ID),
         "status": nav_status,
+        "mode": mode,
+        "mode_label": NAVIGATION_MODE_LABELS.get(mode),
+        "mode_updated_at": navigation_state.get("mode_updated_at"),
         "last_update_at": last_update_at,
         "last_update_age_sec": last_update_age_sec,
         "timeout_sec": NAVIGATION_TIMEOUT_SEC,
@@ -1311,7 +1595,6 @@ def build_navigation_status(now=None):
     }
 
 
-
 def build_navigation_decision(now=None):
     """Refresh the display-only decision from the latest scan while locked."""
     decision = plan_scan(
@@ -1324,6 +1607,7 @@ def build_navigation_decision(now=None):
     navigation_state["decision"] = decision
     return decision
 
+
 def received_payload(data, received_at):
     payload = dict(data)
     payload["received_at"] = received_at
@@ -1334,7 +1618,10 @@ def sanitize_map_name(name=None):
     if name is None or not str(name).strip():
         name = f"map_{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
     name = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(name).strip())
-    name = name.strip("._-") or f"map_{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
+    name = (
+        name.strip("._-")
+        or f"map_{time.strftime('%Y%m%d_%H%M%S', time.localtime())}"
+    )
     return name[:64]
 
 
@@ -1374,7 +1661,9 @@ def decode_map_cells(map_payload):
         cells = [int(value) for value in data]
 
     if len(cells) != expected:
-        raise ValueError(f"map data length mismatch: expected {expected}, got {len(cells)}")
+        raise ValueError(
+            f"map data length mismatch: expected {expected}, got {len(cells)}"
+        )
     return width, height, cells
 
 
@@ -1383,7 +1672,7 @@ def occupancy_to_pgm_bytes(width, height, cells):
     pixels = bytearray()
     for row in range(height - 1, -1, -1):
         offset = row * width
-        for value in cells[offset:offset + width]:
+        for value in cells[offset : offset + width]:
             if value < 0:
                 pixels.append(205)
             elif value >= 65:
@@ -1392,7 +1681,9 @@ def occupancy_to_pgm_bytes(width, height, cells):
                 pixels.append(254)
             else:
                 pixels.append(205)
-    header = f"P5\n# AI patrol robot map\n{width} {height}\n255\n".encode("ascii")
+    header = f"P5\n# AI patrol robot map\n{width} {height}\n255\n".encode(
+        "ascii"
+    )
     return header + bytes(pixels)
 
 
@@ -1400,7 +1691,10 @@ def save_navigation_map_files(map_payload, requested_name=None):
     width, height, cells = decode_map_cells(map_payload)
     base_name = unique_map_name(sanitize_map_name(requested_name))
     saved_at = time.time()
-    saved_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(saved_at))
+    saved_at_iso = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ",
+        time.gmtime(saved_at),
+    )
     pgm_path = NAVIGATION_MAP_DIR / f"{base_name}.pgm"
     yaml_path = NAVIGATION_MAP_DIR / f"{base_name}.yaml"
     meta_path = NAVIGATION_MAP_DIR / f"{base_name}.meta.json"
@@ -1414,21 +1708,26 @@ def save_navigation_map_files(map_payload, requested_name=None):
 
     pgm_path.write_bytes(occupancy_to_pgm_bytes(width, height, cells))
     yaml_path.write_text(
-        "\n".join([
-            f"image: {pgm_path.name}",
-            f"resolution: {resolution}",
-            f"origin: [{origin_x}, {origin_y}, {origin_yaw}]",
-            "negate: 0",
-            "occupied_thresh: 0.65",
-            "free_thresh: 0.196",
-            "",
-        ]),
+        "\n".join(
+            [
+                f"image: {pgm_path.name}",
+                f"resolution: {resolution}",
+                f"origin: [{origin_x}, {origin_y}, {origin_yaw}]",
+                "negate: 0",
+                "occupied_thresh: 0.65",
+                "free_thresh: 0.196",
+                "",
+            ]
+        ),
         encoding="utf-8",
     )
     raw_payload = dict(map_payload)
     raw_payload["saved_at"] = saved_at
     raw_payload["saved_at_iso"] = saved_at_iso
-    raw_path.write_text(json.dumps(raw_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    raw_path.write_text(
+        json.dumps(raw_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     meta = {
         "map_name": base_name,
@@ -1448,13 +1747,19 @@ def save_navigation_map_files(map_payload, requested_name=None):
             "raw": str(raw_path.relative_to(ROOT_DIR)),
         },
     }
-    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     return meta
 
 
 def list_saved_navigation_maps():
     maps = []
-    for meta_path in sorted(NAVIGATION_MAP_DIR.glob("*.meta.json"), reverse=True):
+    for meta_path in sorted(
+        NAVIGATION_MAP_DIR.glob("*.meta.json"),
+        reverse=True,
+    ):
         try:
             maps.append(json.loads(meta_path.read_text(encoding="utf-8")))
         except (OSError, json.JSONDecodeError):
@@ -1464,12 +1769,24 @@ def list_saved_navigation_maps():
 
 @app.post("/navigation/map")
 async def update_navigation_map(request: Request):
-    data = await request.json()
-    if not data:
-        return JSONResponse({"ok": False, "error": "empty map payload"}, status_code=400)
+    try:
+        data = await request.json()
+        if not isinstance(data, dict) or not data:
+            raise ValueError("empty map payload")
+        navigation_mode = parse_navigation_mode(data)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=400,
+        )
+
     received_at = time.time()
     with state_lock:
-        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["robot_id"] = data.get(
+            "robot_id",
+            navigation_state["robot_id"],
+        )
+        store_navigation_mode(navigation_mode, received_at)
         navigation_state["map"] = received_payload(data, received_at)
         navigation_state["map_updated_at"] = received_at
     return {"ok": True}
@@ -1477,12 +1794,24 @@ async def update_navigation_map(request: Request):
 
 @app.post("/navigation/pose")
 async def update_navigation_pose(request: Request):
-    data = await request.json()
-    if not data:
-        return JSONResponse({"ok": False, "error": "empty pose payload"}, status_code=400)
+    try:
+        data = await request.json()
+        if not isinstance(data, dict) or not data:
+            raise ValueError("empty pose payload")
+        navigation_mode = parse_navigation_mode(data)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=400,
+        )
+
     received_at = time.time()
     with state_lock:
-        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["robot_id"] = data.get(
+            "robot_id",
+            navigation_state["robot_id"],
+        )
+        store_navigation_mode(navigation_mode, received_at)
         navigation_state["pose"] = received_payload(data, received_at)
         navigation_state["pose_updated_at"] = received_at
     return {"ok": True}
@@ -1491,12 +1820,22 @@ async def update_navigation_pose(request: Request):
 @app.post("/navigation/scan")
 async def update_navigation_scan(request: Request):
     try:
-        data = validate_scan_payload(await request.json())
-    except (TypeError, ValueError) as exc:
-        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        raw_data = await request.json()
+        navigation_mode = parse_navigation_mode(raw_data)
+        data = validate_scan_payload(raw_data)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=400,
+        )
+
     received_at = time.time()
     with state_lock:
-        navigation_state["robot_id"] = data.get("robot_id", navigation_state["robot_id"])
+        navigation_state["robot_id"] = data.get(
+            "robot_id",
+            navigation_state["robot_id"],
+        )
+        store_navigation_mode(navigation_mode, received_at)
         navigation_state["scan"] = received_payload(data, received_at)
         navigation_state["scan_updated_at"] = received_at
         build_navigation_decision(received_at)
@@ -1508,11 +1847,11 @@ async def get_navigation_status():
     with state_lock:
         return build_navigation_status()
 
+
 @app.get("/api/navigation/decision")
 async def get_navigation_decision():
     with state_lock:
         return {"ok": True, **build_navigation_decision()}
-
 
 
 @app.get("/api/navigation/map")
@@ -1521,7 +1860,14 @@ async def get_navigation_map():
         status = build_navigation_status()
         current_map = navigation_state.get("map")
     if current_map is None:
-        return JSONResponse({"ok": False, "status": status, "error": "map unavailable"}, status_code=404)
+        return JSONResponse(
+            {
+                "ok": False,
+                "status": status,
+                "error": "map unavailable",
+            },
+            status_code=404,
+        )
     return {"ok": True, "status": status, "map": current_map}
 
 
@@ -1538,17 +1884,30 @@ async def save_current_navigation_map(request: Request):
         current_map = navigation_state.get("map")
         status = build_navigation_status()
     if current_map is None:
-        return JSONResponse({"ok": False, "status": status, "error": "map unavailable"}, status_code=404)
+        return JSONResponse(
+            {
+                "ok": False,
+                "status": status,
+                "error": "map unavailable",
+            },
+            status_code=404,
+        )
     try:
-        meta = save_navigation_map_files(dict(current_map), requested_name=requested_name)
+        meta = save_navigation_map_files(
+            dict(current_map),
+            requested_name=requested_name,
+        )
     except Exception as exc:
-        return JSONResponse({"ok": False, "status": status, "error": str(exc)}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "status": status, "error": str(exc)},
+            status_code=400,
+        )
     return {"ok": True, "status": status, "map": meta}
 
 
 @app.get("/api/navigation/maps")
-async def get_saved_navigation_maps():
-    return {"ok": True, "maps": list_saved_navigation_maps()}
+async def get_saved_navigation_maps(request: Request):
+    return await navigation_map_api.list_maps(request)
 
 
 @app.get("/api/navigation/pose")
@@ -1557,7 +1916,14 @@ async def get_navigation_pose():
         status = build_navigation_status()
         pose = navigation_state.get("pose")
     if pose is None:
-        return JSONResponse({"ok": False, "status": status, "error": "pose unavailable"}, status_code=404)
+        return JSONResponse(
+            {
+                "ok": False,
+                "status": status,
+                "error": "pose unavailable",
+            },
+            status_code=404,
+        )
     return {"ok": True, "status": status, "pose": pose}
 
 
@@ -1567,7 +1933,14 @@ async def get_navigation_scan():
         status = build_navigation_status()
         scan = navigation_state.get("scan")
     if scan is None:
-        return JSONResponse({"ok": False, "status": status, "error": "scan unavailable"}, status_code=404)
+        return JSONResponse(
+            {
+                "ok": False,
+                "status": status,
+                "error": "scan unavailable",
+            },
+            status_code=404,
+        )
     return {"ok": True, "status": status, "scan": scan}
 
 
@@ -1591,10 +1964,7 @@ async def get_robot_encoder(robot_id: str):
     with state_lock:
         data = dict(encoder_state)
 
-    if (
-        data.get("updated_at") is None
-        or data.get("robot_id") != robot_id
-    ):
+    if data.get("updated_at") is None or data.get("robot_id") != robot_id:
         return JSONResponse(
             {
                 "ok": False,
@@ -1604,18 +1974,16 @@ async def get_robot_encoder(robot_id: str):
             status_code=404,
         )
 
-    data["age_sec"] = max(
-        0.0,
-        time.time() - data["updated_at"],
-    )
-
-    return {
-        "ok": True,
-        "encoder": data,
-    }
+    data["age_sec"] = max(0.0, time.time() - data["updated_at"])
+    return {"ok": True, "encoder": data}
 
 
-def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=None, infer=True):
+def process_and_publish_frame(
+    frame,
+    robot_id=SERVER_ROBOT_ID,
+    original_bytes=None,
+    infer=True,
+):
     global latest_result
 
     result_frame = frame
@@ -1631,7 +1999,11 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
         result["timings"] = dict(processed.get("timings") or {})
         result["inference_ms"] = round((time.time() - started) * 1000, 1)
 
-    frame_seq = publish_preview_frame(result_frame, robot_id=robot_id, original_bytes=original_bytes)
+    frame_seq = publish_preview_frame(
+        result_frame,
+        robot_id=robot_id,
+        original_bytes=original_bytes,
+    )
     result["source_frame_seq"] = frame_seq
     result["processed_at"] = time.time()
     with state_lock:
@@ -1642,7 +2014,9 @@ def process_and_publish_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=No
             inference_stats["last_result_at"] = result["processed_at"]
             inference_stats["last_input_seq"] = frame_seq
             update_rate_counter(inference_rate_stats, result["processed_at"])
-            stream_stats["frames_inferred"] = stream_stats.get("frames_inferred", 0) + 1
+            stream_stats["frames_inferred"] = (
+                stream_stats.get("frames_inferred", 0) + 1
+            )
 
     return result
 
@@ -1651,11 +2025,19 @@ def build_camera_status(now=None):
     now = now or time.time()
     last_frame_at = stream_stats.get("last_frame_at")
     last_status_at = robot_status.get("updated_at")
-    last_frame_age = None if last_frame_at is None else max(0.0, now - last_frame_at)
-    last_status_age = None if last_status_at is None else max(0.0, now - last_status_at)
+    last_frame_age = (
+        None if last_frame_at is None else max(0.0, now - last_frame_at)
+    )
+    last_status_age = (
+        None if last_status_at is None else max(0.0, now - last_status_at)
+    )
     has_frame = current_frame is not None
-    frame_is_live = last_frame_age is not None and last_frame_age <= CAMERA_TIMEOUT_SEC
-    status_is_live = last_status_age is not None and last_status_age <= ROBOT_STATUS_TIMEOUT_SEC
+    frame_is_live = (
+        last_frame_age is not None and last_frame_age <= CAMERA_TIMEOUT_SEC
+    )
+    status_is_live = (
+        last_status_age is not None and last_status_age <= ROBOT_STATUS_TIMEOUT_SEC
+    )
     startup_age = now - server_started_at
     last_error = stream_stats.get("last_error")
     disconnected_at = stream_stats.get("disconnected_at")
@@ -1712,7 +2094,10 @@ def build_camera_status(now=None):
 
 def build_status_frame(message):
     key = (STREAM_WIDTH, STREAM_HEIGHT, message)
-    if status_frame_cache["key"] == key and status_frame_cache["frame"] is not None:
+    if (
+        status_frame_cache["key"] == key
+        and status_frame_cache["frame"] is not None
+    ):
         return status_frame_cache["frame"]
 
     frame = np.full((STREAM_HEIGHT, STREAM_WIDTH, 3), 209, dtype=np.uint8)
@@ -1722,13 +2107,35 @@ def build_status_frame(message):
     y1 = max(16, (STREAM_HEIGHT - panel_h) // 2)
     x2 = x1 + panel_w
     y2 = y1 + panel_h
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (90, 96, 106), thickness=-1)
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (156, 163, 175), thickness=2)
+    cv2.rectangle(
+        frame,
+        (x1, y1),
+        (x2, y2),
+        (90, 96, 106),
+        thickness=-1,
+    )
+    cv2.rectangle(
+        frame,
+        (x1, y1),
+        (x2, y2),
+        (156, 163, 175),
+        thickness=2,
+    )
 
     title = "CAMERA OFFLINE"
     detail = "Check Raspberry Pi / camera connection"
-    title_size = cv2.getTextSize(title, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-    detail_size = cv2.getTextSize(detail, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)[0]
+    title_size = cv2.getTextSize(
+        title,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        2,
+    )[0]
+    detail_size = cv2.getTextSize(
+        detail,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        1,
+    )[0]
     cv2.putText(
         frame,
         title,
@@ -1762,7 +2169,11 @@ def build_status_frame(message):
 async def receive_frame(request: Request, file: UploadFile | None = File(None)):
     ensure_runtime_model_config(reason="frame")
     infer_param = request.query_params.get("infer")
-    infer = MODEL_ACTIVE if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
+    infer = (
+        MODEL_ACTIVE
+        if infer_param is None
+        else infer_param.lower() in ("1", "true", "yes", "on")
+    )
     if file is not None:
         data = await file.read()
     else:
@@ -1771,7 +2182,10 @@ async def receive_frame(request: Request, file: UploadFile | None = File(None)):
     np_arr = np.frombuffer(data, np.uint8)
     frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     if frame is None:
-        return JSONResponse({"ok": False, "error": "decode failed"}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": "decode failed"},
+            status_code=400,
+        )
 
     try:
         return process_and_publish_frame(
@@ -1781,7 +2195,10 @@ async def receive_frame(request: Request, file: UploadFile | None = File(None)):
             infer=infer,
         )
     except RuntimeError as exc:
-        return JSONResponse({"ok": False, "error": str(exc)}, status_code=500)
+        return JSONResponse(
+            {"ok": False, "error": str(exc)},
+            status_code=500,
+        )
 
 
 def read_exact(stream, size):
@@ -1811,20 +2228,35 @@ def h264_decode_loop(proc, robot_id, infer_override, stream_id):
             raw_frame = read_exact(proc.stdout, frame_size)
             if raw_frame is None:
                 break
-            frame = np.frombuffer(raw_frame, np.uint8).reshape((STREAM_HEIGHT, STREAM_WIDTH, 3))
+            frame = np.frombuffer(raw_frame, np.uint8).reshape(
+                (STREAM_HEIGHT, STREAM_WIDTH, 3)
+            )
             frame_index += 1
             now = time.time()
             frame_seq = None
             if now - last_preview_at >= min_preview_interval:
                 preview_frame = build_preview_frame(frame, infer, now)
-                frame_seq = publish_preview_frame(preview_frame, robot_id=robot_id)
+                frame_seq = publish_preview_frame(
+                    preview_frame,
+                    robot_id=robot_id,
+                )
                 last_preview_at = now
-            should_infer = infer and frame_processor is not None and (frame_index % STREAM_INFER_EVERY_N == 0)
+            should_infer = (
+                infer
+                and frame_processor is not None
+                and frame_index % STREAM_INFER_EVERY_N == 0
+            )
             if should_infer:
                 if frame_seq is None:
                     with state_lock:
                         frame_seq = current_frame_seq
-                submit_inference_frame(frame, robot_id, frame_seq, now, stream_id=stream_id)
+                submit_inference_frame(
+                    frame,
+                    robot_id,
+                    frame_seq,
+                    now,
+                    stream_id=stream_id,
+                )
             with state_lock:
                 stream_stats["frames_decoded"] += 1
                 update_rate_counter(decode_stats, time.time())
@@ -1847,7 +2279,9 @@ def ffmpeg_stderr_loop(proc):
                 continue
             with state_lock:
                 stream_stats["ffmpeg_stderr_tail"].append(line)
-                stream_stats["ffmpeg_stderr_tail"] = stream_stats["ffmpeg_stderr_tail"][-20:]
+                stream_stats["ffmpeg_stderr_tail"] = stream_stats[
+                    "ffmpeg_stderr_tail"
+                ][-20:]
                 stream_stats["last_error"] = line
             print(f"[ffmpeg] {line}")
     except Exception as exc:
@@ -1861,7 +2295,11 @@ async def receive_h264_stream(request: Request):
     ensure_runtime_model_config(reason="stream_connect")
     robot_id = request.query_params.get("robot_id", SERVER_ROBOT_ID)
     infer_param = request.query_params.get("infer")
-    infer_override = None if infer_param is None else infer_param.lower() in ("1", "true", "yes", "on")
+    infer_override = (
+        None
+        if infer_param is None
+        else infer_param.lower() in ("1", "true", "yes", "on")
+    )
     infer = MODEL_ACTIVE if infer_override is None else infer_override
     command = [
         "ffmpeg",
@@ -1898,17 +2336,35 @@ async def receive_h264_stream(request: Request):
             bufsize=0,
         )
     except FileNotFoundError:
-        return JSONResponse({"ok": False, "error": "ffmpeg not found"}, status_code=500)
+        return JSONResponse(
+            {"ok": False, "error": "ffmpeg not found"},
+            status_code=500,
+        )
 
     with inference_condition:
-        inference_slot.update({"frame": None, "robot_id": None, "frame_seq": None, "captured_at": None, "stream_id": None})
+        inference_slot.update(
+            {
+                "frame": None,
+                "robot_id": None,
+                "frame_seq": None,
+                "captured_at": None,
+                "stream_id": None,
+            }
+        )
     with state_lock:
         active_stream_id += 1
         stream_id = active_stream_id
         now = time.time()
         frame_stats.update({"last_time": now, "count": 0, "fps": 0})
         decode_stats.update({"last_time": now, "count": 0, "fps": 0})
-        publish_stats.update({"last_time": now, "count": 0, "fps": 0, "last_publish_at": None})
+        publish_stats.update(
+            {
+                "last_time": now,
+                "count": 0,
+                "fps": 0,
+                "last_publish_at": None,
+            }
+        )
         inference_rate_stats.update({"last_time": now, "count": 0, "fps": 0})
         inference_stats.update(
             {
@@ -1942,8 +2398,16 @@ async def receive_h264_stream(request: Request):
                 "stream_id": stream_id,
             }
         )
-    reader = threading.Thread(target=h264_decode_loop, args=(proc, robot_id, infer_override, stream_id), daemon=True)
-    stderr_reader = threading.Thread(target=ffmpeg_stderr_loop, args=(proc,), daemon=True)
+    reader = threading.Thread(
+        target=h264_decode_loop,
+        args=(proc, robot_id, infer_override, stream_id),
+        daemon=True,
+    )
+    stderr_reader = threading.Thread(
+        target=ffmpeg_stderr_loop,
+        args=(proc,),
+        daemon=True,
+    )
     reader.start()
     stderr_reader.start()
     print(f"[stream/h264] connected robot_id={robot_id} infer={infer}")
@@ -2019,7 +2483,11 @@ def generate_frames():
                 last_status_sent_at = now
                 last_sent_seq = 0
         if frame is not None:
-            yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n"
+            yield (
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+                + frame
+                + b"\r\n"
+            )
         else:
             time.sleep(0.1)
 
@@ -2047,12 +2515,20 @@ async def get_stream_status():
         status = dict(stream_stats)
         status.update(build_camera_status())
         status["has_current_frame"] = current_frame is not None
-        status["received_fps"] = frame_stats["fps"] if status["camera_state"] == "live" else 0
-        status["decode_fps"] = decode_stats["fps"] if status["camera_state"] == "live" else 0
-        status["publish_fps"] = publish_stats["fps"] if status["camera_state"] == "live" else 0
+        status["received_fps"] = (
+            frame_stats["fps"] if status["camera_state"] == "live" else 0
+        )
+        status["decode_fps"] = (
+            decode_stats["fps"] if status["camera_state"] == "live" else 0
+        )
+        status["publish_fps"] = (
+            publish_stats["fps"] if status["camera_state"] == "live" else 0
+        )
         status["latest_frame_seq"] = current_frame_seq
         status["latest_frame_age_ms"] = (
-            None if stream_stats.get("last_frame_at") is None else round((now - stream_stats["last_frame_at"]) * 1000, 1)
+            None
+            if stream_stats.get("last_frame_at") is None
+            else round((now - stream_stats["last_frame_at"]) * 1000, 1)
         )
         status["stream_width"] = STREAM_WIDTH
         status["stream_height"] = STREAM_HEIGHT
@@ -2067,27 +2543,46 @@ async def get_stream_status():
         status["adaptive_batching_enabled"] = ADAPTIVE_BATCHING_ENABLED
         status["adaptive_batch_max_wait_ms"] = ADAPTIVE_BATCH_MAX_WAIT_MS
         status["action_display_ttl_sec"] = ACTION_DISPLAY_TTL_SEC
-        status["trigger_suspicious_visual_enabled"] = TRIGGER_SUSPICIOUS_VISUAL_ENABLED
+        status["trigger_suspicious_visual_enabled"] = (
+            TRIGGER_SUSPICIOUS_VISUAL_ENABLED
+        )
         status["inference_max_result_age_sec"] = INFERENCE_MAX_RESULT_AGE_SEC
         status["inference_drop_older_than_sec"] = INFERENCE_DROP_OLDER_THAN_SEC
-        status["inference_fps"] = inference_rate_stats["fps"] if status["camera_state"] == "live" else 0
+        status["inference_fps"] = (
+            inference_rate_stats["fps"]
+            if status["camera_state"] == "live"
+            else 0
+        )
         status["inference_requested_frames"] = inference_stats["requested"]
         status["inference_completed_frames"] = inference_stats["completed"]
         status["inference_dropped_frames"] = inference_stats["dropped"]
         status["inference_last_ms"] = inference_stats["last_ms"]
-        status["inference_last_detector_ms"] = inference_stats["last_detector_ms"]
-        status["inference_last_trigger_ms"] = inference_stats["last_trigger_ms"]
+        status["inference_last_detector_ms"] = inference_stats[
+            "last_detector_ms"
+        ]
+        status["inference_last_trigger_ms"] = inference_stats[
+            "last_trigger_ms"
+        ]
         status["inference_last_action_ms"] = inference_stats["last_action_ms"]
         status["inference_last_render_ms"] = inference_stats["last_render_ms"]
-        status["inference_last_adaptive_wait_ms"] = inference_stats["last_adaptive_wait_ms"]
-        status["inference_last_person_count"] = inference_stats["last_person_count"]
-        status["inference_last_detection_count"] = inference_stats["last_detection_count"]
+        status["inference_last_adaptive_wait_ms"] = inference_stats[
+            "last_adaptive_wait_ms"
+        ]
+        status["inference_last_person_count"] = inference_stats[
+            "last_person_count"
+        ]
+        status["inference_last_detection_count"] = inference_stats[
+            "last_detection_count"
+        ]
         status["inference_result_age_ms"] = (
-            None if inference_stats["last_result_at"] is None else round((now - inference_stats["last_result_at"]) * 1000, 1)
+            None
+            if inference_stats["last_result_at"] is None
+            else round((now - inference_stats["last_result_at"]) * 1000, 1)
         )
         status["inference_result_stale"] = (
             inference_stats["last_result_at"] is not None
-            and now - inference_stats["last_result_at"] > INFERENCE_MAX_RESULT_AGE_SEC
+            and now - inference_stats["last_result_at"]
+            > INFERENCE_MAX_RESULT_AGE_SEC
         )
         status["inference_device"] = DEVICE
         status["cuda_device_index"] = CUDA_DEVICE_INDEX
@@ -2100,17 +2595,13 @@ async def get_stream_status():
 
 
 @app.websocket("/ws/sensors/{robot_id}/lidar")
-async def lidar_sensor_websocket(
-    websocket: WebSocket,
-    robot_id: str,
-):
+async def lidar_sensor_websocket(websocket: WebSocket, robot_id: str):
     if lidar_ros_bridge is None:
         await websocket.close(code=1011)
         return
 
     await websocket.accept()
     lidar_ros_bridge.mark_connected(robot_id)
-
     print(f"[lidar-ws] connected robot_id={robot_id}")
 
     try:
@@ -2121,8 +2612,7 @@ async def lidar_sensor_websocket(
                 message = json.loads(raw_message)
             except json.JSONDecodeError as exc:
                 print(
-                    f"[lidar-ws] invalid JSON "
-                    f"robot_id={robot_id}: {exc}"
+                    f"[lidar-ws] invalid JSON robot_id={robot_id}: {exc}"
                 )
                 continue
 
@@ -2130,24 +2620,17 @@ async def lidar_sensor_websocket(
                 continue
 
             message_type = message.get("type")
-
             if message_type == "sensor_hello":
                 message_robot_id = message.get("robot_id")
-
-                if (
-                    message_robot_id
-                    and message_robot_id != robot_id
-                ):
+                if message_robot_id and message_robot_id != robot_id:
                     await websocket.close(code=1008)
                     return
-
                 continue
 
             if message_type != "laser_scan":
                 continue
 
             message_robot_id = message.get("robot_id")
-
             if message_robot_id and message_robot_id != robot_id:
                 await websocket.close(code=1008)
                 return
@@ -2155,18 +2638,14 @@ async def lidar_sensor_websocket(
             message["robot_id"] = robot_id
 
             try:
-                dashboard_scan = lidar_ros_bridge.submit(
-                    message
-                )
+                dashboard_scan = lidar_ros_bridge.submit(message)
             except (ValueError, RuntimeError) as exc:
                 print(
-                    f"[lidar-ws] rejected scan "
-                    f"robot_id={robot_id}: {exc}"
+                    f"[lidar-ws] rejected scan robot_id={robot_id}: {exc}"
                 )
                 continue
 
             received_at = time.time()
-
             with state_lock:
                 navigation_state["robot_id"] = robot_id
                 navigation_state["scan"] = received_payload(
@@ -2176,11 +2655,9 @@ async def lidar_sensor_websocket(
                 navigation_state["scan_updated_at"] = received_at
 
             stats = lidar_ros_bridge.stats()
-
             if stats["received"] % 100 == 0:
                 print(
-                    f"[lidar-ws] "
-                    f"robot_id={robot_id} "
+                    f"[lidar-ws] robot_id={robot_id} "
                     f"received={stats['received']} "
                     f"published={stats['published']} "
                     f"dropped={stats['dropped']} "
@@ -2189,13 +2666,8 @@ async def lidar_sensor_websocket(
 
     except WebSocketDisconnect:
         print(f"[lidar-ws] disconnected robot_id={robot_id}")
-
     except Exception as exc:
-        print(
-            f"[lidar-ws] error "
-            f"robot_id={robot_id}: {exc}"
-        )
-
+        print(f"[lidar-ws] error robot_id={robot_id}: {exc}")
     finally:
         lidar_ros_bridge.mark_disconnected(robot_id)
 
@@ -2237,55 +2709,26 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
                 try:
                     received_encoder = {
                         "robot_id": robot_id,
-                        "sequence": int(
-                            data.get("sequence", 0)
-                        ),
-                        "left_front_ticks": int(
-                            data["left_front_ticks"]
-                        ),
-                        "right_front_ticks": int(
-                            data["right_front_ticks"]
-                        ),
-                        "left_rear_ticks": int(
-                            data["left_rear_ticks"]
-                        ),
-                        "right_rear_ticks": int(
-                            data["right_rear_ticks"]
-                        ),
-                        "pico_timestamp_ms": int(
-                            data["pico_timestamp_ms"]
-                        ),
-                        "pi_timestamp": data.get(
-                            "pi_timestamp"
-                        ),
+                        "sequence": int(data.get("sequence", 0)),
+                        "left_front_ticks": int(data["left_front_ticks"]),
+                        "right_front_ticks": int(data["right_front_ticks"]),
+                        "left_rear_ticks": int(data["left_rear_ticks"]),
+                        "right_rear_ticks": int(data["right_rear_ticks"]),
+                        "pico_timestamp_ms": int(data["pico_timestamp_ms"]),
+                        "pi_timestamp": data.get("pi_timestamp"),
                         "updated_at": time.time(),
                     }
-
-                except (
-                    KeyError,
-                    TypeError,
-                    ValueError,
-                ):
+                except (KeyError, TypeError, ValueError):
                     continue
 
                 with state_lock:
-                    encoder_state.update(
-                        received_encoder
-                    )
+                    encoder_state.update(received_encoder)
 
                 if encoder_ros_bridge is not None:
                     try:
-                        encoder_ros_bridge.submit(
-                            received_encoder
-                        )
-                    except (
-                        ValueError,
-                        RuntimeError,
-                    ) as exc:
-                        print(
-                            f"[encoder-ros] rejected: "
-                            f"{exc}"
-                        )
+                        encoder_ros_bridge.submit(received_encoder)
+                    except (ValueError, RuntimeError) as exc:
+                        print(f"[encoder-ros] rejected: {exc}")
 
             elif message.get("type") == "ack":
                 print(f"[ws] ack from {robot_id}: {message}")
@@ -2313,24 +2756,198 @@ async def get_encoder_bridge_status():
 
 
 @app.post("/api/robots/{robot_id}/command")
-async def send_robot_command(robot_id: str, request: Request):
-    payload = await request.json()
+async def send_robot_command(
+    robot_id: str,
+    request: Request,
+):
+    try:
+        payload = await request.json()
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "invalid JSON body",
+            },
+            status_code=400,
+        )
+
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "JSON object required",
+            },
+            status_code=400,
+        )
+
+    command_type = str(
+        payload.get("type", "move")
+    ).strip()
+
+    if not command_type:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "command type is required",
+            },
+            status_code=400,
+        )
+
     command = {
-        "command_id": payload.get("command_id", str(uuid4())),
-        "type": payload.get("type", "move"),
-        "issued_at": time.time(),
         **payload,
+        "command_id": str(
+            payload.get("command_id")
+            or uuid4()
+        ),
+        "type": command_type,
+        "issued_at": time.time(),
     }
 
-    delivered = await connections.send_command(robot_id, command)
-    status_code = 200 if delivered else 409
+    # Nav2 dry-run 명령은 서버까지만 수신하고
+    # Pi WebSocket으로 전달하지 않는다.
+    nav2_dry_run = (
+        command.get("source")
+        == "nav2_command_bridge"
+        and command.get("dry_run") is True
+        and command_type in {
+            "auto_drive",
+            "stop",
+        }
+    )
+
+    if command_type == "auto_drive":
+        try:
+            raw_left = command.get("left_mps")
+            raw_right = command.get("right_mps")
+
+            if (
+                isinstance(raw_left, bool)
+                or isinstance(raw_right, bool)
+            ):
+                raise ValueError(
+                    "boolean wheel speed"
+                )
+
+            left_mps = float(raw_left)
+            right_mps = float(raw_right)
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "left_mps and right_mps "
+                        "must be finite numbers"
+                    ),
+                },
+                status_code=400,
+            )
+
+        if (
+            not np.isfinite(left_mps)
+            or not np.isfinite(right_mps)
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "NaN or Infinity is not allowed"
+                    ),
+                },
+                status_code=400,
+            )
+
+        max_wheel_mps = 0.50
+
+        if (
+            abs(left_mps) > max_wheel_mps
+            or abs(right_mps) > max_wheel_mps
+        ):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "delivered": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": (
+                        "wheel speed exceeds "
+                        f"{max_wheel_mps:.2f} m/s"
+                    ),
+                },
+                status_code=400,
+            )
+
+        command["left_mps"] = left_mps
+        command["right_mps"] = right_mps
+
+        # 서버의 두 번째 자율주행 출력 안전장치.
+        if not MOTOR_OUTPUT_ENABLED:
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "accepted": True,
+                    "delivered": False,
+                    "blocked": True,
+                    "dry_run": True,
+                    "motor_output_enabled": False,
+                    "robot_id": robot_id,
+                    "command": command,
+                    "error": None,
+                },
+                status_code=200,
+            )
+
+    if nav2_dry_run:
+        return JSONResponse(
+            {
+                "ok": True,
+                "accepted": True,
+                "delivered": False,
+                "blocked": True,
+                "dry_run": True,
+                "motor_output_enabled": (
+                    MOTOR_OUTPUT_ENABLED
+                ),
+                "robot_id": robot_id,
+                "command": command,
+                "error": None,
+            },
+            status_code=200,
+        )
+
+    delivered = await connections.send_command(
+        robot_id,
+        command,
+    )
+
+    status_code = (
+        200 if delivered else 409
+    )
+
     return JSONResponse(
         {
             "ok": delivered,
             "delivered": delivered,
+            "blocked": False,
             "robot_id": robot_id,
             "command": command,
-            "error": None if delivered else "robot not connected",
+            "error": (
+                None
+                if delivered
+                else "robot not connected"
+            ),
         },
         status_code=status_code,
     )
@@ -2341,10 +2958,21 @@ async def get_pipelines():
     ensure_runtime_model_config(reason="pipelines")
     with state_lock:
         loaded = latest_result.get("pipeline")
-    return {"pipelines": PIPELINE_OPTIONS, "selected": PIPELINE, "loaded": loaded, "model_error": model_error}
+    return {
+        "pipelines": PIPELINE_OPTIONS,
+        "selected": PIPELINE,
+        "loaded": loaded,
+        "model_error": model_error,
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("server.app:app", host=SERVER_HOST, port=SERVER_PORT, reload=False, access_log=False)
+    uvicorn.run(
+        "server.app:app",
+        host=SERVER_HOST,
+        port=SERVER_PORT,
+        reload=False,
+        access_log=False,
+    )

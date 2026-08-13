@@ -55,6 +55,7 @@ class RobotCommandClient:
             baudrate=args.serial_baudrate,
             command_timeout_sec=args.command_timeout_sec,
             serial_timeout_sec=args.serial_timeout_sec,
+            max_wheel_mps=args.max_wheel_mps,
         )
 
         self.speaker = SpeakerController()
@@ -277,6 +278,19 @@ class RobotCommandClient:
                     message.get("speed", 0.35),
                 )
 
+            elif command_type == "auto_drive":
+                if self.current_mode != "auto":
+                    raise RuntimeError(
+                        "자동 모드가 아니므로 "
+                        "자율주행 명령을 거부했습니다."
+                    )
+
+                await asyncio.to_thread(
+                    self.motor.drive,
+                    message.get("left_mps"),
+                    message.get("right_mps"),
+                )
+
             elif command_type == "stop":
                 await asyncio.to_thread(
                     self.motor.stop,
@@ -306,14 +320,21 @@ class RobotCommandClient:
                         f"{target_mode}"
                     )
 
-                if target_mode == "auto":
-                    await asyncio.to_thread(
-                        self.motor.stop,
-                        "auto_mode",
-                    )
+                previous_mode = self.current_mode
+
+                await asyncio.to_thread(
+                    self.motor.stop,
+                    (
+                        "mode_change_"
+                        f"{previous_mode}_to_{target_mode}"
+                    ),
+                )
 
                 self.current_mode = target_mode
-                print(f"[mode] {self.current_mode}")
+                print(
+                    f"[mode] "
+                    f"{previous_mode} -> {self.current_mode}"
+                )
 
             elif command_type == "speak":
                 self.speaker.speak(
@@ -335,9 +356,12 @@ class RobotCommandClient:
             ok = False
             error = str(exc)
 
-            if command_type == "move":
+            if command_type in {
+                "move",
+                "auto_drive",
+            }:
                 self.motor.stop(
-                    reason="move_error",
+                    reason=f"{command_type}_error",
                     suppress_errors=True,
                 )
 
@@ -418,6 +442,17 @@ def parse_args() -> argparse.Namespace:
             os.getenv(
                 "COMMAND_TIMEOUT_SEC",
                 "0.45",
+            )
+        ),
+    )
+
+    parser.add_argument(
+        "--max-wheel-mps",
+        type=float,
+        default=float(
+            os.getenv(
+                "MAX_WHEEL_MPS",
+                "0.50",
             )
         ),
     )

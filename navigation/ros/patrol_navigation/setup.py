@@ -33,6 +33,13 @@ setup(
         "console_scripts": [
             # launch 파일에서 실행하는 `map_bridge` executable을 만든다.
             "map_bridge = patrol_navigation.map_bridge:main",
+
+            # Nav2의 Twist를 좌우 바퀴 속도로 변환하고
+            # 서버 dry-run API에 전달한다.
+            (
+                "nav2_command_bridge = "
+                "patrol_navigation.nav2_command_bridge:main"
+            ),
         ],
     },
 )

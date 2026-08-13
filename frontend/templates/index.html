@@ -6,6 +6,8 @@
     <title>AI 순찰 관제 센터</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css?v=20260622-lidar-live">
+    <link rel="stylesheet" href="static/system_control.css?v=20260801-ros-control">
+    <link rel="stylesheet" href="static/navigation_map_control.css?v=20260801-map-selection">
 </head>
 <body>
 
@@ -185,6 +187,16 @@
                             NO SCAN DATA
                         </div>
                     </div>
+
+                    <button
+                        class="lidar-map-select-btn"
+                        id="lidarMapSelectBtn"
+                        type="button"
+                        onclick="openSavedMapModal()"
+                        title="Load saved map"
+                    >
+                        MAP
+                    </button>
 
                     <button
                         class="lidar-map-save-btn"
@@ -433,6 +445,8 @@
     </div>
 
     <script src="static/script.js?v=20260731-auth-logout"></script>
+    <script src="static/system_control.js?v=20260801-ros-control"></script>
+    <script src="static/navigation_map_control.js?v=20260801-map-selection"></script>
 
     <!-- 실제 모터 구동 기준 방향 재매핑 -->
     <script src="static/control_mapping.js?v=20260730-control-remap"></script>

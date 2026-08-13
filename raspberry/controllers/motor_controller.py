@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 import threading
 import time
@@ -41,6 +42,7 @@ class MotorController:
     Pi → Pico:
       PING
       MOVE,<direction>,<speed>
+      DRIVE,<left_normalized>,<right_normalized>
       STOP,<reason>
       ENC_RESET
       ENC_STREAM,0|1
@@ -58,6 +60,7 @@ class MotorController:
         baudrate: int = 115200,
         command_timeout_sec: float = 0.45,
         serial_timeout_sec: float = 0.25,
+        max_wheel_mps: float = 0.50,
     ) -> None:
         self.serial_port = serial_port
         self.baudrate = int(baudrate)
@@ -68,6 +71,10 @@ class MotorController:
         self.serial_timeout_sec = max(
             0.1,
             float(serial_timeout_sec),
+        )
+        self.max_wheel_mps = max(
+            0.01,
+            float(max_wheel_mps),
         )
 
         self.last_command_at = 0.0
@@ -486,6 +493,64 @@ class MotorController:
             with self._state_lock:
                 self.last_command_at = time.monotonic()
                 self.current_motion = direction
+
+    def drive(
+        self,
+        left_mps: float,
+        right_mps: float,
+    ) -> None:
+        """
+        좌우 바퀴 목표 속도(m/s)를 Pico의
+        -1.0~1.0 정규화 PWM 명령으로 변환한다.
+        """
+        try:
+            left = float(left_mps)
+            right = float(right_mps)
+        except (TypeError, ValueError) as exc:
+            raise MotorControllerError(
+                "잘못된 바퀴 속도 값: "
+                f"left={left_mps}, right={right_mps}"
+            ) from exc
+
+        if (
+            not math.isfinite(left)
+            or not math.isfinite(right)
+        ):
+            raise MotorControllerError(
+                "바퀴 속도에 NaN 또는 Infinity를 "
+                "사용할 수 없습니다."
+            )
+
+        if abs(left) < 1e-6 and abs(right) < 1e-6:
+            self.stop(reason="zero_drive")
+            return
+
+        left_normalized = left / self.max_wheel_mps
+        right_normalized = right / self.max_wheel_mps
+
+        peak = max(
+            abs(left_normalized),
+            abs(right_normalized),
+        )
+
+        if peak > 1.0:
+            left_normalized /= peak
+            right_normalized /= peak
+
+        with self._command_lock:
+            self._ensure_connected_locked()
+
+            self._exchange_locked(
+                "DRIVE,"
+                f"{left_normalized:.3f},"
+                f"{right_normalized:.3f}"
+            )
+
+            with self._state_lock:
+                self.last_command_at = time.monotonic()
+                self.current_motion = (
+                    f"drive:{left:.3f},{right:.3f}"
+                )
 
     def stop(
         self,
