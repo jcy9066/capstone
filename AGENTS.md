@@ -34,15 +34,22 @@
 
 ## 3. 기본 작업 원칙
 
-Codex는 작업할 때 다음 순서를 따른다.
+Codex의 Primary/Main Agent는 전체 작업의 orchestrator이며, 애플리케이션 소스와 설정 변경의 최종 책임을 가진다.
+
+코드 또는 설정 변경 작업에서는 다음 순서를 따른다.
 
 1. 사용자 요청 범위를 확인한다.
-2. 관련 entry point, import, API, launch 및 호출 관계를 조사한다.
-3. 영향 범위와 변경 대상 파일을 결정한다.
-4. 요청에 필요한 코드만 수정한다.
-5. 변경 영역에 해당하는 검증을 수행한다.
-6. 최종 diff와 테스트 누락 여부를 검토한다.
-7. 변경 파일, 검증 결과 및 미검증 항목을 보고한다.
+2. `implement-feature` Skill을 적용한다.
+3. 실제 파일을 수정하기 전에 `code_explorer` Sub-Agent에게 entry point, import 관계, 호출 경로, 영향 범위, 중복 및 미사용 코드 조사를 반드시 위임한다.
+4. `code_explorer` 결과를 받은 뒤 영향 범위와 변경 대상 파일을 확정한다.
+5. Primary/Main Agent가 요청에 필요한 코드만 수정한다.
+6. 변경 영역에 해당하는 validation Skill을 모두 수행한다.
+7. 각 validation Skill에서 지정한 Sub-Agent 검토를 수행한다. 서로 독립적인 검토는 `.codex/config.toml`의 동시 실행 제한 안에서 병렬로 실행할 수 있다.
+8. 모든 영역별 검증 결과를 받은 뒤 `review-change`를 수행한다.
+9. `review-change`에서 `test_reviewer` Sub-Agent의 최종 regression 검토를 수행한다.
+10. 모든 필수 검증과 Sub-Agent 결과를 종합하여 변경 파일, 검증 결과 및 미검증 항목을 보고한다.
+
+설명 전용 요청이나 저장소 읽기 전용 분석처럼 코드 또는 설정을 변경하지 않는 작업에는 위 구현 workflow를 강제하지 않는다.
 
 다음 원칙을 항상 적용한다.
 
@@ -67,7 +74,7 @@ Codex는 작업할 때 다음 순서를 따른다.
 - Raspberry Pi, Pico W, UART: `validate-raspberry`
 - 전체 변경 검토: `review-change`
 
-여러 영역이 함께 변경되면 관련 Skill을 모두 수행한다.
+여러 영역이 함께 변경되면 관련 Skill을 모두 수행한다. 각 Skill의 Sub-Agent delegation 지시는 필수 workflow로 취급한다.
 
 예:
 
@@ -84,32 +91,49 @@ Codex는 작업할 때 다음 순서를 따른다.
   - `validate-raspberry`
   - `review-change`
 
-## 5. Sub-Agent 사용 기준
+## 5. Sub-Agent Orchestration
 
-Sub-Agent는 분석과 검토 중심으로 사용한다.
+사용자 prompt에 Sub-Agent 사용이 명시되지 않아도 아래 조건이 충족되면 Primary/Main Agent가 해당 Sub-Agent에게 작업을 반드시 delegate한다.
 
-- `code-explorer`
+등록된 Project Sub-Agent 이름은 `.codex/agents/*.toml`의 `name` 값을 기준으로 한다.
+
+- `code_explorer`
   - entry point, import 관계, 영향 범위, 중복 및 미사용 코드 조사
+  - 코드 또는 설정 수정 전에 실행
+  - `validate-server`가 단독 실행되고 현재 변경 범위를 다룬 최신 탐색 결과가 없을 때 서버 호출 관계 조사에도 사용
 
-- `dashboard-reviewer`
+- `dashboard_reviewer`
   - Playwright MCP를 이용한 실제 웹 대시보드 검사
+  - `validate-dashboard`가 필요한 모든 변경에서 실행
 
-- `ros-reviewer`
+- `ros_reviewer`
   - ROS 2, SLAM, AMCL, Nav2, TF 및 topic 검토
+  - `validate-navigation`이 필요한 모든 변경에서 실행
 
-- `hardware-reviewer`
+- `hardware_reviewer`
   - Raspberry Pi, Pico W, UART, encoder 및 failsafe 검토
+  - `validate-raspberry`가 필요한 모든 변경에서 실행
 
-- `test-reviewer`
+- `test_reviewer`
   - 최종 diff, regression 및 테스트 누락 검토
+  - 모든 영역별 validation이 끝난 뒤 `review-change`에서 실행
 
-기본적으로 Sub-Agent는 코드를 수정하지 않고 검토 결과를 반환한다.
+### Orchestration 규칙
 
-여러 Sub-Agent가 동일한 파일을 동시에 수정하도록 하지 않는다.
+1. Primary/Main Agent가 전체 orchestration을 소유한다.
+2. Project Sub-Agent는 부모 Agent가 명시적으로 추가 delegation을 요청한 경우를 제외하고 다른 Project Sub-Agent를 재귀적으로 생성하지 않는다.
+3. 현재 thread가 해당 작업의 지정 Sub-Agent인 경우 자기 자신과 같은 역할의 Sub-Agent를 다시 생성하지 않고 할당된 검토를 직접 수행한다.
+4. 동일한 현재 working-tree diff와 동일한 검토 범위를 이미 다루는 활성 또는 완료된 Sub-Agent 결과가 있으면 중복 생성하지 않고 그 결과를 재사용할 수 있다.
+5. 구현 전 `code_explorer` 결과처럼 다음 단계의 입력이 되는 작업은 결과를 기다린 뒤 진행한다.
+6. 구현 후 `dashboard_reviewer`, `ros_reviewer`, `hardware_reviewer`처럼 서로 독립적인 읽기/검토 작업은 동시 실행 제한 안에서 병렬로 실행할 수 있다.
+7. `test_reviewer`는 영역별 validation과 관련 reviewer 결과가 모두 준비된 뒤 실행한다.
+8. Primary/Main Agent만 애플리케이션 소스와 설정을 수정한다. Sub-Agent는 기본적으로 검토 결과를 반환하며, 테스트/브라우저 검증 과정에서 허용된 임시 산출물 외에는 소스 파일을 수정하지 않는다.
+9. Sub-Agent 결과는 근거 자료이며 최종 판단과 사용자 보고 책임은 Primary/Main Agent에 있다.
+10. 필수 Sub-Agent를 실행하지 못한 경우 성공으로 간주하지 않고 실행하지 못한 이유를 최종 보고에 명시한다.
 
 ## 6. 웹 대시보드 검증
 
-웹 관련 파일이 변경되면 Playwright Browser MCP를 사용하여 실제 동작을 확인한다.
+웹 관련 파일이 변경되면 `validate-dashboard` Skill을 사용하고 `dashboard_reviewer`에게 실제 Browser 검증을 위임한다.
 
 검사 대상은 다음과 같다.
 
@@ -139,7 +163,9 @@ Sub-Agent는 분석과 검토 중심으로 사용한다.
 
 ## 7. ROS 2 및 Navigation 규칙
 
-ROS 관련 변경에서는 다음 사항을 확인한다.
+ROS 관련 변경에서는 `validate-navigation` Skill을 사용하고 `ros_reviewer`에게 ROS 구조와 interface 검토를 위임한다.
+
+다음 사항을 확인한다.
 
 - ROS 2 Humble 기준을 유지한다.
 - `setup.py`, launch, config 및 executable 등록 관계를 확인한다.
@@ -157,6 +183,8 @@ map → odom → base_link → laser
 * 하드웨어가 없는 환경에서는 build와 정적 검증까지만 수행한다.
 
 ## 8. Raspberry Pi 및 Pico W 규칙
+
+Pi와 Pico W 관련 변경에서는 `validate-raspberry` Skill을 사용하고 `hardware_reviewer`에게 protocol과 safety 검토를 위임한다.
 
 Pi와 Pico W 관련 변경에서는 양쪽 UART protocol을 함께 확인한다.
 
@@ -287,10 +315,12 @@ GitHub MCP는 원격 저장소 조회와 협업 정보 확인에 사용한다.
 
 * 변경한 파일
 * 핵심 변경 내용
+* 실행한 Skill
+* 실행한 Sub-Agent와 맡긴 역할
 * 실행한 검사
 * 검사 결과
-* 실행하지 못한 검사
+* 실행하지 못한 검사 또는 Sub-Agent
 * 실제 하드웨어에서 추가로 확인할 항목
 * 발견했지만 요청 범위상 수정하지 않은 문제
 
-테스트 성공, 정적 검증 성공, 실제 하드웨어 검증 성공을 서로 구분해서 작성한다.
+테스트 성공, 정적 검증 성공, Browser 검증 성공, 실제 하드웨어 검증 성공을 서로 구분해서 작성한다.
