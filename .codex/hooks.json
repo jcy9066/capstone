@@ -1,5 +1,5 @@
 {
-  "description": "dabom_capstone Codex safety and validation hooks",
+  "description": "dabom_capstone project-local Codex hooks",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,8 +8,8 @@
           {
             "type": "command",
             "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_policy.py\"",
-            "timeout": 10,
-            "statusMessage": "프로젝트 안전 정책 확인 중"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$root = (git rev-parse --show-toplevel).Trim(); python (Join-Path $root '.codex\\hooks\\pre_tool_policy.py')\"",
+            "timeout": 10
           }
         ]
       }
@@ -20,8 +20,8 @@
           {
             "type": "command",
             "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/validate_on_stop.py\"",
-            "timeout": 30,
-            "statusMessage": "필수 검증 수행 여부 확인 중"
+            "commandWindows": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$root = (git rev-parse --show-toplevel).Trim(); python (Join-Path $root '.codex\\hooks\\validate_on_stop.py')\"",
+            "timeout": 30
           }
         ]
       }

@@ -21,7 +21,9 @@ args = [
   "--viewport-size",
   "1440x900",
   "--allowed-origins",
-  "http://127.0.0.1:21063;http://localhost:21063"
+  "http://127.0.0.1:21063;http://localhost:21063",
+  "--output-dir",
+  ".playwright-mcp"
 ]
 
 enabled = true
