@@ -1034,12 +1034,22 @@ function recordBookmark() {
 // ===================================================
 // 텔레그램 신고
 // ===================================================
-function reportDanger(isAuto = false) {
+async function reportDanger(isAuto = false) {
     let confirmReport = true;
     if (!isAuto) confirmReport = confirm("신고? - Telegram");
 
     if (confirmReport) {
-        fetch('/send_telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        fetch('/api/auth/csrf', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(csrf => fetch('/send_telegram', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrf.csrf_token,
+                },
+                body: JSON.stringify({}),
+            }))
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
