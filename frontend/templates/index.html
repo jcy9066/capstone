@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 순찰 관제 센터</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/style.css?v=20260622-lidar-live">
+    <link rel="stylesheet" href="static/style.css?v=20260814-server-state">
     <link rel="stylesheet" href="static/system_control.css?v=20260801-ros-control">
     <link rel="stylesheet" href="static/navigation_map_control.css?v=20260801-map-selection">
 </head>
@@ -37,9 +37,21 @@
                 <span class="sidebar-info-value">AI 순찰 로봇 v1.0</span>
             </div>
             <div class="sidebar-divider"></div>
-            <button class="sidebar-logout-btn" id="logoutBtn" type="button" onclick="logout()">
-                &#x1F6AA; &#xB85C;&#xADF8;&#xC544;&#xC6C3;
-            </button>
+            <div id="systemControlPanelSlot"></div>
+
+            {% set current_user = request.session.get('user') or {} %}
+            <div class="sidebar-account" id="sidebarAccount" aria-label="현재 로그인 계정">
+                <span class="sidebar-info-label">현재 로그인</span>
+                <strong class="sidebar-account-name" id="sidebarAccountName">
+                    {{ current_user.get('name') or '사용자' }}
+                </strong>
+                <span class="sidebar-account-id" id="sidebarAccountLoginId">
+                    {{ current_user.get('login_id') or '-' }}
+                </span>
+                <button class="sidebar-logout-btn" id="logoutBtn" type="button" onclick="logout()">
+                    &#x1F6AA; &#xB85C;&#xADF8;&#xC544;&#xC6C3;
+                </button>
+            </div>
         </div>
     </div>
 
@@ -64,6 +76,14 @@
         <span>
             PING:
             <span id="sys-internet">0</span>
+        </span>
+        <span class="system-state-item">
+            PI:
+            <span class="state-value state-unknown" id="pi-connection-status">UNKNOWN</span>
+        </span>
+        <span class="system-state-item">
+            MODE:
+            <span class="state-value state-unknown" id="robot-mode-status">UNKNOWN</span>
         </span>
     </div>
 
@@ -243,6 +263,39 @@
 
         <div class="right-panel">
 
+            <section class="card server-state-card" id="serverStateCard" aria-label="서버 기준 로봇 상태">
+                <div class="card-header server-state-header">
+                    <h2 class="card-title">SERVER STATE</h2>
+                    <span class="server-state-updated" id="server-state-updated">확인 중</span>
+                </div>
+                <div class="server-state-grid">
+                    <div class="server-state-field">
+                        <span>주행 구분</span>
+                        <strong id="operation-mode-status">UNKNOWN</strong>
+                    </div>
+                    <div class="server-state-field">
+                        <span>활성 지도</span>
+                        <strong id="active-map-status">UNAVAILABLE</strong>
+                    </div>
+                    <div class="server-state-field">
+                        <span>Navigation</span>
+                        <strong id="navigation-state-status">UNKNOWN</strong>
+                    </div>
+                    <div class="server-state-field">
+                        <span>비상 정지</span>
+                        <strong id="emergency-stop-status">UNAVAILABLE</strong>
+                    </div>
+                    <div class="server-state-field server-state-field-wide">
+                        <span>현재 목표</span>
+                        <strong id="current-goal-status">UNAVAILABLE</strong>
+                    </div>
+                    <div class="server-state-field server-state-field-wide">
+                        <span>계획 경로</span>
+                        <strong id="planned-path-status">UNAVAILABLE</strong>
+                    </div>
+                </div>
+            </section>
+
             <div class="card alert-card">
                 <div class="card-header">
                     <h2 class="card-title text-danger">
@@ -261,13 +314,13 @@
                     class="alert-container"
                     id="alertBox"
                 >
-                    <div class="alert-entry alert-info">
+                    <div class="alert-entry alert-info alert-unavailable">
                         <span class="alert-time">
-                            시스템
+                            --:--:--
                         </span>
 
                         <span class="alert-message">
-                            위험 감지 시스템이 활성화되었습니다.
+                            실시간 알림 API를 사용할 수 없습니다.
                         </span>
                     </div>
                 </div>
@@ -315,13 +368,13 @@
                 >
                     <span
                         id="label-auto"
-                        class="mode-text active"
+                        class="mode-text inactive"
                     >
                         🤖 자동 순찰
                     </span>
 
                     <div
-                        class="toggle-switch"
+                        class="toggle-switch unknown"
                         id="mode-switch-ui"
                     >
                         <div class="toggle-slider"></div>
@@ -443,8 +496,9 @@
         </div>
     </div>
 
-    <script src="static/script.js?v=20260814-dashboard-fixes"></script>
-    <script src="static/system_control.js?v=20260801-ros-control"></script>
-    <script src="static/navigation_map_control.js?v=20260801-map-selection"></script>
+    <script src="static/script.js?v=20260814-server-state"></script>
+    <script src="static/system_control.js?v=20260814-server-state"></script>
+    <script src="static/navigation_map_control.js?v=20260814-server-state"></script>
+    <script src="static/dashboard_state.js?v=20260814-server-state"></script>
 </body>
 </html>
