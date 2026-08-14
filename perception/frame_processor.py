@@ -2,6 +2,7 @@ import cv2
 
 from .core.trigger import CascadingTrigger
 from .utils.telegram_notifier import TelegramNotifier
+from .utils.event_taxonomy import vision_alert_type
 from .models.violence_heuristic import ViolenceHeuristic
 
 
@@ -60,9 +61,10 @@ class FrameProcessor:
                         danger = True
                         color = (0, 0, 255)
                         label = f"!!! {current_action['label']} !!! {current_action['score'] * 100:.0f}%"
-                        self.notifier.send_alert_async(
+                        self.notifier.send_event_alert_async(
                             f"위험 행동 감지: {current_action['label']}",
-                            frame.copy(),
+                            robot_id="local-video",
+                            event_type=vision_alert_type(current_action["label"]),
                         )
                     else:
                         label = f"[{current_action['label']}] {current_action['score'] * 100:.0f}%"
@@ -97,4 +99,3 @@ class FrameProcessor:
             "detections": detections,
             "danger": danger,
         }
-
