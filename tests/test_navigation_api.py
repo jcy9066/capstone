@@ -86,6 +86,35 @@ class NavigationApiTests(unittest.TestCase):
         self.assertEqual(400, response.status_code)
         self.assertFalse(response.json()["ok"])
 
+    def test_navigation_gets_report_no_data_without_404(self):
+        for resource in ("map", "pose", "scan"):
+            with self.subTest(resource=resource):
+                response = self.client.get(f"/api/navigation/{resource}")
+                self.assertEqual(200, response.status_code)
+                body = response.json()
+                self.assertTrue(body["ok"])
+                self.assertFalse(body["available"])
+                self.assertIsNone(body[resource])
+                self.assertIn("status", body)
+
+    def test_navigation_gets_report_available_data(self):
+        resources = {
+            "map": {"width": 1, "height": 1, "resolution": 0.05, "data": [0]},
+            "pose": {"x": 1.0, "y": 2.0, "yaw": 0.5},
+            "scan": valid_scan(),
+        }
+        with self.server.state_lock:
+            self.server.navigation_state.update(resources)
+
+        for resource, expected in resources.items():
+            with self.subTest(resource=resource):
+                response = self.client.get(f"/api/navigation/{resource}")
+                self.assertEqual(200, response.status_code)
+                body = response.json()
+                self.assertTrue(body["ok"])
+                self.assertTrue(body["available"])
+                self.assertEqual(expected, body[resource])
+
 
 if __name__ == "__main__":
     unittest.main()

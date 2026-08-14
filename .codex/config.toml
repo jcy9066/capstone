@@ -29,7 +29,7 @@ args = [
 enabled = true
 required = false
 default_tools_approval_mode = "approve"
-startup_timeout_sec = 30
+startup_timeout_sec = 120
 tool_timeout_sec = 120
 
 
