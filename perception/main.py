@@ -10,6 +10,7 @@ if ROOT_DIR not in sys.path:
 
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import create_pipeline, print_pipeline_menu
+from server.privacy import PrivateVideoWriter, PrivacyProcessingError
 
 class LocalVideoReader:
     def __init__(self, path):
@@ -49,28 +50,40 @@ def main():
     pipeline_name = pipeline["name"]
     processor = FrameProcessor(pipeline["detector"], pipeline["action_analyzer"])
     reader = LocalVideoReader(args.source)
-    
+
     out_dir = os.path.join("output", pipeline_name)
-    os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f"result_{os.path.basename(args.source)}")
-    writer = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'mp4v'), reader.fps, (reader.width, reader.height))
+    try:
+        writer = PrivateVideoWriter(
+            out_path,
+            fps=reader.fps,
+            frame_size=(reader.width, reader.height),
+        )
+    except PrivacyProcessingError:
+        reader.release()
+        raise
 
     print(f"\n🚀 [{pipeline_name}] 분석을 시작합니다...")
 
     frame_count = 0
-    while True:
-        frame = reader.get_frame()
-        if frame is None: break
+    try:
+        while True:
+            frame = reader.get_frame()
+            if frame is None: break
 
-        processed = processor.process(frame)
-        writer.write(processed["frame"])
-        frame_count += 1
-        if args.max_frames and frame_count >= args.max_frames:
-            break
-
-    reader.release()
-    writer.release()
-    print(f"✅ 분석 완료. 결과 파일이 저장되었습니다: {out_path}")
+            processed = processor.process(frame)
+            writer.write(processed["frame"])
+            frame_count += 1
+            if args.max_frames and frame_count >= args.max_frames:
+                break
+    except Exception:
+        writer.abort()
+        raise
+    else:
+        writer.close()
+    finally:
+        reader.release()
+    print(f"✅ 분석 완료. 개인정보 처리된 결과 파일이 저장되었습니다: {out_path}")
 
 if __name__ == "__main__":
     main()
