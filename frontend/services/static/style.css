@@ -337,7 +337,8 @@ body.dark-mode .screen-content.camera-offline {
     position: absolute; inset: 0; color: #f8fafc;
     font-family: var(--mono); font-size: 12px; letter-spacing: 2px;
     font-weight: 700; text-align: center; padding: 20px; box-sizing: border-box;
-    z-index: 18;
+    z-index: 5;
+    pointer-events: none;
 }
 body.dark-mode .no-camera-bg {
     background-color: rgba(17, 24, 39, 0.82);

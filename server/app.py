@@ -1443,21 +1443,6 @@ async def shutdown_lidar_bridge():
         lidar_ros_bridge = None
 
 
-@app.get("/")
-async def index():
-    return RedirectResponse(url="/login", status_code=302)
-
-
-@app.get("/login")
-async def login(request: Request):
-    return templates.TemplateResponse(request, "login.html")
-
-
-@app.get("/main")
-async def main(request: Request):
-    return templates.TemplateResponse(request, "index.html")
-
-
 @app.post("/send_telegram")
 async def send_telegram():
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
@@ -1860,15 +1845,19 @@ async def get_navigation_map():
         status = build_navigation_status()
         current_map = navigation_state.get("map")
     if current_map is None:
-        return JSONResponse(
-            {
-                "ok": False,
-                "status": status,
-                "error": "map unavailable",
-            },
-            status_code=404,
-        )
-    return {"ok": True, "status": status, "map": current_map}
+        return {
+            "ok": True,
+            "available": False,
+            "status": status,
+            "map": None,
+            "error": "map unavailable",
+        }
+    return {
+        "ok": True,
+        "available": True,
+        "status": status,
+        "map": current_map,
+    }
 
 
 @app.post("/api/navigation/maps/save")
@@ -1916,15 +1905,19 @@ async def get_navigation_pose():
         status = build_navigation_status()
         pose = navigation_state.get("pose")
     if pose is None:
-        return JSONResponse(
-            {
-                "ok": False,
-                "status": status,
-                "error": "pose unavailable",
-            },
-            status_code=404,
-        )
-    return {"ok": True, "status": status, "pose": pose}
+        return {
+            "ok": True,
+            "available": False,
+            "status": status,
+            "pose": None,
+            "error": "pose unavailable",
+        }
+    return {
+        "ok": True,
+        "available": True,
+        "status": status,
+        "pose": pose,
+    }
 
 
 @app.get("/api/navigation/scan")
@@ -1933,15 +1926,19 @@ async def get_navigation_scan():
         status = build_navigation_status()
         scan = navigation_state.get("scan")
     if scan is None:
-        return JSONResponse(
-            {
-                "ok": False,
-                "status": status,
-                "error": "scan unavailable",
-            },
-            status_code=404,
-        )
-    return {"ok": True, "status": status, "scan": scan}
+        return {
+            "ok": True,
+            "available": False,
+            "status": status,
+            "scan": None,
+            "error": "scan unavailable",
+        }
+    return {
+        "ok": True,
+        "available": True,
+        "status": status,
+        "scan": scan,
+    }
 
 
 @app.get("/api/robots/{robot_id}")

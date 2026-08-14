@@ -143,6 +143,11 @@ function handleCameraError() {
     showCameraDisconnected('영상 스트림을 불러올 수 없습니다', true);
 }
 
+const cameraStream = document.getElementById('camera-stream');
+if (cameraStream) {
+    cameraStream.addEventListener('error', handleCameraError);
+}
+
 // ===================================================
 // LiDAR map 시각화
 // ===================================================
@@ -592,7 +597,13 @@ function fetchNavigationStatus() {
 
 function fetchNavigationMap() {
     fetchOptionalJson('/api/navigation/map').then(data => {
-        if (data?.ok && data.map) lidarState.map = data.map;
+        if (data?.ok) {
+            lidarState.map = data.available ? data.map : null;
+            if (!data.available) {
+                lidarState.mapImage = null;
+                lidarState.mapImageKey = null;
+            }
+        }
         if (data?.status) lidarState.status = data.status;
         requestLidarRender();
     });
@@ -603,11 +614,20 @@ function fetchNavigationPoseAndScan() {
         fetchOptionalJson('/api/navigation/pose'),
         fetchOptionalJson('/api/navigation/scan'),
     ]).then(([poseData, scanData]) => {
-        if (poseData?.ok && poseData.pose) lidarState.pose = poseData.pose;
+        if (poseData?.ok) {
+            lidarState.pose = poseData.available ? poseData.pose : null;
+        }
         if (poseData?.status) lidarState.status = poseData.status;
-        if (scanData?.ok && scanData.scan) {
-            lidarState.scan = scanData.scan;
-            noteScanUpdate(scanData.scan);
+        if (scanData?.ok) {
+            lidarState.scan = scanData.available ? scanData.scan : null;
+            if (scanData.available && scanData.scan) {
+                noteScanUpdate(scanData.scan);
+            } else {
+                lidarState.lastScanKey = null;
+                lidarState.lastScanSeenAtMs = 0;
+                lidarState.lastScanPulseAtMs = 0;
+                lidarState.scanIntervalsMs = [];
+            }
         }
         if (scanData?.status) lidarState.status = scanData.status;
         requestLidarRender();
@@ -1002,16 +1022,14 @@ let keyMoveInterval = null;
 
 function directionToCommand(direction) {
     const map = {
-        '↑': 'forward',
-        '↓': 'backward',
-        '←': 'left',
-        '→': 'right',
-        '↖': 'forward_left',
-        '↗': 'forward_right',
-        '↙': 'backward_left',
+        '↑': 'rotate_left',
+        '↓': 'rotate_right',
+        '←': 'backward',
+        '→': 'forward',
+        '↖': 'backward_left',
+        '↗': 'forward_left',
+        '↙': 'forward_right',
         '↘': 'backward_right',
-        '제자리 회전(반시계)': 'rotate_left',
-        '제자리 회전(시계)': 'rotate_right',
     };
 
     return map[direction] || direction;
@@ -1227,6 +1245,13 @@ function startButtonMove(
     direction,
     event,
 ) {
+    if (
+        event.isPrimary === false
+        || event.button !== 0
+    ) {
+        return;
+    }
+
     if (currentPatrolMode !== 'manual') {
         return;
     }
@@ -1260,6 +1285,27 @@ function startButtonMove(
         COMMAND_REPEAT_MS,
     );
 }
+
+
+document.querySelectorAll(
+    '.d-pad .d-btn[data-drive-direction]',
+).forEach(button => {
+    button.addEventListener(
+        'pointerdown',
+        event => startButtonMove(
+            button.dataset.driveDirection,
+            event,
+        ),
+    );
+
+    button.addEventListener(
+        'lostpointercapture',
+        () => stopPointerMove(
+            true,
+            'button_release',
+        ),
+    );
+});
 
 
 function stopPointerMove(
@@ -1382,30 +1428,31 @@ function highlightKeyboardButton(direction) {
 }
 
 
-function startKeyMove() {
-    if (keyMoveInterval !== null) {
+function sendCurrentKeyDirection() {
+    if (currentPatrolMode !== 'manual') {
         return;
     }
 
-    const sendCurrentKeyDirection = () => {
-        if (currentPatrolMode !== 'manual') {
-            return;
-        }
+    const result = getDirectionFromKeys();
 
-        const result = getDirectionFromKeys();
+    if (!result) {
+        return;
+    }
 
-        if (!result) {
-            return;
-        }
+    moveRobot(result.direction);
 
-        moveRobot(result.direction);
+    highlightKeyboardButton(
+        result.direction,
+    );
+}
 
-        highlightKeyboardButton(
-            result.direction,
-        );
-    };
 
+function startKeyMove() {
     sendCurrentKeyDirection();
+
+    if (keyMoveInterval !== null) {
+        return;
+    }
 
     keyMoveInterval = setInterval(
         sendCurrentKeyDirection,
@@ -1468,6 +1515,10 @@ document.addEventListener(
             return;
         }
 
+        if (pressedKeys.has(key)) {
+            return;
+        }
+
         pressedKeys.add(key);
         startKeyMove();
     },
@@ -1492,6 +1543,8 @@ document.addEventListener(
                 true,
                 'key_release',
             );
+        } else {
+            sendCurrentKeyDirection();
         }
     },
 );

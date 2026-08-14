@@ -107,7 +107,6 @@
                     id="camera-stream"
                     src="{{ url_for('video_feed') }}"
                     alt=""
-                    onerror="handleCameraError()"
                 >
 
                 <div
@@ -343,7 +342,7 @@
                     <div class="d-pad">
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↖')"
+                            data-drive-direction="↖"
                             title="좌회전"
                         >
                             ↖
@@ -351,7 +350,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↑')"
+                            data-drive-direction="↑"
                             title="전진"
                         >
                             ↑
@@ -359,7 +358,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↗')"
+                            data-drive-direction="↗"
                             title="우회전"
                         >
                             ↗
@@ -367,7 +366,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('←')"
+                            data-drive-direction="←"
                             title="반시계 방향 회전"
                         >
                             ←
@@ -382,7 +381,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('→')"
+                            data-drive-direction="→"
                             title="시계 방향 회전"
                         >
                             →
@@ -390,7 +389,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↙')"
+                            data-drive-direction="↙"
                             title="왼쪽으로 후진"
                         >
                             ↙
@@ -398,7 +397,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↓')"
+                            data-drive-direction="↓"
                             title="후진"
                         >
                             ↓
@@ -406,7 +405,7 @@
 
                         <button
                             class="d-btn"
-                            onclick="moveRobot('↘')"
+                            data-drive-direction="↘"
                             title="오른쪽으로 후진"
                         >
                             ↘
@@ -444,11 +443,8 @@
         </div>
     </div>
 
-    <script src="static/script.js?v=20260731-auth-logout"></script>
+    <script src="static/script.js?v=20260814-dashboard-fixes"></script>
     <script src="static/system_control.js?v=20260801-ros-control"></script>
     <script src="static/navigation_map_control.js?v=20260801-map-selection"></script>
-
-    <!-- 실제 모터 구동 기준 방향 재매핑 -->
-    <script src="static/control_mapping.js?v=20260730-control-remap"></script>
 </body>
 </html>
