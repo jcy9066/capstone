@@ -55,7 +55,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("setText('emergency-stop-status', 'UNAVAILABLE')", self.state_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260814-server-state"
+        version = "v=20260821-integrated"
         for asset in (
             "static/style.css",
             "static/script.js",

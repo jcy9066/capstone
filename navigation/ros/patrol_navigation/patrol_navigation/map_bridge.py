@@ -1,4 +1,5 @@
 import math
+import os
 import time
 from datetime import datetime, timezone
 
@@ -159,6 +160,7 @@ class MapBridge(Node):
                 "server_base_url"
             ).value
         ).rstrip("/")
+        self.control_token = os.getenv("ROBOT_CONTROL_TOKEN", "").strip()
 
         navigation_mode = str(
             self.get_parameter(
@@ -323,6 +325,7 @@ class MapBridge(Node):
             response = requests.post(
                 url,
                 json=payload,
+                headers={"X-Robot-Control-Token": self.control_token},
                 timeout=self.request_timeout_sec,
             )
 

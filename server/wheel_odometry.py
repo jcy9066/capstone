@@ -96,9 +96,12 @@ class WheelOdometryNode(Node):
         self.last_encoder_time_sec = None
         self.has_encoder_data = False
 
-        # 정지 상태에서도 /odom과 TF를 계속 발행한다.
+        # Fresh encoder input is required before publishing /odom and TF.
         self.publish_rate_hz = 20.0
-        self.velocity_timeout_sec = 0.25
+        self.velocity_timeout_sec = max(
+            0.05,
+            float(os.getenv("ODOMETRY_ENCODER_TIMEOUT_SEC", "0.25")),
+        )
 
         self.received = 0
         self.published = 0
@@ -238,11 +241,10 @@ class WheelOdometryNode(Node):
         )
 
         if encoder_is_stale:
-            linear_velocity = 0.0
-            angular_velocity = 0.0
-        else:
-            linear_velocity = self.latest_linear_velocity
-            angular_velocity = self.latest_angular_velocity
+            return
+
+        linear_velocity = self.latest_linear_velocity
+        angular_velocity = self.latest_angular_velocity
 
         self.publish_odometry(
             now=now,

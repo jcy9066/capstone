@@ -17,7 +17,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 
-def attach_system_control_routes(app) -> None:
+def attach_system_control_routes(app, navigation_process_control=None) -> None:
     root_dir = Path(__file__).resolve().parents[1]
     log_dir = root_dir / "logs" / "system_control"
     wheel_script = root_dir / "server" / "wheel_odometry.py"
@@ -90,6 +90,10 @@ def attach_system_control_routes(app) -> None:
             count, pids = (1 if module.lidar_ros_bridge is not None else 0), []
         elif component_id == "encoder_ros_bridge":
             count, pids = (1 if module.encoder_ros_bridge is not None else 0), []
+        elif component_id == "slam_mapping" and navigation_process_control is not None:
+            process_status = navigation_process_control.status()
+            pids = process_status.get("mapping_pids", [])
+            count = len(pids)
         else:
             matches = matching_processes(component_id)
             count, pids = len(matches), [item["pid"] for item in matches]
@@ -154,6 +158,9 @@ def attach_system_control_routes(app) -> None:
         if component_id == "wheel_odometry":
             command = [sys.executable, str(wheel_script)]
         elif component_id == "slam_mapping":
+            if navigation_process_control is not None:
+                navigation_process_control.transition("MAPPING")
+                return
             command = [
                 "ros2", "launch", "patrol_navigation", "mapping.launch.py",
                 "server_base_url:=http://127.0.0.1:21063", "robot_id:=pi-01",
@@ -182,6 +189,12 @@ def attach_system_control_routes(app) -> None:
             raise RuntimeError(f"{component_id} failed to start; check logs/system_control/{component_id}.log")
 
     def stop_processes(component_id: str, keep_one: bool = False) -> None:
+        if component_id == "slam_mapping" and navigation_process_control is not None:
+            if keep_one:
+                navigation_process_control.transition("MAPPING")
+            else:
+                navigation_process_control.stop("MAPPING")
+            return
         matches = matching_processes(component_id)
         targets = matches[1:] if keep_one else matches
         for item in targets:

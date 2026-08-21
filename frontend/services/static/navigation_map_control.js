@@ -186,10 +186,12 @@
         const verificationTimer = window.setTimeout(() => showMessage(progress, labels.verifying), 1800);
         try {
             const token = await csrfToken();
-            const payload = await requestJson('/api/navigation/maps/load', {
+            const payload = await requestJson('/api/navigation/control/mode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
                 body: JSON.stringify({
+                    mode: 'DRIVING',
+                    source: 'existing',
                     map_name: mapName,
                     initial_pose: { x, y, yaw_degrees: yawDegrees }
                 })
