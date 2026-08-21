@@ -77,10 +77,16 @@
             const payload = await requestJson('/api/navigation/maps/active');
             state.active = payload;
             setMinimapMapLabel(payload);
+            document.dispatchEvent(new CustomEvent('dabom:active-map-status', {
+                detail: { available: true, payload }
+            }));
             return payload;
         } catch (error) {
             if (error.status === 404) state.activeApiAvailable = false;
             setMinimapMapLabel({ state: 'unavailable' });
+            document.dispatchEvent(new CustomEvent('dabom:active-map-status', {
+                detail: { available: false, error: error.message }
+            }));
             return null;
         }
     }

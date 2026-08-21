@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -35,6 +36,8 @@ if str(PERCEPTION_DIR) not in sys.path:
 from perception.device import resolve_cuda_device
 from perception.frame_processor import FrameProcessor
 from perception.pipeline_factory import PIPELINE_OPTIONS, create_pipeline
+from perception.utils.event_taxonomy import vision_alert_type, vision_event_type
+from perception.utils.telegram_notifier import TelegramNotifier
 try:
     from server.lidar_ros_bridge import LidarRosBridge
     from server.encoder_ros_bridge import EncoderRosBridge
@@ -46,8 +49,15 @@ except ModuleNotFoundError as bridge_import_error:
         bridge_import_error,
     )
 from server.auth_service import AuthError, AuthService
+from server.database import (
+    Database,
+    DatabaseConfigurationError,
+    DatabaseOperationError,
+)
+from server.logging_service import ACTION_TYPES, EventLogWorker, SystemStatusWriter
 from server.navigation_control_api import NavigationControlApi
 from server.navigation_map_api import NavigationMapApi
+from server.privacy import PrivacyProcessingError, PrivacyProcessor
 from server.navigation_process_control import NavigationProcessControl
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
@@ -340,6 +350,12 @@ SERVER_PORT = int(os.getenv("SERVER_PORT", "21063"))
 PIPELINE = os.getenv("PIPELINE", "1")
 MODEL_REQUIRED = os.getenv("MODEL_REQUIRED", "false").lower() == "true"
 SAVE_RECEIVED_FRAMES = os.getenv("SAVE_RECEIVED_FRAMES", "false").lower() == "true"
+SYSTEM_STATUS_INTERVAL_SEC = max(
+    0.1, float(os.getenv("SYSTEM_STATUS_INTERVAL_SEC", "5"))
+)
+EVENT_SAVE_COOLDOWN_SEC = max(
+    0.0, float(os.getenv("EVENT_SAVE_COOLDOWN_SEC", "10"))
+)
 STREAM_WIDTH = int(os.getenv("STREAM_WIDTH", "640"))
 STREAM_HEIGHT = int(os.getenv("STREAM_HEIGHT", "480"))
 STREAM_FPS = int(os.getenv("STREAM_FPS", "15"))
@@ -386,10 +402,10 @@ latest_result = {
 }
 robot_status = {
     "robot_id": SERVER_ROBOT_ID,
-    "cpu_usage": "0.0",
-    "cpu_temp": "0.0",
-    "battery": "100",
-    "ram_usage": "0.0",
+    "cpu_usage": None,
+    "cpu_temp": None,
+    "battery": None,
+    "ram_usage": None,
     "internet": "unknown",
     "mode": "manual",
     "updated_at": None,
@@ -480,6 +496,75 @@ status_frame_cache = {"key": None, "frame": None}
 frame_processor = None
 model_error = None
 model_reload_lock = threading.Lock()
+database = Database()
+automatic_notifier = TelegramNotifier()
+event_log_worker = None
+system_status_writer = None
+privacy_processor = None
+privacy_processor_lock = threading.Lock()
+
+
+def robot_status_snapshot():
+    with state_lock:
+        return dict(robot_status)
+
+
+def start_persistence_workers():
+    global event_log_worker, system_status_writer
+    if event_log_worker is None:
+        event_log_worker = EventLogWorker(
+            database,
+            automatic_notifier,
+            cooldown_sec=EVENT_SAVE_COOLDOWN_SEC,
+        )
+    if system_status_writer is None:
+        system_status_writer = SystemStatusWriter(
+            database,
+            robot_status_snapshot,
+            interval_sec=SYSTEM_STATUS_INTERVAL_SEC,
+        )
+    event_log_worker.start()
+    system_status_writer.start()
+
+
+def stop_persistence_workers():
+    global event_log_worker, system_status_writer
+    if system_status_writer is not None:
+        system_status_writer.stop()
+        system_status_writer = None
+    if event_log_worker is not None:
+        event_log_worker.stop()
+        event_log_worker = None
+
+
+def submit_automatic_event(
+    event_source,
+    event_type,
+    confidence=None,
+    message=None,
+    robot_id=SERVER_ROBOT_ID,
+):
+    worker = event_log_worker
+    if worker is None:
+        return False
+    return worker.submit(
+        robot_id=robot_id,
+        event_source=event_source,
+        event_type=event_type,
+        confidence=confidence,
+        message=message,
+        location=robot_status_snapshot(),
+    )
+
+
+def get_privacy_processor():
+    global privacy_processor
+    with privacy_processor_lock:
+        if privacy_processor is None:
+            privacy_processor = PrivacyProcessor()
+        return privacy_processor
+
+
 env_reload_state = {
     "mtime_ns": None,
     "signature": None,
@@ -1263,10 +1348,20 @@ def process_frame_for_dashboard(frame):
                         f"!!! {current_action['label']} !!! "
                         f"{current_action['score'] * 100:.0f}%"
                     )
-                    frame_processor.notifier.send_alert_async(
-                        f"위험 행동 감지: {current_action['label']}",
-                        frame.copy(),
-                    )
+                    event_type = vision_event_type(current_action["label"])
+                    if event_type:
+                        submit_automatic_event(
+                            "VISION_AI",
+                            event_type,
+                            confidence=detection["score"],
+                            message=f"위험 행동 감지: {current_action['label']}",
+                        )
+                    else:
+                        automatic_notifier.send_event_alert_async(
+                            f"위험 행동 감지: {current_action['label']}",
+                            robot_id=SERVER_ROBOT_ID,
+                            event_type=vision_alert_type(current_action["label"]),
+                        )
                 else:
                     color = (0, 165, 255)
                     detection["visual_state"] = "suspicious"
@@ -1335,7 +1430,13 @@ def publish_preview_frame(frame, robot_id=SERVER_ROBOT_ID, original_bytes=None):
         frame_seq = current_frame_seq
 
     if SAVE_RECEIVED_FRAMES and original_bytes is not None:
-        (SAVE_DIR / "latest.jpg").write_bytes(original_bytes)
+        try:
+            get_privacy_processor().save_image(SAVE_DIR / "latest.jpg", frame)
+        except PrivacyProcessingError as exc:
+            logging.getLogger(__name__).error(
+                "Received frame was not saved because privacy processing failed: %s",
+                exc,
+            )
 
     return frame_seq
 
@@ -1475,6 +1576,11 @@ def inference_worker():
                 stream_stats["last_error"] = str(exc)
                 latest_result["model_error"] = str(exc)
             print(f"[inference] worker error: {exc}")
+            submit_automatic_event(
+                "SYSTEM_MONITOR",
+                "SYSTEM_ERROR",
+                message="AI inference worker error detected.",
+            )
 
 
 def start_inference_worker():
@@ -1492,6 +1598,7 @@ def start_inference_worker():
 async def startup():
     global lidar_ros_bridge, encoder_ros_bridge
 
+    start_persistence_workers()
     ensure_runtime_model_config(force=True, reason="startup")
 
     lidar_enabled = (
@@ -1543,8 +1650,10 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown_lidar_bridge():
     global lidar_ros_bridge, encoder_ros_bridge
-
-    await navigation_control_api.close()
+    try :
+        await navigation_control_api.close()
+    finally :
+        await asyncio.to_thread(stop_persistence_workers)
     navigation_map_api.close()
     await asyncio.to_thread(navigation_process_control.stop)
 
@@ -1557,12 +1666,186 @@ async def shutdown_lidar_bridge():
         lidar_ros_bridge = None
 
 
+def authenticated_user(request):
+    user = request.session.get("user")
+    if not isinstance(user, dict) or not user.get("user_id"):
+        return None, JSONResponse(
+            {"ok": False, "detail": "Authentication required."},
+            status_code=401,
+        )
+    return user, None
+
+
+def parse_log_filters(request):
+    def parse_time(name):
+        raw = request.query_params.get(name)
+        if not raw:
+            return None
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+
+    try:
+        limit = int(request.query_params.get("limit", "100"))
+        start_at = parse_time("start_at")
+        end_at = parse_time("end_at")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid time range or limit.") from exc
+    if not 1 <= limit <= 500:
+        raise ValueError("limit must be between 1 and 500.")
+    if start_at is not None and end_at is not None and start_at > end_at:
+        raise ValueError("start_at must not be after end_at.")
+    return {"start_at": start_at, "end_at": end_at, "limit": limit}
+
+
+async def read_persisted_logs(request, method_name):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    try:
+        filters = parse_log_filters(request)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
+    try:
+        method = getattr(database, method_name)
+        return await asyncio.to_thread(method, **filters)
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+
+
+@app.get("/api/logs/system-status")
+async def read_system_status_logs(request: Request):
+    return await read_persisted_logs(request, "list_system_status")
+
+
+@app.get("/api/logs/events")
+async def read_event_logs(request: Request):
+    return await read_persisted_logs(request, "list_events")
+
+
+@app.get("/api/logs/actions")
+async def read_action_logs(request: Request):
+    return await read_persisted_logs(request, "list_actions")
+
+
+@app.post("/api/logs/actions")
+async def create_action_log(request: Request):
+    user, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    action_type = str(payload.get("action_type") or "").strip().upper()
+    if action_type not in ACTION_TYPES:
+        return JSONResponse(
+            {"ok": False, "detail": "Unsupported action_type."},
+            status_code=400,
+        )
+    event_id = payload.get("event_id")
+    try:
+        event_id = None if event_id in (None, "") else int(event_id)
+        if event_id is not None and event_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JSONResponse(
+            {"ok": False, "detail": "event_id must be a positive integer or null."},
+            status_code=400,
+        )
+    description = payload.get("description", payload.get("description_content"))
+    description = None if description is None else str(description).strip()
+    if description and len(description) > 2000:
+        return JSONResponse(
+            {"ok": False, "detail": "description is too long."},
+            status_code=400,
+        )
+    try:
+        action_id = await asyncio.to_thread(
+            database.insert_action,
+            user_id=int(user["user_id"]),
+            event_id=event_id,
+            action_type=action_type,
+            description=description or None,
+        )
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    return JSONResponse({"ok": True, "action_id": action_id}, status_code=201)
+
+
 @app.post("/send_telegram")
-async def send_telegram():
+async def send_telegram(request: Request):
+    user, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         return JSONResponse(
             {"status": "error", "error": "telegram env missing"},
             status_code=500,
+        )
+
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body) if raw_body else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JSONResponse(
+            {"status": "error", "error": "invalid JSON body"},
+            status_code=400,
+        )
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            {"status": "error", "error": "JSON object required"},
+            status_code=400,
+        )
+    try:
+        raw_event_id = payload.get("event_id")
+        event_id = None if raw_event_id in (None, "") else int(raw_event_id)
+        if event_id is not None and event_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JSONResponse(
+            {"status": "error", "error": "invalid event_id"},
+            status_code=400,
+        )
+
+    if event_id is not None:
+        try:
+            event_exists = await asyncio.to_thread(database.event_exists, event_id)
+        except (DatabaseConfigurationError, DatabaseOperationError):
+            return JSONResponse(
+                {"status": "error", "error": "database unavailable"},
+                status_code=503,
+            )
+        if not event_exists:
+            return JSONResponse(
+                {"status": "error", "error": "event not found"},
+                status_code=404,
+            )
+
+    try:
+        action_id = await asyncio.to_thread(
+            database.insert_action,
+            user_id=int(user["user_id"]),
+            event_id=event_id,
+            action_type="REPORT",
+            description="Manual Telegram danger report requested.",
+        )
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"status": "error", "error": "database unavailable"},
+            status_code=503,
         )
 
     message = "[긴급] 순찰 로봇 위험 감지! 관제 센터에서 신고가 접수되었습니다."
@@ -1573,12 +1856,26 @@ async def send_telegram():
             json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
             timeout=5,
         )
-        if response.status_code == 200:
-            return {"status": "success"}
-        return JSONResponse({"status": "error"}, status_code=500)
+        if response.status_code != 200:
+            return JSONResponse({"status": "error"}, status_code=502)
+        persistence_warning = None
+        if event_id is not None:
+            try:
+                marked = await asyncio.to_thread(database.mark_event_reported, event_id)
+            except (DatabaseConfigurationError, DatabaseOperationError):
+                marked = False
+                persistence_warning = "Telegram sent, but the event update failed."
+            if not marked:
+                persistence_warning = persistence_warning or (
+                    "Telegram sent, but the event was not updated."
+                )
+        result = {"status": "success", "action_id": action_id}
+        if persistence_warning:
+            result["persistence_warning"] = persistence_warning
+        return result
     except Exception as exc:
         print(f"텔레그램 전송 오류: {exc}")
-        return JSONResponse({"status": "error"}, status_code=500)
+        return JSONResponse({"status": "error"}, status_code=502)
 
 
 @app.post("/status")
@@ -1599,15 +1896,27 @@ async def update_status(request: Request):
         return denied
 
     with state_lock:
+        def status_value(name, current=None):
+            value = data.get(name, current)
+            return None if value is None else value
+
         robot_status.update(
             {
                 "robot_id": data.get("robot_id", robot_status["robot_id"]),
-                "cpu_usage": str(data.get("cpu_usage", robot_status["cpu_usage"])),
-                "cpu_temp": str(data.get("cpu_temp", robot_status["cpu_temp"])),
-                "battery": str(data.get("battery", robot_status["battery"])),
-                "ram_usage": str(data.get("ram_usage", robot_status["ram_usage"])),
-                "internet": str(data.get("internet", robot_status["internet"])),
-                "mode": str(data.get("mode", robot_status.get("mode", "manual"))),
+                "cpu_usage": status_value("cpu_usage", robot_status["cpu_usage"]),
+                "cpu_temp": status_value("cpu_temp", robot_status["cpu_temp"]),
+                "battery": status_value("battery", robot_status["battery"]),
+                "ram_usage": status_value("ram_usage", robot_status["ram_usage"]),
+                "internet": status_value("internet", robot_status["internet"]),
+                "mode": status_value("mode", robot_status.get("mode", "manual")),
+                "ping": status_value("ping", robot_status.get("ping")),
+                "speed": status_value("speed", robot_status.get("speed")),
+                "gps_lat": status_value("gps_lat", robot_status.get("gps_lat")),
+                "gps_lng": status_value("gps_lng", robot_status.get("gps_lng")),
+                "gps_alt": status_value("gps_alt", robot_status.get("gps_alt")),
+                "lidar_x": status_value("lidar_x", robot_status.get("lidar_x")),
+                "lidar_y": status_value("lidar_y", robot_status.get("lidar_y")),
+                "lidar_z": status_value("lidar_z", robot_status.get("lidar_z")),
                 "updated_at": time.time(),
             }
         )

@@ -1,11 +1,12 @@
-"""Environment-configured MySQL access used by the authentication service."""
+"""Environment-configured MySQL access used by server services."""
 
 from __future__ import annotations
 
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterator
+from datetime import datetime
+from typing import Any, Iterator
 
 try:
     import pymysql
@@ -17,6 +18,10 @@ except ModuleNotFoundError:  # Keep non-auth server features bootable until depe
 
 class DatabaseConfigurationError(RuntimeError):
     """Raised when the server cannot safely connect to the configured database."""
+
+
+class DatabaseOperationError(RuntimeError):
+    """Raised when a configured database operation cannot be completed."""
 
 
 @dataclass(frozen=True)
@@ -90,3 +95,251 @@ class Database:
             connection.commit()
         finally:
             connection.close()
+
+    def insert_system_status(self, values: dict[str, Any]) -> int:
+        columns = (
+            "cpu_usage",
+            "cpu_temperature",
+            "ram_usage",
+            "ping",
+            "battery_level",
+            "is_autonomous",
+            "speed",
+            "gps_lat",
+            "gps_lng",
+            "gps_alt",
+            "lidar_x",
+            "lidar_y",
+            "lidar_z",
+        )
+        sql = f"""
+            INSERT INTO system_status ({", ".join(columns)})
+            VALUES ({", ".join(["%s"] * len(columns))})
+        """
+        return self._insert(sql, tuple(values.get(column) for column in columns))
+
+    def insert_event(
+        self,
+        *,
+        event_source: str,
+        event_type: str,
+        confidence: float | None = None,
+        gps_lat: float | None = None,
+        gps_lng: float | None = None,
+        gps_alt: float | None = None,
+        lidar_x: float | None = None,
+        lidar_y: float | None = None,
+        lidar_z: float | None = None,
+    ) -> int:
+        return self._insert(
+            """
+            INSERT INTO event_log
+                (event_source, event_type, video_path, confidence,
+                 gps_lat, gps_lng, gps_alt, lidar_x, lidar_y, lidar_z)
+            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                event_source,
+                event_type,
+                confidence,
+                gps_lat,
+                gps_lng,
+                gps_alt,
+                lidar_x,
+                lidar_y,
+                lidar_z,
+            ),
+        )
+
+    def insert_action(
+        self,
+        *,
+        user_id: int,
+        action_type: str,
+        event_id: int | None = None,
+        description: str | None = None,
+    ) -> int:
+        return self._insert(
+            """
+            INSERT INTO action_log
+                (user_id, event_id, action_type, description_content)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (user_id, event_id, action_type, description),
+        )
+
+    def mark_event_reported(self, event_id: int) -> bool:
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE event_log
+                        SET is_reported = 1, reported_at = CURRENT_TIMESTAMP
+                        WHERE event_id = %s AND is_deleted = 0
+                        """,
+                        (event_id,),
+                    )
+                    return cursor.rowcount == 1
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to update the event log.") from exc
+
+    def event_exists(self, event_id: int) -> bool:
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT 1 FROM event_log
+                        WHERE event_id = %s AND is_deleted = 0
+                        LIMIT 1
+                        """,
+                        (event_id,),
+                    )
+                    return cursor.fetchone() is not None
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to read the event log.") from exc
+
+    def list_system_status(
+        self,
+        *,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self._select_logs(
+            table="system_status",
+            timestamp_column="recorded_at",
+            columns=(
+                "status_id",
+                "cpu_usage",
+                "cpu_temperature",
+                "ram_usage",
+                "ping",
+                "battery_level",
+                "is_autonomous",
+                "speed",
+                "gps_lat",
+                "gps_lng",
+                "gps_alt",
+                "lidar_x",
+                "lidar_y",
+                "lidar_z",
+                "recorded_at",
+            ),
+            start_at=start_at,
+            end_at=end_at,
+            limit=limit,
+        )
+
+    def list_events(
+        self,
+        *,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self._select_logs(
+            table="event_log",
+            timestamp_column="detected_at",
+            columns=(
+                "event_id",
+                "event_source",
+                "event_type",
+                "video_path",
+                "confidence",
+                "gps_lat",
+                "gps_lng",
+                "gps_alt",
+                "lidar_x",
+                "lidar_y",
+                "lidar_z",
+                "is_resolved",
+                "is_reported",
+                "reported_at",
+                "is_alerted",
+                "is_mic_used",
+                "is_false_alarm",
+                "detected_at",
+            ),
+            start_at=start_at,
+            end_at=end_at,
+            limit=limit,
+            soft_delete=True,
+        )
+
+    def list_actions(
+        self,
+        *,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        return self._select_logs(
+            table="action_log",
+            timestamp_column="created_at",
+            columns=(
+                "action_id",
+                "user_id",
+                "event_id",
+                "action_type",
+                "description_content",
+                "created_at",
+            ),
+            start_at=start_at,
+            end_at=end_at,
+            limit=limit,
+            soft_delete=True,
+        )
+
+    def _insert(self, sql: str, params: tuple[Any, ...]) -> int:
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, params)
+                    return int(cursor.lastrowid)
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to write to the configured database.") from exc
+
+    def _select_logs(
+        self,
+        *,
+        table: str,
+        timestamp_column: str,
+        columns: tuple[str, ...],
+        start_at: datetime | None,
+        end_at: datetime | None,
+        limit: int,
+        soft_delete: bool = False,
+    ) -> list[dict[str, Any]]:
+        # Identifiers are selected only by the private callers above. All user
+        # values remain bound parameters.
+        conditions = ["is_deleted = 0"] if soft_delete else []
+        params: list[Any] = []
+        if start_at is not None:
+            conditions.append(f"{timestamp_column} >= %s")
+            params.append(start_at)
+        if end_at is not None:
+            conditions.append(f"{timestamp_column} <= %s")
+            params.append(end_at)
+        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        sql = (
+            f"SELECT {', '.join(columns)} FROM {table}{where} "
+            f"ORDER BY {timestamp_column} DESC LIMIT %s"
+        )
+        params.append(limit)
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, tuple(params))
+                    return list(cursor.fetchall())
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to read from the configured database.") from exc

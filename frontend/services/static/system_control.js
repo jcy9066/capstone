@@ -40,7 +40,7 @@
 
     function createPanel() {
         const body = document.querySelector('.sidebar-body');
-        const logout = document.getElementById('logoutBtn');
+        const slot = document.getElementById('systemControlPanelSlot');
         if (!body || document.getElementById('systemControlPanel')) return;
 
         const wrapper = make('div', '', undefined);
@@ -63,8 +63,8 @@
         manual.type = 'button';
         manual.addEventListener('click', openManual);
         wrapper.append(gpu, divider, pi, manual);
-        if (logout) {
-            logout.insertAdjacentElement('afterend', wrapper);
+        if (slot) {
+            slot.append(wrapper);
         } else {
             body.append(wrapper);
         }
@@ -124,11 +124,17 @@
             const payload = await response.json();
             if (!response.ok || !payload.ok) throw new Error(payload.detail || text.unavailable);
             render(payload);
+            document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
+                detail: { available: true, payload }
+            }));
         } catch (error) {
             render({ updated_at: null, gpu: [], pi: [{
                 id: 'lidar_ros', label: 'LiDAR ROS Service', description: '', state: 'unreachable',
                 instance_count: null, control_available: false, message: error.message
             }] });
+            document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
+                detail: { available: false, error: error.message }
+            }));
         }
     }
 

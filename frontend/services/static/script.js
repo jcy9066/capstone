@@ -31,6 +31,23 @@ setInterval(() => {
 // ===================================================
 // 서버 상태 폴링
 // ===================================================
+const ROBOT_STATUS_STALE_MS = 5000;
+
+function parseStatusTimestamp(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const numeric = Number(value);
+    const parsed = Number.isFinite(numeric)
+        ? new Date(numeric < 1e12 ? numeric * 1000 : numeric)
+        : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function hasFreshRobotReport(data) {
+    if (!Object.prototype.hasOwnProperty.call(data, 'updated_at')) return true;
+    const updatedAt = parseStatusTimestamp(data.updated_at);
+    return Boolean(updatedAt && Date.now() - updatedAt.getTime() <= ROBOT_STATUS_STALE_MS);
+}
+
 function fetchRobotStatus() {
     fetch('/get_status')
         .then(response => {
@@ -64,16 +81,31 @@ function fetchRobotStatus() {
             )
                 .trim()
                 .toLowerCase();
+            const hasActualReport = hasFreshRobotReport(data);
 
             if (
-                reportedMode === 'auto'
-                || reportedMode === 'manual'
+                hasActualReport
+                && (
+                    reportedMode === 'auto'
+                    || reportedMode === 'manual'
+                )
             ) {
-                currentPatrolMode = reportedMode;
-                setPatrolModeUi(reportedMode);
+                applyServerPatrolMode(reportedMode);
+            } else {
+                applyServerPatrolMode(null);
             }
+
+            document.dispatchEvent(new CustomEvent(
+                'dabom:robot-status',
+                { detail: { available: true, payload: data } },
+            ));
         })
         .catch(error => {
+            applyServerPatrolMode(null);
+            document.dispatchEvent(new CustomEvent(
+                'dabom:robot-status',
+                { detail: { available: false, error: error.message } },
+            ));
             console.error(
                 '상태 업데이트 오류:',
                 error,
@@ -615,6 +647,10 @@ function saveCurrentNavigationMap() {
 function fetchNavigationStatus() {
     fetchOptionalJson('/api/navigation/status').then(data => {
         if (data) lidarState.status = data;
+        document.dispatchEvent(new CustomEvent(
+            'dabom:navigation-status',
+            { detail: { available: Boolean(data), payload: data } },
+        ));
         requestLidarRender();
     });
 }
@@ -765,9 +801,9 @@ function clearAlerts() {
 // 모달 상태 (실제 데이터만, 더미 없음)
 // ===================================================
 const modalState = {
-    statusModal:  { allRows: [], filtered: [], timer: null },
-    patrolModal:  { allRows: [], filtered: [], timer: null },
-    bookmarkModal:{ allRows: [], filtered: [], timer: null },
+    statusModal:  { allRows: [], filtered: [], timer: null, loadState: 'idle', message: '' },
+    patrolModal:  { allRows: [], filtered: [], timer: null, loadState: 'idle', message: '' },
+    bookmarkModal:{ allRows: [], filtered: [], timer: null, loadState: 'ready', message: '' },
 };
 
 // ===================================================
@@ -810,6 +846,12 @@ function resetFilter(type) {
 // ===================================================
 // 테이블 렌더링
 // ===================================================
+function escapeHtml(value) {
+    const node = document.createElement('span');
+    node.textContent = value == null ? '' : String(value);
+    return node.innerHTML;
+}
+
 function renderTable(type) {
     const tbody = document.getElementById(`${type}-tbody`);
     const countEl = document.getElementById(`${type}-count`);
@@ -818,8 +860,24 @@ function renderTable(type) {
     const rows = modalState[type].filtered;
     if (countEl) countEl.innerHTML = `총 <span>${rows.length}</span> 건`;
 
+    const loadState = modalState[type].loadState;
+    if (loadState === 'loading') {
+        tbody.innerHTML = '<tr><td colspan="20"><div class="table-empty is-loading">서버 데이터를 불러오는 중입니다.</div></td></tr>';
+        return;
+    }
+    if (loadState === 'error') {
+        const message = modalState[type].message || '서버 데이터를 불러오지 못했습니다.';
+        tbody.innerHTML = `<tr><td colspan="20"><div class="table-empty is-error">${escapeHtml(message)}</div></td></tr>`;
+        return;
+    }
+    if (loadState === 'unavailable') {
+        const message = modalState[type].message || '연결된 조회 API가 없습니다.';
+        tbody.innerHTML = `<tr><td colspan="20"><div class="table-empty is-unavailable">${escapeHtml(message)}</div></td></tr>`;
+        return;
+    }
+
     if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="20"><div class="table-empty">조건에 맞는 데이터가 없습니다</div></td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="20"><div class="table-empty">조회된 데이터가 없습니다.</div></td></tr>';
         return;
     }
 
@@ -831,35 +889,35 @@ function renderTable(type) {
             const batClass  = row.battery   < 20 ? 'danger' : row.battery   < 40 ? 'warn' : 'success';
             const pingClass = row.ping > 150 ? 'danger' : row.ping > 100 ? 'warn' : '';
             return `<tr>
-                <td class="muted">${row.date}</td>
-                <td class="muted">${row.time}</td>
-                <td class="${cpuClass}">${row.cpu_usage}%</td>
-                <td class="${tempClass}">${row.cpu_temp}°C</td>
-                <td class="${row.ram_usage>80?'warn':''}">${row.ram_usage}%</td>
-                <td class="${batClass}">${row.battery}%</td>
-                <td class="${pingClass}">${row.ping}ms</td>
-                <td class="muted">${row.location}</td>
+                <td class="muted">${escapeHtml(row.date)}</td>
+                <td class="muted">${escapeHtml(row.time)}</td>
+                <td class="${cpuClass}">${escapeHtml(row.cpu_usage)}%</td>
+                <td class="${tempClass}">${escapeHtml(row.cpu_temp)}°C</td>
+                <td class="${row.ram_usage>80?'warn':''}">${escapeHtml(row.ram_usage)}%</td>
+                <td class="${batClass}">${escapeHtml(row.battery)}%</td>
+                <td class="${pingClass}">${escapeHtml(row.ping)}ms</td>
+                <td class="muted">${escapeHtml(row.location)}</td>
             </tr>`;
         } else if (type === 'patrolModal') {
             const stateClass = row.state==='이상 감지'?'danger':row.state==='장애물 우회'?'warn':row.state==='정상 완료'?'success':'accent';
             const repClass   = row.reported==='예'?'danger':'muted';
             return `<tr>
-                <td class="muted">${row.date}</td>
-                <td class="muted">${row.time}</td>
-                <td><span class="status-badge status-${stateClass==='danger'?'danger':stateClass==='warn'?'warning':stateClass==='success'?'normal':'patrol'}">${row.state}</span></td>
-                <td class="muted">${row.location}</td>
-                <td>${row.content}</td>
-                <td class="${repClass}">${row.reported}</td>
+                <td class="muted">${escapeHtml(row.date)}</td>
+                <td class="muted">${escapeHtml(row.time)}</td>
+                <td><span class="status-badge status-${stateClass==='danger'?'danger':stateClass==='warn'?'warning':stateClass==='success'?'normal':'patrol'}">${escapeHtml(row.state)}</span></td>
+                <td class="muted">${escapeHtml(row.location)}</td>
+                <td>${escapeHtml(row.content)}</td>
+                <td class="${repClass}">${escapeHtml(row.reported)}</td>
             </tr>`;
         } else {
             // bookmarkModal
             const stClass = row.state==='이상 감지'?'danger':row.state==='경고'?'warning':'normal';
             return `<tr>
-                <td class="muted">${row.date}</td>
-                <td class="muted">${row.time}</td>
-                <td>${row.location}</td>
-                <td>${row.snapshot || '-'}</td>
-                <td><span class="status-badge status-${stClass}">${row.state}</span></td>
+                <td class="muted">${escapeHtml(row.date)}</td>
+                <td class="muted">${escapeHtml(row.time)}</td>
+                <td>${escapeHtml(row.location)}</td>
+                <td>${escapeHtml(row.snapshot || '-')}</td>
+                <td><span class="status-badge status-${stClass}">${escapeHtml(row.state)}</span></td>
                 <td>
                     <button class="del-btn" onclick="deleteBookmark(${realIdx})">삭제</button>
                 </td>
@@ -929,7 +987,7 @@ function buildModalHTML(type) {
 // ===================================================
 // 모달 열기/닫기
 // ===================================================
-function openModal(type) {
+async function openModal(type) {
     const modal  = document.getElementById('commonModal');
     const title  = document.getElementById('modalTitle');
     const body   = document.getElementById('modalBody');
@@ -958,8 +1016,22 @@ function openModal(type) {
     modal.style.display = 'flex';
     renderTable(type);
 
-    // 기기상태 로그는 서버에서 실시간으로 받아오는 구조 (현재는 /get_status 폴링)
-    // 순찰 기록, 북마크는 버튼 누를 때만 추가됨 → 자동 추가 타이머 없음
+    if (type === 'statusModal' || type === 'patrolModal') {
+        const state = modalState[type];
+        state.loadState = 'loading';
+        state.message = '';
+        state.allRows = [];
+        state.filtered = [];
+        renderTable(type);
+
+        const result = await window.DabomDashboardState?.fetchLogRows(type);
+        if (!result || modal.style.display === 'none') return;
+        state.loadState = result.state;
+        state.message = result.message || '';
+        state.allRows = Array.isArray(result.rows) ? result.rows : [];
+        state.filtered = [...state.allRows];
+        renderTable(type);
+    }
 }
 
 function closeModal() {
@@ -1010,12 +1082,22 @@ function recordBookmark() {
 // ===================================================
 // 텔레그램 신고
 // ===================================================
-function reportDanger(isAuto = false) {
+async function reportDanger(isAuto = false) {
     let confirmReport = true;
     if (!isAuto) confirmReport = confirm("신고? - Telegram");
 
     if (confirmReport) {
-        fetch('/send_telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        fetch('/api/auth/csrf', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(csrf => fetch('/send_telegram', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrf.csrf_token,
+                },
+                body: JSON.stringify({}),
+            }))
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -1049,6 +1131,30 @@ function warnTrespasser() {
 // ===================================================
 let currentPatrolMode = null;
 let modeChangePending = false;
+let currentRobotConnected = null;
+
+
+function applyServerPatrolMode(mode) {
+    const normalized = String(mode || '').trim().toLowerCase();
+    currentPatrolMode = (
+        currentRobotConnected !== false
+        && (normalized === 'auto' || normalized === 'manual')
+    ) ? normalized : null;
+    setPatrolModeUi(currentPatrolMode);
+}
+
+
+function setDashboardRobotConnection(connected) {
+    currentRobotConnected = typeof connected === 'boolean' ? connected : null;
+    if (connected === false) {
+        stopAllLocalInputs(false);
+        applyServerPatrolMode(null);
+    }
+}
+
+
+window.applyServerPatrolMode = applyServerPatrolMode;
+window.setDashboardRobotConnection = setDashboardRobotConnection;
 
 const ROBOT_ID = 'pi-01';
 const MANUAL_SPEED = 0.35;
@@ -1150,6 +1256,8 @@ function setPatrolModeUi(mode) {
         'label-manual',
     );
 
+    switchUi.classList.toggle('unknown', mode !== 'auto' && mode !== 'manual');
+
     if (mode === 'auto') {
         switchUi.classList.remove('manual');
         dPadArea.classList.add('disabled');
@@ -1160,7 +1268,7 @@ function setPatrolModeUi(mode) {
         labelManual.classList.add('inactive');
         labelManual.classList.remove('active');
 
-    } else {
+    } else if (mode === 'manual') {
         switchUi.classList.add('manual');
         dPadArea.classList.remove('disabled');
 
@@ -1169,6 +1277,15 @@ function setPatrolModeUi(mode) {
 
         labelManual.classList.add('active');
         labelManual.classList.remove('inactive');
+    } else {
+        switchUi.classList.remove('manual');
+        dPadArea.classList.add('disabled');
+
+        labelAuto.classList.add('inactive');
+        labelAuto.classList.remove('active');
+
+        labelManual.classList.add('inactive');
+        labelManual.classList.remove('active');
     }
 }
 
