@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="static/style.css?v=20260622-lidar-live">
     <link rel="stylesheet" href="static/system_control.css?v=20260801-ros-control">
     <link rel="stylesheet" href="static/navigation_map_control.css?v=20260801-map-selection">
+    <link rel="stylesheet" href="static/navigation_control.css?v=20260814-navigation-control">
 </head>
 <body>
 
@@ -185,6 +186,26 @@
                         >
                             NO SCAN DATA
                         </div>
+                    </div>
+
+                    <div class="navigation-control-panel" id="navigation-control-panel">
+                        <div class="navigation-control-row">
+                            <button id="navigation-mode-mapping" type="button">MAPPING</button>
+                            <button id="navigation-mode-driving" type="button">DRIVING</button>
+                            <span class="navigation-control-status">
+                                MODE <strong id="navigation-mode-label">--</strong>
+                                / NAV <strong id="navigation-state-label">--</strong>
+                            </span>
+                        </div>
+                        <div class="navigation-control-row">
+                            <button id="navigation-start" type="button" hidden>주행 시작</button>
+                            <button id="navigation-cancel" type="button" hidden>목표 취소</button>
+                            <button id="navigation-estop" class="danger" type="button">긴급 정지</button>
+                            <button id="navigation-resume" class="resume" type="button" hidden>Resume</button>
+                            <button id="navigation-led-test" type="button">LED TEST</button>
+                        </div>
+                        <div id="navigation-goal-hint"></div>
+                        <div id="navigation-control-feedback" role="status" aria-live="polite"></div>
                     </div>
 
                     <button
@@ -446,5 +467,6 @@
     <script src="static/script.js?v=20260814-dashboard-fixes"></script>
     <script src="static/system_control.js?v=20260801-ros-control"></script>
     <script src="static/navigation_map_control.js?v=20260801-map-selection"></script>
+    <script src="static/navigation_control.js?v=20260814-navigation-control"></script>
 </body>
 </html>

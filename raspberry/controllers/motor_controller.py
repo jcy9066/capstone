@@ -46,11 +46,13 @@ class MotorController:
       STOP,<reason>
       ENC_RESET
       ENC_STREAM,0|1
+      LED,0|1
 
     Pico → Pi:
       OK,...
       ERR,...
       EVENT,FAILSAFE_STOP
+      EVENT,LED_FAILSAFE_OFF
       EVENT,ENC,<LF>,<RF>,<LR>,<RR>,<pico_ms>
     """
 
@@ -79,6 +81,7 @@ class MotorController:
 
         self.last_command_at = 0.0
         self.current_motion = "stop"
+        self.led_enabled = False
 
         self._serial: Optional[object] = None
 
@@ -193,9 +196,16 @@ class MotorController:
             print("[motor] Pico failsafe stop")
             return
 
+        if line == "EVENT,LED_FAILSAFE_OFF":
+            with self._state_lock:
+                self.led_enabled = False
+            print("[motor] Pico warning LED failsafe off")
+            return
+
         if line.startswith("READY,"):
             with self._state_lock:
                 self.current_motion = "stop"
+                self.led_enabled = False
 
             self._pico_reboot_event.set()
             print(f"[motor] Pico reboot detected: {line}")
@@ -396,6 +406,9 @@ class MotorController:
 
             self._exchange_locked("PING")
             self._exchange_locked("STOP,pi_connected")
+            self._exchange_locked("LED,0")
+            with self._state_lock:
+                self.led_enabled = False
             self._exchange_locked("ENC_STREAM,1")
 
             print(
@@ -426,6 +439,9 @@ class MotorController:
         with self._command_lock:
             self._ensure_connected_locked()
             self._exchange_locked("STOP,pico_reboot_recovery")
+            self._exchange_locked("LED,0")
+            with self._state_lock:
+                self.led_enabled = False
             self._exchange_locked("ENC_STREAM,1")
 
         self._pico_reboot_event.clear()
@@ -455,6 +471,15 @@ class MotorController:
                     "updated_monotonic": None,
                 }
 
+    def set_led(self, enabled: bool) -> None:
+        if not isinstance(enabled, bool):
+            raise MotorControllerError("LED state must be boolean")
+        with self._command_lock:
+            self._ensure_connected_locked()
+            self._exchange_locked(f"LED,{1 if enabled else 0}")
+            with self._state_lock:
+                self.led_enabled = enabled
+
     def move(
         self,
         direction: str,
@@ -473,6 +498,9 @@ class MotorController:
             raise MotorControllerError(
                 f"잘못된 속도 값: {speed}"
             ) from exc
+
+        if not math.isfinite(normalized_speed):
+            raise MotorControllerError(f"잘못된 속도 값: {speed}")
 
         normalized_speed = max(
             0.0,
@@ -610,6 +638,15 @@ class MotorController:
                     self._exchange_locked(
                         "STOP,controller_close"
                     )
+                except Exception:
+                    pass
+
+                try:
+                    self._exchange_locked(
+                        "LED,0"
+                    )
+                    with self._state_lock:
+                        self.led_enabled = False
                 except Exception:
                     pass
 

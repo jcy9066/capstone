@@ -108,9 +108,15 @@ class NavigationMapService:
         if not -180.0 <= yaw_degrees <= 180.0:
             raise NavigationMapError("INVALID_INITIAL_POSE", "Initial heading must be between -180 and 180 degrees.")
 
-        max_x = selected_map.origin_x + selected_map.width * selected_map.resolution
-        max_y = selected_map.origin_y + selected_map.height * selected_map.resolution
-        if not selected_map.origin_x <= x <= max_x or not selected_map.origin_y <= y <= max_y:
+        dx = x - selected_map.origin_x
+        dy = y - selected_map.origin_y
+        cos_yaw = math.cos(selected_map.origin_yaw)
+        sin_yaw = math.sin(selected_map.origin_yaw)
+        local_x = cos_yaw * dx + sin_yaw * dy
+        local_y = -sin_yaw * dx + cos_yaw * dy
+        max_x = selected_map.width * selected_map.resolution
+        max_y = selected_map.height * selected_map.resolution
+        if not 0.0 <= local_x <= max_x or not 0.0 <= local_y <= max_y:
             raise NavigationMapError(
                 "INITIAL_POSE_OUT_OF_BOUNDS",
                 "Initial position is outside the selected map bounds.",

@@ -325,13 +325,34 @@ function getCanvasLayout(canvas, map) {
         worldHeight,
         originX: Number(map?.origin?.x || 0),
         originY: Number(map?.origin?.y || 0),
+        originYaw: Number(map?.origin?.yaw || 0),
     };
 }
 
 function worldToCanvas(x, y, layout) {
+    const dx = x - layout.originX;
+    const dy = y - layout.originY;
+    const cosYaw = Math.cos(layout.originYaw);
+    const sinYaw = Math.sin(layout.originYaw);
+    const localX = cosYaw * dx + sinYaw * dy;
+    const localY = -sinYaw * dx + cosYaw * dy;
     return {
-        x: layout.x + (x - layout.originX) * layout.scale,
-        y: layout.y + layout.height - (y - layout.originY) * layout.scale,
+        x: layout.x + localX * layout.scale,
+        y: layout.y + layout.height - localY * layout.scale,
+    };
+}
+
+function canvasToWorld(x, y, layout) {
+    const localX = (x - layout.x) / layout.scale;
+    const localY = (layout.y + layout.height - y) / layout.scale;
+    if (localX < 0 || localY < 0 || localX >= layout.worldWidth || localY >= layout.worldHeight) {
+        return null;
+    }
+    const cosYaw = Math.cos(layout.originYaw);
+    const sinYaw = Math.sin(layout.originYaw);
+    return {
+        x: layout.originX + cosYaw * localX - sinYaw * localY,
+        y: layout.originY + sinYaw * localX + cosYaw * localY,
     };
 }
 
@@ -519,6 +540,9 @@ function renderLidarMap() {
     drawScan(ctx, scan, pose, layout);
     const pulseActive = drawScanPulse(ctx, pose, layout);
     drawRobot(ctx, pose, layout);
+    if (window.navigationControlOverlay?.draw) {
+        window.navigationControlOverlay.draw(ctx, layout, worldToCanvas);
+    }
     updateLidarLabels();
     if (pulseActive) requestLidarRender();
 }
@@ -690,6 +714,30 @@ function toggleMinimapExpand() {
         requestLidarRender();
     }
 }
+
+window.navigationMapView = {
+    canvasToWorld(event) {
+        const canvas = document.getElementById('lidar-map-canvas');
+        if (!canvas || !lidarState.map) return null;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / Math.max(rect.width, 1);
+        const scaleY = canvas.height / Math.max(rect.height, 1);
+        const layout = getCanvasLayout(canvas, lidarState.map);
+        return canvasToWorld(
+            (event.clientX - rect.left) * scaleX,
+            (event.clientY - rect.top) * scaleY,
+            layout,
+        );
+    },
+    snapshot() {
+        return {
+            map: lidarState.map,
+            pose: lidarState.pose,
+            expanded: minimapExpanded,
+        };
+    },
+    requestRender: requestLidarRender,
+};
 
 // ===================================================
 // 알림 지우기
@@ -985,6 +1033,10 @@ function reportDanger(isAuto = false) {
 }
 
 function warnTrespasser() {
+    if (window.navigationControl?.warning) {
+        window.navigationControl.warning();
+        return;
+    }
     sendRobotCommand({ type: 'speak', text: '경고합니다. 즉시 물러나십시오.' })
         .then(ok => {
             if (ok) alert("⚠️ 경고 방송 명령을 전송했습니다.");
@@ -1230,6 +1282,10 @@ function emergencyStopRobot(
     keepalive = false,
 ) {
     stopAllLocalInputs(false);
+
+    if (window.navigationControl?.emergencyStop) {
+        return window.navigationControl.emergencyStop(reason, keepalive);
+    }
 
     return sendRobotCommand(
         {

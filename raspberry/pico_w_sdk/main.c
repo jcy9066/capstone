@@ -41,6 +41,7 @@
 /* 추가 출력 장치 */
 #define SPEAKER_PIN 16
 #define MOSFET_PIN 20
+#define WARNING_LED_PIN MOSFET_PIN
 
 /*
  * 전진 시 tick이 감소하는 바퀴는 해당 값을 -1로 변경한다.
@@ -56,6 +57,7 @@
 #define PWM_WRAP 999U
 
 #define COMMAND_TIMEOUT_MS 350U
+#define WARNING_LED_FAILSAFE_TIMEOUT_MS 12000U
 #define CURVE_INNER_RATIO 0.35f
 #define RX_BUFFER_SIZE 128U
 
@@ -97,6 +99,8 @@ static volatile uint8_t right_rear_encoder_state = 0;
 
 static bool encoder_stream_enabled = false;
 static uint64_t last_encoder_report_ms = 0;
+static bool warning_led_enabled = false;
+static uint64_t last_warning_led_command_ms = 0;
 
 
 /*
@@ -137,6 +141,13 @@ static void uart_send_line(const char *message) {
 
 static void uart_reply(const char *message) {
     uart_send_line(message);
+}
+
+
+static void set_warning_led(bool enabled) {
+    gpio_put(WARNING_LED_PIN, enabled ? 1 : 0);
+    warning_led_enabled = enabled;
+    last_warning_led_command_ms = to_ms_since_boot(get_absolute_time());
 }
 
 
@@ -737,6 +748,32 @@ static void handle_command(char *line) {
         return;
     }
 
+    if (strcmp(command, "LED") == 0) {
+        char *enabled_text = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+        char *extra_argument = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+        bool enabled = false;
+        if (
+            enabled_text == NULL ||
+            extra_argument != NULL ||
+            !parse_enabled_value(enabled_text, &enabled)
+        ) {
+            set_warning_led(false);
+            uart_reply("ERR,LED requires 0 or 1");
+            return;
+        }
+        set_warning_led(enabled);
+        uart_reply(enabled ? "OK,LED,1" : "OK,LED,0");
+        return;
+    }
+
     if (strcmp(command, "DRIVE") == 0) {
         char *left_text = strtok_r(
             NULL,
@@ -832,9 +869,16 @@ static void handle_command(char *line) {
             &save_pointer
         );
 
+        char *extra_argument = strtok_r(
+            NULL,
+            ",",
+            &save_pointer
+        );
+
         if (
             direction == NULL ||
-            speed_text == NULL
+            speed_text == NULL ||
+            extra_argument != NULL
         ) {
             stop_motors();
 
@@ -854,7 +898,8 @@ static void handle_command(char *line) {
 
         if (
             end_pointer == speed_text ||
-            *end_pointer != '\0'
+            *end_pointer != '\0' ||
+            !isfinite(speed)
         ) {
             stop_motors();
             uart_reply("ERR,invalid speed");
@@ -930,6 +975,9 @@ int main(void) {
 
     encoder_init();
     encoder_reset();
+    gpio_init(WARNING_LED_PIN);
+    gpio_set_dir(WARNING_LED_PIN, GPIO_OUT);
+    set_warning_led(false);
     stop_motors();
 
     sleep_ms(100);
@@ -981,6 +1029,7 @@ int main(void) {
             } else {
                 receive_length = 0;
                 stop_motors();
+                set_warning_led(false);
 
                 uart_reply(
                     "ERR,receive buffer overflow"
@@ -1000,10 +1049,17 @@ int main(void) {
             ) {
                 stop_motors();
 
-                uart_reply(
-                    "EVENT,FAILSAFE_STOP"
-                );
+                uart_reply("EVENT,FAILSAFE_STOP");
             }
+        }
+
+        if (
+            warning_led_enabled &&
+            now_ms - last_warning_led_command_ms >
+                WARNING_LED_FAILSAFE_TIMEOUT_MS
+        ) {
+            set_warning_led(false);
+            uart_reply("EVENT,LED_FAILSAFE_OFF");
         }
 
         if (

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -10,26 +11,50 @@ from typing import Any, Callable
 
 try:
     import rclpy
-    from geometry_msgs.msg import PoseWithCovarianceStamped
+    from action_msgs.msg import GoalStatus
+    from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
     from lifecycle_msgs.srv import GetState
+    from nav2_msgs.action import ComputePathToPose, NavigateToPose
     from nav2_msgs.srv import LoadMap
-    from nav_msgs.msg import OccupancyGrid
+    from nav_msgs.msg import OccupancyGrid, Odometry
+    from sensor_msgs.msg import LaserScan
+    from rclpy.action import ActionClient
+    from rclpy.duration import Duration
     from rclpy.executors import SingleThreadedExecutor
     from rclpy.node import Node
-    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from rclpy.qos import (
+        DurabilityPolicy,
+        QoSProfile,
+        ReliabilityPolicy,
+        qos_profile_sensor_data,
+    )
+    from rclpy.time import Time
+    from tf2_ros import Buffer, TransformListener
 
     ROS_IMPORT_ERROR: Exception | None = None
 except ModuleNotFoundError as exc:  # Allows the web server to run without ROS locally.
     rclpy = None
+    GoalStatus = None
+    PoseStamped = None
     PoseWithCovarianceStamped = None
+    ComputePathToPose = None
+    NavigateToPose = None
     GetState = None
     LoadMap = None
     OccupancyGrid = None
+    Odometry = None
+    LaserScan = None
+    ActionClient = None
+    Duration = None
     SingleThreadedExecutor = None
     Node = None
     DurabilityPolicy = None
     QoSProfile = None
     ReliabilityPolicy = None
+    qos_profile_sensor_data = None
+    Time = None
+    Buffer = None
+    TransformListener = None
     ROS_IMPORT_ERROR = exc
 
 
@@ -80,6 +105,17 @@ class NavigationRosControl:
         self._map_server_state_client = None
         self._amcl_state_client = None
         self._initial_pose_publisher = None
+        self._compute_path_client = None
+        self._navigate_client = None
+        self._navigate_goal_handle = None
+        self._navigate_result_future = None
+        self._navigation_state = "IDLE"
+        self._navigation_error = None
+        self._last_scan_at = None
+        self._last_odom_at = None
+        self._last_tf_at = None
+        self._tf_buffer = None
+        self._tf_listener = None
         self._map = _MapObservation()
         self._amcl = _AmclObservation()
         self._last_lifecycle = {"map_server": "unavailable", "amcl": "unavailable"}
@@ -112,6 +148,25 @@ class NavigationRosControl:
             )
             self._node.create_subscription(OccupancyGrid, self.MAP_TOPIC, self._on_map, map_qos)
             self._node.create_subscription(PoseWithCovarianceStamped, self.AMCL_POSE_TOPIC, self._on_amcl_pose, 10)
+            self._node.create_subscription(
+                LaserScan,
+                "/scan",
+                self._on_scan,
+                qos_profile_sensor_data,
+            )
+            self._node.create_subscription(Odometry, "/odom", self._on_odom, 10)
+            self._compute_path_client = ActionClient(
+                self._node,
+                ComputePathToPose,
+                "/compute_path_to_pose",
+            )
+            self._navigate_client = ActionClient(
+                self._node,
+                NavigateToPose,
+                "/navigate_to_pose",
+            )
+            self._tf_buffer = Buffer()
+            self._tf_listener = TransformListener(self._tf_buffer, self._node, spin_thread=False)
             self._thread = threading.Thread(
                 target=self._executor.spin,
                 name="navigation-map-ros-executor",
@@ -131,6 +186,12 @@ class NavigationRosControl:
             self._executor = None
             self._thread = None
             self._node = None
+            self._compute_path_client = None
+            self._navigate_client = None
+            self._navigate_goal_handle = None
+            self._navigate_result_future = None
+            self._tf_listener = None
+            self._tf_buffer = None
         if executor is not None:
             try:
                 executor.shutdown(timeout_sec=2.0)
@@ -251,6 +312,160 @@ class NavigationRosControl:
             "amcl_pose_received": amcl_received,
         }
 
+    def compute_path(self, goal: dict[str, float]) -> list[dict[str, float]]:
+        """Call Nav2 ComputePathToPose without starting robot navigation."""
+        self._require_started()
+        if not self._compute_path_client.wait_for_server(timeout_sec=2.5):
+            raise NavigationRosError("PATH_PLANNER_UNAVAILABLE", "ComputePathToPose action is unavailable.", 503)
+        request = ComputePathToPose.Goal()
+        request.goal = self._pose_stamped(goal)
+        request.use_start = False
+        goal_handle = self._wait_future(
+            self._compute_path_client.send_goal_async(request),
+            timeout_sec=3.0,
+            error_code="PATH_PLAN_TIMEOUT",
+            message="Timed out while submitting the path request.",
+        )
+        if not goal_handle.accepted:
+            raise NavigationRosError("PATH_REJECTED", "Nav2 rejected the path request.", 422)
+        result_wrapper = self._wait_future(
+            goal_handle.get_result_async(),
+            timeout_sec=float(os.getenv("NAV_COMPUTE_PATH_TIMEOUT_SEC", "10.0")),
+            error_code="PATH_PLAN_TIMEOUT",
+            message="Timed out while computing the path.",
+        )
+        if int(result_wrapper.status) != int(GoalStatus.STATUS_SUCCEEDED):
+            raise NavigationRosError("PATH_NOT_FOUND", "Nav2 could not compute a path.", 422)
+        return [
+            {"x": float(item.pose.position.x), "y": float(item.pose.position.y)}
+            for item in result_wrapper.result.path.poses
+        ]
+
+    def navigate_to_pose(self, goal: dict[str, float]) -> dict[str, Any]:
+        self._require_started()
+        with self._lock:
+            if self._navigate_goal_handle is not None:
+                raise NavigationRosError(
+                    "NAVIGATION_ALREADY_ACTIVE",
+                    "Cancel the active Nav2 goal before starting another goal.",
+                )
+        if not self._navigate_client.wait_for_server(timeout_sec=2.5):
+            raise NavigationRosError("NAVIGATOR_UNAVAILABLE", "NavigateToPose action is unavailable.", 503)
+        request = NavigateToPose.Goal()
+        request.pose = self._pose_stamped(goal)
+        goal_handle = self._wait_future(
+            self._navigate_client.send_goal_async(request),
+            timeout_sec=3.0,
+            error_code="NAVIGATION_START_TIMEOUT",
+            message="Timed out while submitting the navigation goal.",
+        )
+        if not goal_handle.accepted:
+            raise NavigationRosError("NAVIGATION_REJECTED", "Nav2 rejected the navigation goal.", 422)
+        result_future = goal_handle.get_result_async()
+        with self._lock:
+            self._navigate_goal_handle = goal_handle
+            self._navigate_result_future = result_future
+            self._navigation_state = "NAVIGATING"
+            self._navigation_error = None
+        result_future.add_done_callback(
+            lambda future, handle=goal_handle: self._on_navigation_result(handle, future)
+        )
+        return {"accepted": True, "action": "/navigate_to_pose"}
+
+    def cancel_navigation(self) -> dict[str, Any]:
+        with self._lock:
+            goal_handle = self._navigate_goal_handle
+            result_future = self._navigate_result_future
+        if goal_handle is None:
+            return {"requested": False, "confirmed": True}
+        response = self._wait_future(
+            goal_handle.cancel_goal_async(),
+            timeout_sec=float(os.getenv("NAV_CANCEL_TIMEOUT_SEC", "3.0")),
+            error_code="NAVIGATION_CANCEL_TIMEOUT",
+            message="Timed out while canceling the Nav2 goal.",
+        )
+        confirmed = bool(getattr(response, "goals_canceling", []))
+        if not confirmed:
+            raise NavigationRosError("NAVIGATION_CANCEL_REJECTED", "Nav2 did not confirm goal cancellation.", 502)
+        with self._lock:
+            self._navigation_state = "CANCELING"
+        if result_future is None:
+            raise NavigationRosError(
+                "NAVIGATION_CANCEL_UNCONFIRMED",
+                "Nav2 did not provide a result future for the active goal.",
+                502,
+            )
+        result = self._wait_future(
+            result_future,
+            timeout_sec=float(os.getenv("NAV_CANCEL_RESULT_TIMEOUT_SEC", "3.0")),
+            error_code="NAVIGATION_CANCEL_TIMEOUT",
+            message="Timed out waiting for Nav2 to finish canceling the goal.",
+        )
+        if int(result.status) != int(GoalStatus.STATUS_CANCELED):
+            raise NavigationRosError(
+                "NAVIGATION_CANCEL_UNCONFIRMED",
+                f"Nav2 completed cancel with status={result.status}.",
+                502,
+            )
+        return {"requested": True, "confirmed": True, "completed": True}
+
+    def navigation_status(self) -> dict[str, Any]:
+        with self._lock:
+            return {"state": self._navigation_state, "error": self._navigation_error}
+
+    def navigation_ready(self) -> bool:
+        if ROS_IMPORT_ERROR is not None or not self._started:
+            return False
+        return bool(
+            self._compute_path_client.wait_for_server(timeout_sec=0.05)
+            and self._navigate_client.wait_for_server(timeout_sec=0.05)
+        )
+
+    def watchdog_status(self, now: float | None = None) -> dict[str, Any]:
+        if ROS_IMPORT_ERROR is not None or not self._started:
+            return {
+                "available": False,
+                "odometry_age_sec": math.inf,
+                "tf_ok": False,
+                "tf_age_sec": math.inf,
+                "localization_ok": False,
+                "localization_age_sec": math.inf,
+            }
+        tf_ok = False
+        tf_source_age_sec = math.inf
+        try:
+            transform = self._tf_buffer.lookup_transform(
+                "map",
+                "base_link",
+                Time(),
+                timeout=Duration(seconds=0.05),
+            )
+            stamp = transform.header.stamp
+            stamp_ns = int(stamp.sec) * 1_000_000_000 + int(stamp.nanosec)
+            clock_ns = int(self._node.get_clock().now().nanoseconds)
+            tf_source_age_sec = max(0.0, (clock_ns - stamp_ns) / 1_000_000_000.0)
+            max_source_age = max(
+                0.05,
+                float(os.getenv("NAV_WATCHDOG_TF_SOURCE_MAX_AGE_SEC", "1.0")),
+            )
+            tf_ok = stamp_ns > 0 and tf_source_age_sec <= max_source_age
+        except Exception:
+            tf_ok = False
+        with self._lock:
+            if tf_ok:
+                self._last_tf_at = time.monotonic()
+            monotonic_now = time.monotonic()
+            return {
+                "available": True,
+                "scan_age_sec": self._monotonic_age(monotonic_now, self._last_scan_at),
+                "odometry_age_sec": self._monotonic_age(monotonic_now, self._last_odom_at),
+                "tf_ok": tf_ok,
+                "tf_age_sec": self._monotonic_age(monotonic_now, self._last_tf_at),
+                "tf_source_age_sec": tf_source_age_sec,
+                "localization_ok": self._amcl.received_at is not None,
+                "localization_age_sec": self._monotonic_age(monotonic_now, self._amcl.received_at),
+            }
+
     def _require_started(self) -> None:
         if ROS_IMPORT_ERROR is not None:
             raise NavigationRosError("ROS_UNAVAILABLE", "ROS 2 dependencies are unavailable on this server.", 503)
@@ -356,6 +571,45 @@ class NavigationRosControl:
         message.pose.covariance[35] = math.radians(15.0) ** 2
         self._initial_pose_publisher.publish(message)
 
+    def _pose_stamped(self, pose: dict[str, float]) -> Any:
+        message = PoseStamped()
+        message.header.frame_id = "map"
+        message.header.stamp = self._node.get_clock().now().to_msg()
+        message.pose.position.x = float(pose["x"])
+        message.pose.position.y = float(pose["y"])
+        half_yaw = float(pose["yaw"]) / 2.0
+        message.pose.orientation.z = math.sin(half_yaw)
+        message.pose.orientation.w = math.cos(half_yaw)
+        return message
+
+    def _on_navigation_result(self, goal_handle: Any, future: Any) -> None:
+        states = {
+            int(GoalStatus.STATUS_SUCCEEDED): "SUCCEEDED",
+            int(GoalStatus.STATUS_CANCELED): "CANCELED",
+            int(GoalStatus.STATUS_ABORTED): "FAILED",
+        }
+        try:
+            wrapper = future.result()
+            state = states.get(int(wrapper.status), "FAILED")
+            error = None if state == "SUCCEEDED" else f"NavigateToPose status={wrapper.status}"
+        except Exception as exc:
+            state, error = "FAILED", str(exc)
+        with self._lock:
+            if self._navigate_goal_handle is not goal_handle:
+                return
+            self._navigation_state = state
+            self._navigation_error = error
+            self._navigate_goal_handle = None
+            self._navigate_result_future = None
+
+    def _on_scan(self, _message: Any) -> None:
+        with self._lock:
+            self._last_scan_at = time.monotonic()
+
+    def _on_odom(self, _message: Any) -> None:
+        with self._lock:
+            self._last_odom_at = time.monotonic()
+
     def _on_map(self, message: Any) -> None:
         with self._condition:
             self._map.sequence += 1
@@ -405,3 +659,7 @@ class NavigationRosControl:
             and abs(self._amcl.y - initial_pose["y"]) <= 0.5
             and abs(yaw_delta) <= math.radians(30.0)
         )
+
+    @staticmethod
+    def _monotonic_age(now: float, value: float | None) -> float:
+        return math.inf if value is None else max(0.0, now - value)

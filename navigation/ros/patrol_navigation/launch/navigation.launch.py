@@ -37,7 +37,6 @@ from launch.launch_description_sources import (
     PythonLaunchDescriptionSource,
 )
 from launch.substitutions import (
-    EnvironmentVariable,
     LaunchConfiguration,
     PathJoinSubstitution,
 )
@@ -90,12 +89,14 @@ def generate_launch_description():
     start_fake_odom = LaunchConfiguration(
         "start_fake_odom"
     )
-    DeclareLaunchArgument(
-        "start_nav2_command_bridge",
-        default_value="true",
-    ),
     start_nav2_command_bridge = LaunchConfiguration(
         "start_nav2_command_bridge"
+    )
+    nav2_twist_timeout_sec = LaunchConfiguration(
+        "nav2_twist_timeout_sec"
+    )
+    nav2_request_timeout_sec = LaunchConfiguration(
+        "nav2_request_timeout_sec"
     )
 
     # ---------------------------------------------------------
@@ -305,12 +306,12 @@ def generate_launch_description():
                 ),
                 "wheel_track_m": 0.201,
                 "max_wheel_mps": 0.50,
-                "twist_timeout_sec": 0.50,
+                "twist_timeout_sec": nav2_twist_timeout_sec,
                 "server_base_url": (
                     server_base_url
                 ),
                 "robot_id": robot_id,
-                "request_timeout_sec": 0.25,
+                "request_timeout_sec": nav2_request_timeout_sec,
             }
         ],
     )
@@ -366,11 +367,7 @@ def generate_launch_description():
                 default_value=(
                     PathJoinSubstitution(
                         [
-                            EnvironmentVariable(
-                                "HOME"
-                            ),
-                            "dabom_capstone",
-                            "navigation",
+                            pkg_share,
                             "maps",
                             "slam_test_01.yaml",
                         ]
@@ -447,6 +444,18 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "start_fake_odom",
                 default_value="true",
+            ),
+            DeclareLaunchArgument(
+                "start_nav2_command_bridge",
+                default_value="true",
+            ),
+            DeclareLaunchArgument(
+                "nav2_twist_timeout_sec",
+                default_value="0.50",
+            ),
+            DeclareLaunchArgument(
+                "nav2_request_timeout_sec",
+                default_value="0.25",
             ),
 
             # -------------------------------------------------

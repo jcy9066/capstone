@@ -46,7 +46,9 @@ except ModuleNotFoundError as bridge_import_error:
         bridge_import_error,
     )
 from server.auth_service import AuthError, AuthService
+from server.navigation_control_api import NavigationControlApi
 from server.navigation_map_api import NavigationMapApi
+from server.navigation_process_control import NavigationProcessControl
 from navigation.dry_run_planner import DryRunPlannerConfig, plan_scan, validate_scan_payload
 
 load_dotenv(ENV_PATH)
@@ -301,6 +303,31 @@ async def logout_user(request: Request):
 
 
 SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
+ROBOT_CONTROL_TOKEN = os.getenv("ROBOT_CONTROL_TOKEN", "").strip()
+if not ROBOT_CONTROL_TOKEN:
+    logging.getLogger(__name__).warning(
+        "ROBOT_CONTROL_TOKEN is missing; robot status cannot become navigation truth."
+    )
+
+
+def robot_ingest_failure(request: Request):
+    supplied_token = request.headers.get("X-Robot-Control-Token", "")
+    if ROBOT_CONTROL_TOKEN and secrets.compare_digest(supplied_token, ROBOT_CONTROL_TOKEN):
+        return None
+    return JSONResponse(
+        {"ok": False, "error": "robot authentication required"},
+        status_code=401,
+    )
+
+
+def robot_id_failure(payload):
+    robot_id = str(payload.get("robot_id", SERVER_ROBOT_ID)).strip()
+    if robot_id == SERVER_ROBOT_ID:
+        return None
+    return JSONResponse(
+        {"ok": False, "error": "robot_id is not authorized"},
+        status_code=403,
+    )
 
 
 @app.get("/api/auth/csrf")
@@ -364,7 +391,7 @@ robot_status = {
     "battery": "100",
     "ram_usage": "0.0",
     "internet": "unknown",
-    "mode": "auto",
+    "mode": "manual",
     "updated_at": None,
 }
 encoder_state = {
@@ -476,22 +503,48 @@ class RobotConnectionManager:
     def __init__(self):
         self.active = {}
         self.lock = asyncio.Lock()
+        self.pending_acks = {}
+        self.ack_timeout_sec = max(
+            0.1,
+            float(os.getenv("ROBOT_COMMAND_ACK_TIMEOUT_SEC", "2.0")),
+        )
 
     async def connect(self, robot_id, websocket):
         await websocket.accept()
         async with self.lock:
             old = self.active.get(robot_id)
-            if old is not None:
-                try:
-                    await old.close()
-                except Exception:
-                    pass
             self.active[robot_id] = websocket
+            pending = []
+            for command_id, (pending_robot_id, future) in list(self.pending_acks.items()):
+                if pending_robot_id == robot_id:
+                    pending.append(future)
+                    self.pending_acks.pop(command_id, None)
+        for future in pending:
+            if not future.done():
+                future.set_result({"ok": False, "error": "robot connection replaced"})
+        if old is not None:
+            try:
+                await old.close()
+            except Exception:
+                pass
 
     async def disconnect(self, robot_id, websocket):
+        disconnected = False
         async with self.lock:
             if self.active.get(robot_id) is websocket:
                 self.active.pop(robot_id, None)
+                disconnected = True
+                pending = [
+                    future
+                    for pending_robot_id, future in self.pending_acks.values()
+                    if pending_robot_id == robot_id
+                ]
+            else:
+                pending = []
+        for future in pending:
+            if not future.done():
+                future.set_result({"ok": False, "error": "robot disconnected"})
+        return disconnected
 
     async def send_command(self, robot_id, command):
         async with self.lock:
@@ -499,6 +552,41 @@ class RobotConnectionManager:
         if websocket is None:
             return False
         await websocket.send_json(command)
+        return True
+
+    async def send_command_wait_ack(self, robot_id, command):
+        command = dict(command)
+        command_id = str(command.get("command_id") or uuid4())
+        command["command_id"] = command_id
+        command.setdefault("issued_at", time.time())
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        async with self.lock:
+            websocket = self.active.get(robot_id)
+            if websocket is None:
+                return False
+            self.pending_acks[command_id] = (robot_id, future)
+        try:
+            await websocket.send_json(command)
+            ack = await asyncio.wait_for(future, timeout=self.ack_timeout_sec)
+            return isinstance(ack, dict) and ack.get("ok") is True
+        except Exception:
+            return False
+        finally:
+            async with self.lock:
+                self.pending_acks.pop(command_id, None)
+
+    async def receive_ack(self, robot_id, message):
+        command_id = str(message.get("command_id") or "")
+        if not command_id:
+            return False
+        async with self.lock:
+            pending = self.pending_acks.get(command_id)
+        if pending is None or pending[0] != robot_id:
+            return False
+        future = pending[1]
+        if not future.done():
+            future.set_result(dict(message))
         return True
 
     async def is_connected(self, robot_id):
@@ -517,13 +605,36 @@ if _system_control_spec is None or _system_control_spec.loader is None:
     raise RuntimeError("Unable to load system control routes.")
 _system_control_module = module_from_spec(_system_control_spec)
 _system_control_spec.loader.exec_module(_system_control_module)
-_system_control_module.attach_system_control_routes(app)
+navigation_process_control = NavigationProcessControl(ROOT_DIR)
+_system_control_module.attach_system_control_routes(
+    app,
+    navigation_process_control=navigation_process_control,
+)
 
 navigation_map_api = NavigationMapApi(
     app=app,
     root_dir=ROOT_DIR,
     map_dir=NAVIGATION_MAP_DIR,
     csrf_failure=csrf_failure,
+)
+
+
+def current_navigation_map_snapshot():
+    with state_lock:
+        current = navigation_state.get("map")
+        return dict(current) if isinstance(current, dict) else None
+
+
+navigation_control_api = NavigationControlApi(
+    app=app,
+    map_api=navigation_map_api,
+    process_control=navigation_process_control,
+    csrf_failure=csrf_failure,
+    robot_id=SERVER_ROBOT_ID,
+    get_live_map=current_navigation_map_snapshot,
+    save_map=lambda payload, name: save_navigation_map_files(payload, name),
+    send_robot_command=connections.send_command_wait_ack,
+    motor_output_enabled=MOTOR_OUTPUT_ENABLED,
 )
 
 lidar_ros_bridge = None
@@ -1426,13 +1537,16 @@ async def startup():
         logging.getLogger(__name__).warning(
             "Navigation ROS control is unavailable; map loading will remain disabled."
         )
+    await navigation_control_api.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_lidar_bridge():
     global lidar_ros_bridge, encoder_ros_bridge
 
+    await navigation_control_api.close()
     navigation_map_api.close()
+    await asyncio.to_thread(navigation_process_control.stop)
 
     if encoder_ros_bridge is not None:
         encoder_ros_bridge.close()
@@ -1471,12 +1585,18 @@ async def send_telegram():
 @app.post("/update_status")
 async def update_status(request: Request):
     global robot_status
+    denied = robot_ingest_failure(request)
+    if denied:
+        return denied
     data = await request.json()
-    if not data:
+    if not isinstance(data, dict) or not data:
         return JSONResponse(
             {"ok": False, "error": "empty status"},
             status_code=400,
         )
+    denied = robot_id_failure(data)
+    if denied:
+        return denied
 
     with state_lock:
         robot_status.update(
@@ -1487,10 +1607,11 @@ async def update_status(request: Request):
                 "battery": str(data.get("battery", robot_status["battery"])),
                 "ram_usage": str(data.get("ram_usage", robot_status["ram_usage"])),
                 "internet": str(data.get("internet", robot_status["internet"])),
-                "mode": str(data.get("mode", robot_status.get("mode", "auto"))),
+                "mode": str(data.get("mode", robot_status.get("mode", "manual"))),
                 "updated_at": time.time(),
             }
         )
+    navigation_control_api.note_pi_status(data)
     return {"ok": True}
 
 
@@ -1754,6 +1875,9 @@ def list_saved_navigation_maps():
 
 @app.post("/navigation/map")
 async def update_navigation_map(request: Request):
+    denied = robot_ingest_failure(request)
+    if denied:
+        return denied
     try:
         data = await request.json()
         if not isinstance(data, dict) or not data:
@@ -1764,6 +1888,9 @@ async def update_navigation_map(request: Request):
             {"ok": False, "error": str(exc)},
             status_code=400,
         )
+    denied = robot_id_failure(data)
+    if denied:
+        return denied
 
     received_at = time.time()
     with state_lock:
@@ -1779,6 +1906,9 @@ async def update_navigation_map(request: Request):
 
 @app.post("/navigation/pose")
 async def update_navigation_pose(request: Request):
+    denied = robot_ingest_failure(request)
+    if denied:
+        return denied
     try:
         data = await request.json()
         if not isinstance(data, dict) or not data:
@@ -1789,6 +1919,9 @@ async def update_navigation_pose(request: Request):
             {"ok": False, "error": str(exc)},
             status_code=400,
         )
+    denied = robot_id_failure(data)
+    if denied:
+        return denied
 
     received_at = time.time()
     with state_lock:
@@ -1799,11 +1932,15 @@ async def update_navigation_pose(request: Request):
         store_navigation_mode(navigation_mode, received_at)
         navigation_state["pose"] = received_payload(data, received_at)
         navigation_state["pose_updated_at"] = received_at
+    navigation_control_api.note_navigation_sample("pose", received_at)
     return {"ok": True}
 
 
 @app.post("/navigation/scan")
 async def update_navigation_scan(request: Request):
+    denied = robot_ingest_failure(request)
+    if denied:
+        return denied
     try:
         raw_data = await request.json()
         navigation_mode = parse_navigation_mode(raw_data)
@@ -1813,6 +1950,9 @@ async def update_navigation_scan(request: Request):
             {"ok": False, "error": str(exc)},
             status_code=400,
         )
+    denied = robot_id_failure(raw_data)
+    if denied:
+        return denied
 
     received_at = time.time()
     with state_lock:
@@ -1824,6 +1964,7 @@ async def update_navigation_scan(request: Request):
         navigation_state["scan"] = received_payload(data, received_at)
         navigation_state["scan_updated_at"] = received_at
         build_navigation_decision(received_at)
+    navigation_control_api.note_navigation_sample("scan", received_at)
     return {"ok": True}
 
 
@@ -2687,16 +2828,25 @@ async def get_lidar_bridge_status():
 
 @app.websocket("/ws/robot/{robot_id}")
 async def robot_websocket(websocket: WebSocket, robot_id: str):
+    supplied_token = websocket.query_params.get("token", "")
+    if not ROBOT_CONTROL_TOKEN or not secrets.compare_digest(supplied_token, ROBOT_CONTROL_TOKEN):
+        await websocket.close(code=1008, reason="robot authentication required")
+        return
     await connections.connect(robot_id, websocket)
+    if robot_id == SERVER_ROBOT_ID:
+        navigation_control_api.note_pi_connection(True)
     print(f"[ws] robot connected: {robot_id}")
     try:
         while True:
             message = await websocket.receive_json()
             if message.get("type") == "status":
+                status_data = message.get("data", {})
                 with state_lock:
-                    robot_status.update(message.get("data", {}))
+                    robot_status.update(status_data)
                     robot_status["robot_id"] = robot_id
                     robot_status["updated_at"] = time.time()
+                if robot_id == SERVER_ROBOT_ID:
+                    navigation_control_api.note_pi_status(status_data)
             elif message.get("type") == "encoder":
                 data = message.get("data")
 
@@ -2720,6 +2870,8 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
 
                 with state_lock:
                     encoder_state.update(received_encoder)
+                if robot_id == SERVER_ROBOT_ID:
+                    navigation_control_api.note_encoder(received_encoder)
 
                 if encoder_ros_bridge is not None:
                     try:
@@ -2729,10 +2881,15 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
 
             elif message.get("type") == "ack":
                 print(f"[ws] ack from {robot_id}: {message}")
+                await connections.receive_ack(robot_id, message)
+                if robot_id == SERVER_ROBOT_ID:
+                    navigation_control_api.note_pi_status(message)
     except WebSocketDisconnect:
         print(f"[ws] robot disconnected: {robot_id}")
     finally:
-        await connections.disconnect(robot_id, websocket)
+        disconnected = await connections.disconnect(robot_id, websocket)
+        if robot_id == SERVER_ROBOT_ID and disconnected:
+            navigation_control_api.note_pi_connection(False)
 
 
 @app.get("/api/encoder/bridge")
