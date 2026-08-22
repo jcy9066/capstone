@@ -1,7 +1,7 @@
 name = "dashboard_reviewer"
 description = "Playwright로 변경된 Dashboard flow만 검증하는 Agent"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
+sandbox_mode = "read-only"
 
 developer_instructions = """
 Playwright Browser MCP로 현재 변경의 browser-visible 범위만 검사한다.

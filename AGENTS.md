@@ -146,6 +146,13 @@ Implementation worker:
 규칙:
 
 - Reviewer Sub-Agent는 계속 read-only다.
+- Codex runtime에서 Sub-Agent는 부모 session의 effective sandbox를 상속할 수 있으므로,
+  `code_explorer`와 reviewer를 실제 read-only로 강제해야 하는 단계는 부모 Codex 자체를
+  `--sandbox read-only`로 시작한다.
+- `db_worker`, `media_worker`, `dashboard_worker` 구현 단계는
+  `workspace-write` 부모 session에서만 실행한다.
+- 동일한 parent session에서 read-only reviewer와 writable implementation worker를
+  혼합 실행하지 않는다.
 - Implementation worker만 `workspace-write`를 사용한다.
 - Implementation worker는 부모가 지정한 linked worktree와 ownership 범위에서만 수정한다.
 - worker 시작 시 현재 branch와 linked worktree 여부를 확인한다.
