@@ -4,8 +4,9 @@
     const DEFAULT_ENDPOINTS = {
         robotState: '/api/robots/pi-01',
         alertLog: '',
-        deviceLogs: '',
-        patrolLogs: ''
+        deviceLogs: '/api/logs/system-status',
+        patrolLogs: '/api/logs/events',
+        actionLogs: '/api/logs/actions'
     };
     const endpoints = {
         ...DEFAULT_ENDPOINTS,
@@ -271,20 +272,21 @@
     function normalizeStatusRow(value) {
         const row = asObject(value);
         const timestamp = splitTimestamp(row);
-        const pose = asObject(firstValue(row.location, row.pose));
-        const location = typeof row.location === 'string'
-            ? row.location
-            : Number.isFinite(Number(pose.x)) && Number.isFinite(Number(pose.y))
-                ? `(${pose.x}, ${pose.y}, ${firstValue(pose.z, 0)})`
-                : '-';
         return {
             ...timestamp,
-            cpu_usage: firstValue(row.cpu_usage, row.cpu, '-'),
-            cpu_temp: firstValue(row.cpu_temp, row.temperature, '-'),
-            ram_usage: firstValue(row.ram_usage, row.memory_usage, row.ram, '-'),
-            battery: firstValue(row.battery, row.battery_level, '-'),
-            ping: firstValue(row.ping, row.latency_ms, '-'),
-            location
+            status_id: row.status_id,
+            cpu_usage: firstValue(row.cpu_usage, '-'),
+            cpu_temperature: firstValue(row.cpu_temperature, '-'),
+            ram_usage: firstValue(row.ram_usage, '-'),
+            ping: firstValue(row.ping, '-'),
+            battery_level: firstValue(row.battery_level, '-'),
+            is_autonomous: row.is_autonomous,
+            speed: firstValue(row.speed, '-'),
+            gps_lat: firstValue(row.gps_lat, '-'),
+            gps_lng: firstValue(row.gps_lng, '-'),
+            gps_alt: firstValue(row.gps_alt, '-'),
+            lidar_x: firstValue(row.lidar_x, '-'),
+            lidar_y: firstValue(row.lidar_y, '-')
         };
     }
 
@@ -292,15 +294,42 @@
         const row = asObject(value);
         return {
             ...splitTimestamp(row),
-            state: firstValue(row.state, row.status, '-'),
-            location: firstValue(row.location, row.position, '-'),
-            content: firstValue(row.content, row.message, row.description, '-'),
-            reported: firstValue(row.reported, row.report_status, '-')
+            event_id: row.event_id,
+            event_source: firstValue(row.event_source, '-'),
+            event_type: firstValue(row.event_type, '-'),
+            confidence: row.confidence,
+            gps_lat: firstValue(row.gps_lat, '-'),
+            gps_lng: firstValue(row.gps_lng, '-'),
+            gps_alt: firstValue(row.gps_alt, '-'),
+            lidar_x: firstValue(row.lidar_x, '-'),
+            lidar_y: firstValue(row.lidar_y, '-'),
+            is_resolved: row.is_resolved,
+            is_reported: row.is_reported,
+            is_alerted: row.is_alerted,
+            has_image: Boolean(row.has_image || row.image_path)
+        };
+    }
+
+    function normalizeActionRow(value) {
+        const row = asObject(value);
+        return {
+            ...splitTimestamp(row),
+            action_id: row.action_id,
+            user_id: row.user_id,
+            administrator_name: firstValue(row.administrator_name, row.user_name, row.name, row.user_id, '-'),
+            event_id: row.event_id,
+            action_type: firstValue(row.action_type, '-'),
+            description_content: firstValue(row.description_content, '-'),
+            has_image: Boolean(row.has_image || row.image_path)
         };
     }
 
     async function fetchLogRows(type) {
-        const endpoint = type === 'statusModal' ? endpoints.deviceLogs : endpoints.patrolLogs;
+        const endpoint = type === 'statusModal'
+            ? endpoints.deviceLogs
+            : type === 'patrolModal'
+                ? endpoints.patrolLogs
+                : endpoints.actionLogs;
         if (!endpoint) {
             return {
                 state: 'unavailable',
@@ -322,7 +351,13 @@
         }
         return {
             state: 'ready',
-            rows: rows.map(type === 'statusModal' ? normalizeStatusRow : normalizePatrolRow),
+            rows: rows.map(
+                type === 'statusModal'
+                    ? normalizeStatusRow
+                    : type === 'patrolModal'
+                        ? normalizePatrolRow
+                        : normalizeActionRow
+            ),
             message: ''
         };
     }
