@@ -5,24 +5,32 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
-ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
+ENV_FILE="$REPO_ROOT/.env"
 
 if [[ -f "$ENV_FILE" ]]; then
     set -a
     # shellcheck disable=SC1090
-    source "$ENV_FILE"
+    source <(sed 's/\r$//' "$ENV_FILE")
     set +a
 fi
 
-SERVER_BASE_URL="${SERVER_BASE_URL:-http://100.100.248.122:21063}"
-ROBOT_ID="${ROBOT_ID:-pi-01}"
-STREAM_WIDTH="${STREAM_WIDTH:-640}"
-STREAM_HEIGHT="${STREAM_HEIGHT:-480}"
-STREAM_FPS="${STREAM_FPS:-15}"
-STREAM_BITRATE="${STREAM_BITRATE:-1000000}"
-STREAM_INFER="${STREAM_INFER:-false}"
-STREAM_RETRY_SEC="${STREAM_RETRY_SEC:-3}"
-CURL_CONNECT_TIMEOUT_SEC="${CURL_CONNECT_TIMEOUT_SEC:-5}"
+: "${SERVER_BASE_URL:?SERVER_BASE_URL is required}"
+: "${ROBOT_ID:?ROBOT_ID is required}"
+: "${STREAM_WIDTH:?STREAM_WIDTH is required}"
+: "${STREAM_HEIGHT:?STREAM_HEIGHT is required}"
+: "${STREAM_FPS:?STREAM_FPS is required}"
+: "${STREAM_BITRATE:?STREAM_BITRATE is required}"
+: "${STREAM_INFER:?STREAM_INFER is required}"
+: "${STREAM_RETRY_SEC:?STREAM_RETRY_SEC is required}"
+: "${CURL_CONNECT_TIMEOUT_SEC:?CURL_CONNECT_TIMEOUT_SEC is required}"
+
+case "${STREAM_INFER,,}" in
+    true|false|1|0|yes|no|on|off) ;;
+    *)
+        echo "[camera-stream] STREAM_INFER must be a boolean value" >&2
+        exit 2
+        ;;
+esac
 STREAM_URL="${SERVER_BASE_URL%/}/stream/h264?robot_id=${ROBOT_ID}&infer=${STREAM_INFER}"
 
 runtime_dir=""

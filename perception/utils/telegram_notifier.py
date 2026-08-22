@@ -1,10 +1,13 @@
-import os
 import threading
 import time
 
 import cv2
 import requests
 from perception.config import settings
+try:
+    from perception.env_config import env_float
+except ModuleNotFoundError:  # Direct perception script execution.
+    from env_config import env_float
 
 
 class TelegramNotifier:
@@ -21,11 +24,9 @@ class TelegramNotifier:
         self.base_url = f"https://api.telegram.org/bot{self.token}"
         self.cooldown_sec = max(
             0.0,
-            float(
-                os.getenv("TELEGRAM_ALERT_COOLDOWN_SEC", "10")
-                if cooldown_sec is None
-                else cooldown_sec
-            ),
+            env_float("TELEGRAM_ALERT_COOLDOWN_SEC", minimum=0.0)
+            if cooldown_sec is None
+            else float(cooldown_sec),
         )
         self.sender = sender or requests.post
         self.clock = clock or time.monotonic

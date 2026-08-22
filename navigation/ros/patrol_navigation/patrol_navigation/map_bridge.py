@@ -1,10 +1,10 @@
 import math
-import os
 import time
 from datetime import datetime, timezone
 
 import requests
 import rclpy
+from patrol_navigation.env_config import env_text
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.time import Time
@@ -160,7 +160,7 @@ class MapBridge(Node):
                 "server_base_url"
             ).value
         ).rstrip("/")
-        self.control_token = os.getenv("ROBOT_CONTROL_TOKEN", "").strip()
+        self.control_token = env_text("ROBOT_CONTROL_TOKEN")
 
         navigation_mode = str(
             self.get_parameter(

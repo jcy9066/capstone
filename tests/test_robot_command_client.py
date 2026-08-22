@@ -1,14 +1,16 @@
 import json
 import sys
 import unittest
+from argparse import Namespace
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 RASPBERRY_DIR = Path(__file__).resolve().parents[1] / "raspberry"
 if str(RASPBERRY_DIR) not in sys.path:
     sys.path.insert(0, str(RASPBERRY_DIR))
 
+import robot_command_client as client_module  # noqa: E402
 from robot_command_client import RobotCommandClient  # noqa: E402
 
 
@@ -21,6 +23,29 @@ class FakeWebSocket:
 
 
 class RobotCommandClientTests(unittest.IsolatedAsyncioTestCase):
+    def configured_client(self):
+        args = Namespace(
+            server_base_url="https://server.example",
+            robot_id="robot test",
+            control_token="token with spaces",
+            serial_port="test-serial",
+            serial_baudrate=115200,
+            serial_timeout_sec=0.25,
+            command_timeout_sec=0.45,
+            max_wheel_mps=0.5,
+            status_interval_sec=0.001,
+            status_request_timeout_sec=0.75,
+            ws_reconnect_delay_sec=1.0,
+            encoder_interval_sec=0.05,
+        )
+        motor = Mock()
+        motor.connected = True
+        motor.current_motion = "stop"
+        with patch.object(client_module, "MotorController", return_value=motor), patch.object(
+            client_module, "SpeakerController", return_value=Mock()
+        ):
+            return RobotCommandClient(args)
+
     def make_client(self):
         client = RobotCommandClient.__new__(RobotCommandClient)
         client.current_mode = "manual"
@@ -86,6 +111,35 @@ class RobotCommandClientTests(unittest.IsolatedAsyncioTestCase):
     def test_duration_rejects_fractional_values(self):
         with self.assertRaisesRegex(RuntimeError, "integer"):
             RobotCommandClient._duration_ms(1.5)
+
+    def test_command_websocket_is_derived_without_token_in_url(self):
+        client = self.configured_client()
+
+        self.assertEqual(
+            "wss://server.example/ws/robot/robot%20test",
+            client.ws_url,
+        )
+        source = Path(client_module.__file__).read_text(encoding="utf-8")
+        self.assertIn(
+            'extra_headers={"X-Robot-Control-Token": self.control_token}',
+            source,
+        )
+
+    def test_status_request_uses_robot_control_token_header(self):
+        client = self.configured_client()
+
+        def stop_after_post(*args, **kwargs):
+            client.running = False
+            return Mock(status_code=200)
+
+        with patch.object(client_module.requests, "post", side_effect=stop_after_post) as post:
+            client.status_loop()
+
+        self.assertEqual(
+            {"X-Robot-Control-Token": "token with spaces"},
+            post.call_args.kwargs["headers"],
+        )
+        self.assertEqual(0.75, post.call_args.kwargs["timeout"])
 
 
 if __name__ == "__main__":

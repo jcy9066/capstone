@@ -1,9 +1,10 @@
 import argparse
 import asyncio
 import json
-import os
 import threading
 import time
+from pathlib import Path
+from urllib.parse import quote
 
 import cv2
 import requests
@@ -11,6 +12,10 @@ from dotenv import load_dotenv
 
 from controllers.motor_controller import MotorController
 from controllers.speaker_controller import SpeakerController
+try:
+    from raspberry.env_config import env_float, env_int, env_text
+except ModuleNotFoundError:  # Direct script execution from raspberry/.
+    from env_config import env_float, env_int, env_text
 
 try:
     import websockets
@@ -18,7 +23,7 @@ except ImportError:
     websockets = None
 
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def collect_status(robot_id):
@@ -36,9 +41,11 @@ class PiClient:
     def __init__(self, args):
         self.robot_id = args.robot_id
         self.server_base_url = args.server_base_url.rstrip("/")
+        self.control_token = args.control_token
         self.frame_url = f"{self.server_base_url}/frame?robot_id={self.robot_id}"
         self.status_url = f"{self.server_base_url}/status"
-        self.ws_url = args.ws_url or self.server_base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws/robot/{self.robot_id}"
+        ws_url = self.server_base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws/robot/{quote(self.robot_id, safe='')}"
+        self.ws_url = ws_url
         self.frame_fps = args.frame_fps
         self.frame_width = args.frame_width
         self.frame_height = args.frame_height
@@ -105,7 +112,12 @@ class PiClient:
     def status_loop(self):
         while self.running:
             try:
-                requests.post(self.status_url, json=collect_status(self.robot_id), timeout=1.0)
+                requests.post(
+                    self.status_url,
+                    json=collect_status(self.robot_id),
+                    headers={"X-Robot-Control-Token": self.control_token},
+                    timeout=1.0,
+                )
             except requests.RequestException as exc:
                 print(f"[status] 전송 실패: {exc}")
             time.sleep(self.status_interval_sec)
@@ -118,13 +130,18 @@ class PiClient:
     async def command_loop(self):
         while self.running:
             try:
-                async with websockets.connect(self.ws_url, ping_interval=10, ping_timeout=5) as websocket:
-                    print(f"[ws] connected: {self.ws_url}")
+                async with websockets.connect(
+                    self.ws_url,
+                    extra_headers={"X-Robot-Control-Token": self.control_token},
+                    ping_interval=10,
+                    ping_timeout=5,
+                ) as websocket:
+                    print(f"[ws] connected: robot_id={self.robot_id}")
                     async for raw_message in websocket:
                         message = json.loads(raw_message)
                         await self.handle_command(websocket, message)
             except Exception as exc:
-                print(f"[ws] disconnected: {exc}")
+                print(f"[ws] disconnected: {type(exc).__name__}")
                 self.motor.stop(reason="websocket disconnected")
                 await asyncio.sleep(self.ws_reconnect_delay_sec)
 
@@ -161,16 +178,16 @@ class PiClient:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--server-base-url", default=os.getenv("SERVER_BASE_URL", "http://10.108.90.21:21063"))
-    parser.add_argument("--robot-id", default=os.getenv("ROBOT_ID", "pi-01"))
-    parser.add_argument("--ws-url", default=os.getenv("COMMAND_WS_URL"))
-    parser.add_argument("--frame-fps", type=float, default=float(os.getenv("FRAME_FPS", "10")))
-    parser.add_argument("--frame-width", type=int, default=int(os.getenv("FRAME_WIDTH", os.getenv("STREAM_WIDTH", "640"))))
-    parser.add_argument("--frame-height", type=int, default=int(os.getenv("FRAME_HEIGHT", os.getenv("STREAM_HEIGHT", "480"))))
-    parser.add_argument("--jpeg-quality", type=int, default=int(os.getenv("JPEG_QUALITY", "70")))
-    parser.add_argument("--status-interval-sec", type=float, default=float(os.getenv("STATUS_INTERVAL_SEC", "1.0")))
-    parser.add_argument("--command-timeout-sec", type=float, default=float(os.getenv("COMMAND_TIMEOUT_SEC", "0.5")))
-    parser.add_argument("--ws-reconnect-delay-sec", type=float, default=float(os.getenv("WS_RECONNECT_DELAY_SEC", "1.0")))
+    parser.add_argument("--server-base-url", default=env_text("SERVER_BASE_URL"))
+    parser.add_argument("--robot-id", default=env_text("ROBOT_ID"))
+    parser.add_argument("--control-token", default=env_text("ROBOT_CONTROL_TOKEN"))
+    parser.add_argument("--frame-fps", type=float, default=env_float("STREAM_FPS", minimum=0.1))
+    parser.add_argument("--frame-width", type=int, default=env_int("STREAM_WIDTH", minimum=1))
+    parser.add_argument("--frame-height", type=int, default=env_int("STREAM_HEIGHT", minimum=1))
+    parser.add_argument("--jpeg-quality", type=int, default=env_int("STREAM_JPEG_QUALITY", minimum=1, maximum=100))
+    parser.add_argument("--status-interval-sec", type=float, default=env_float("STATUS_INTERVAL_SEC", minimum=0.01))
+    parser.add_argument("--command-timeout-sec", type=float, default=env_float("COMMAND_TIMEOUT_SEC", minimum=0.01))
+    parser.add_argument("--ws-reconnect-delay-sec", type=float, default=env_float("WS_RECONNECT_DELAY_SEC", minimum=0.01))
     return parser.parse_args()
 
 

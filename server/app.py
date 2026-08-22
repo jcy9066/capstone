@@ -17,7 +17,7 @@ from uuid import uuid4
 import cv2
 import numpy as np
 import requests
-from dotenv import dotenv_values, load_dotenv
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -54,6 +54,7 @@ from server.database import (
     DatabaseConfigurationError,
     DatabaseOperationError,
 )
+from server.env_config import env_bool, env_float, env_int, env_text
 from server.logging_service import ACTION_TYPES, EventLogWorker, SystemStatusWriter
 from server.navigation_control_api import NavigationControlApi
 from server.navigation_map_api import NavigationMapApi
@@ -65,15 +66,11 @@ load_dotenv(ENV_PATH)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 app = FastAPI(title="AI Patrol Robot Integrated Server")
-SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY") or secrets.token_urlsafe(32)
-COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() == "true"
+SESSION_SECRET_KEY = env_text("SESSION_SECRET_KEY")
+COOKIE_SECURE = env_bool("COOKIE_SECURE")
 EMAIL_CHALLENGE_COOKIE = "dabom_email_challenge"
 EMAIL_VERIFIED_COOKIE = "dabom_verified_email"
 EMAIL_COOKIE_PATH = "/api/auth"
-if not os.getenv("SESSION_SECRET_KEY"):
-    logging.getLogger(__name__).warning(
-        "SESSION_SECRET_KEY is missing; sessions will reset after server restart."
-    )
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
@@ -312,12 +309,8 @@ async def logout_user(request: Request):
     return {"ok": True, "redirect_url": "/login"}
 
 
-SERVER_ROBOT_ID = os.getenv("ROBOT_ID", "pi-01")
-ROBOT_CONTROL_TOKEN = os.getenv("ROBOT_CONTROL_TOKEN", "").strip()
-if not ROBOT_CONTROL_TOKEN:
-    logging.getLogger(__name__).warning(
-        "ROBOT_CONTROL_TOKEN is missing; robot status cannot become navigation truth."
-    )
+SERVER_ROBOT_ID = env_text("ROBOT_ID")
+ROBOT_CONTROL_TOKEN = env_text("ROBOT_CONTROL_TOKEN")
 
 
 def robot_ingest_failure(request: Request):
@@ -345,46 +338,41 @@ async def get_auth_csrf_token(request: Request):
     return {"ok": True, "csrf_token": issue_csrf_token(request)}
 
 
-SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-SERVER_PORT = int(os.getenv("SERVER_PORT", "21063"))
-PIPELINE = os.getenv("PIPELINE", "1")
-MODEL_REQUIRED = os.getenv("MODEL_REQUIRED", "false").lower() == "true"
-SAVE_RECEIVED_FRAMES = os.getenv("SAVE_RECEIVED_FRAMES", "false").lower() == "true"
-SYSTEM_STATUS_INTERVAL_SEC = max(
-    0.1, float(os.getenv("SYSTEM_STATUS_INTERVAL_SEC", "5"))
-)
-EVENT_SAVE_COOLDOWN_SEC = max(
-    0.0, float(os.getenv("EVENT_SAVE_COOLDOWN_SEC", "10"))
-)
-STREAM_WIDTH = int(os.getenv("STREAM_WIDTH", "640"))
-STREAM_HEIGHT = int(os.getenv("STREAM_HEIGHT", "480"))
-STREAM_FPS = int(os.getenv("STREAM_FPS", "15"))
-STREAM_JPEG_QUALITY = int(os.getenv("STREAM_JPEG_QUALITY", "75"))
-PREVIEW_MAX_FPS = max(1.0, float(os.getenv("PREVIEW_MAX_FPS", str(STREAM_FPS))))
-INFERENCE_ENABLED = os.getenv("INFERENCE_ENABLED", "true").lower() == "true"
-VISUALIZATION_ENABLED = os.getenv("VISUALIZATION_ENABLED", "true").lower() == "true"
+SERVER_HOST = env_text("SERVER_HOST")
+SERVER_PORT = env_int("SERVER_PORT", minimum=1, maximum=65535)
+PIPELINE = env_text("PIPELINE")
+MODEL_REQUIRED = env_bool("MODEL_REQUIRED")
+SAVE_RECEIVED_FRAMES = env_bool("SAVE_RECEIVED_FRAMES", default=False)
+SYSTEM_STATUS_INTERVAL_SEC = env_float("SYSTEM_STATUS_INTERVAL_SEC", minimum=0.1)
+EVENT_SAVE_COOLDOWN_SEC = env_float("EVENT_SAVE_COOLDOWN_SEC", minimum=0.0)
+STREAM_WIDTH = env_int("STREAM_WIDTH", minimum=1)
+STREAM_HEIGHT = env_int("STREAM_HEIGHT", minimum=1)
+STREAM_FPS = env_float("STREAM_FPS", minimum=0.1)
+STREAM_JPEG_QUALITY = env_int("STREAM_JPEG_QUALITY", minimum=1, maximum=100)
+PREVIEW_MAX_FPS = env_float("PREVIEW_MAX_FPS", minimum=1.0)
+INFERENCE_ENABLED = env_bool("INFERENCE_ENABLED")
+VISUALIZATION_ENABLED = env_bool("VISUALIZATION_ENABLED")
 MODEL_ACTIVE = INFERENCE_ENABLED or VISUALIZATION_ENABLED
-STREAM_INFER_EVERY_N = max(1, int(os.getenv("STREAM_INFER_EVERY_N", "1")))
-INFERENCE_MAX_FPS = max(0.1, float(os.getenv("INFERENCE_MAX_FPS", str(STREAM_FPS))))
-ADAPTIVE_BATCHING_ENABLED = os.getenv("ADAPTIVE_BATCHING_ENABLED", "true").lower() == "true"
-ADAPTIVE_BATCH_MAX_WAIT_MS = max(0.0, float(os.getenv("ADAPTIVE_BATCH_MAX_WAIT_MS", "8")))
-ACTION_DISPLAY_TTL_SEC = max(0.1, float(os.getenv("ACTION_DISPLAY_TTL_SEC", "1.0")))
-TRIGGER_SUSPICIOUS_VISUAL_ENABLED = os.getenv("TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true").lower() == "true"
-INFERENCE_MAX_RESULT_AGE_SEC = float(os.getenv("INFERENCE_MAX_RESULT_AGE_SEC", "3.0"))
-INFERENCE_DROP_OLDER_THAN_SEC = float(os.getenv("INFERENCE_DROP_OLDER_THAN_SEC", "2.0"))
-CUDA_DEVICE_INDEX = os.getenv("CUDA_DEVICE_INDEX", "0").strip()
-DEVICE = os.getenv("DEVICE", f"cuda:{CUDA_DEVICE_INDEX}").strip().lower()
-GPU_REQUIRED_FOR_INFERENCE = os.getenv("GPU_REQUIRED_FOR_INFERENCE", "true").lower() == "true"
-ENV_RELOAD_CHECK_INTERVAL_SEC = max(0.1, float(os.getenv("ENV_RELOAD_CHECK_INTERVAL_SEC", "1.0")))
-CAMERA_TIMEOUT_SEC = float(os.getenv("CAMERA_TIMEOUT_SEC", "3.0"))
-ROBOT_STATUS_TIMEOUT_SEC = float(os.getenv("ROBOT_STATUS_TIMEOUT_SEC", "5.0"))
+STREAM_INFER_EVERY_N = env_int("STREAM_INFER_EVERY_N", minimum=1)
+INFERENCE_MAX_FPS = env_float("INFERENCE_MAX_FPS", minimum=0.1)
+ADAPTIVE_BATCHING_ENABLED = env_bool("ADAPTIVE_BATCHING_ENABLED")
+ADAPTIVE_BATCH_MAX_WAIT_MS = env_float("ADAPTIVE_BATCH_MAX_WAIT_MS", minimum=0.0)
+ACTION_DISPLAY_TTL_SEC = env_float("ACTION_DISPLAY_TTL_SEC", minimum=0.1)
+TRIGGER_SUSPICIOUS_VISUAL_ENABLED = env_bool("TRIGGER_SUSPICIOUS_VISUAL_ENABLED")
+INFERENCE_MAX_RESULT_AGE_SEC = env_float("INFERENCE_MAX_RESULT_AGE_SEC", minimum=0.0)
+INFERENCE_DROP_OLDER_THAN_SEC = env_float("INFERENCE_DROP_OLDER_THAN_SEC", minimum=0.0)
+CUDA_DEVICE_INDEX = env_text("CUDA_DEVICE_INDEX")
+DEVICE = env_text("DEVICE").lower()
+GPU_REQUIRED_FOR_INFERENCE = env_bool("GPU_REQUIRED_FOR_INFERENCE")
+ENV_RELOAD_CHECK_INTERVAL_SEC = env_float("ENV_RELOAD_CHECK_INTERVAL_SEC", minimum=0.1)
+CAMERA_TIMEOUT_SEC = env_float("CAMERA_TIMEOUT_SEC", minimum=0.1)
+ROBOT_STATUS_TIMEOUT_SEC = env_float("ROBOT_STATUS_TIMEOUT_SEC", minimum=0.1)
 SAVE_DIR = ROOT_DIR / "received_frames"
-SAVE_DIR.mkdir(exist_ok=True)
 NAVIGATION_MAP_DIR = ROOT_DIR / "navigation" / "maps"
 NAVIGATION_MAP_DIR.mkdir(parents=True, exist_ok=True)
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = env_text("TELEGRAM_TOKEN", allow_empty=True)
+TELEGRAM_CHAT_ID = env_text("TELEGRAM_CHAT_ID", allow_empty=True)
 
 state_lock = threading.Lock()
 frame_condition = threading.Condition(state_lock)
@@ -422,7 +410,7 @@ encoder_state = {
     "updated_at": None,
 }
 
-NAVIGATION_TIMEOUT_SEC = float(os.getenv("NAVIGATION_TIMEOUT_SEC", "3.0"))
+NAVIGATION_TIMEOUT_SEC = env_float("NAVIGATION_TIMEOUT_SEC", minimum=0.0)
 VALID_NAVIGATION_MODES = frozenset(
     {"scan_only", "mapping", "localization", "localization_nav2"}
 )
@@ -433,17 +421,17 @@ NAVIGATION_MODE_LABELS = {
     "localization_nav2": "Localization + Nav2",
 }
 NAV_DRY_RUN_CONFIG = DryRunPlannerConfig(
-    enabled=os.getenv("NAV_DRY_RUN_ENABLED", "true").lower() == "true",
-    stop_distance_m=float(os.getenv("NAV_STOP_DISTANCE_M", "0.45")),
-    slow_distance_m=float(os.getenv("NAV_SLOW_DISTANCE_M", "0.90")),
-    normal_linear_mps=float(os.getenv("NAV_NORMAL_LINEAR_MPS", "0.25")),
-    slow_linear_mps=float(os.getenv("NAV_SLOW_LINEAR_MPS", "0.10")),
-    turn_angular_rps=float(os.getenv("NAV_TURN_ANGULAR_RPS", "0.65")),
-    scan_timeout_sec=float(os.getenv("NAV_SCAN_TIMEOUT_SEC", "1.0")),
+    enabled=env_bool("NAV_DRY_RUN_ENABLED"),
+    stop_distance_m=env_float("NAV_STOP_DISTANCE_M", minimum=0.0),
+    slow_distance_m=env_float("NAV_SLOW_DISTANCE_M", minimum=0.0),
+    normal_linear_mps=env_float("NAV_NORMAL_LINEAR_MPS", minimum=0.0),
+    slow_linear_mps=env_float("NAV_SLOW_LINEAR_MPS", minimum=0.0),
+    turn_angular_rps=env_float("NAV_TURN_ANGULAR_RPS", minimum=0.0),
+    scan_timeout_sec=env_float("NAV_SCAN_TIMEOUT_SEC", minimum=0.0),
 )
-# This server has no actuator implementation. Keep the safety state false even
-# if an external environment file accidentally requests otherwise.
-MOTOR_OUTPUT_ENABLED = False
+# Missing or empty remains fail-safe false; invalid values fail startup.
+MOTOR_OUTPUT_ENABLED = env_bool("MOTOR_OUTPUT_ENABLED", default=False)
+MAX_WHEEL_MPS = env_float("MAX_WHEEL_MPS", minimum=0.01)
 navigation_state = {
     "robot_id": SERVER_ROBOT_ID,
     "mode": None,
@@ -589,9 +577,9 @@ class RobotConnectionManager:
         self.active = {}
         self.lock = asyncio.Lock()
         self.pending_acks = {}
-        self.ack_timeout_sec = max(
-            0.1,
-            float(os.getenv("ROBOT_COMMAND_ACK_TIMEOUT_SEC", "2.0")),
+        self.ack_timeout_sec = env_float(
+            "ROBOT_COMMAND_ACK_TIMEOUT_SEC",
+            minimum=0.1,
         )
 
     async def connect(self, robot_id, websocket):
@@ -771,67 +759,42 @@ RUNTIME_MODEL_ENV_KEYS = (
 )
 
 
-def env_value(values, name, default):
-    value = values.get(name)
-    if value is None:
-        value = os.getenv(name, default)
-    return str(value)
-
-
-def env_bool(values, name, default):
-    return env_value(values, name, default).strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-
-
 def read_runtime_model_config():
-    values = dotenv_values(ENV_PATH) if ENV_PATH.exists() else {}
-    cuda_device_index = env_value(values, "CUDA_DEVICE_INDEX", "0").strip() or "0"
-    default_device = f"cuda:{cuda_device_index}"
-    device = env_value(values, "DEVICE", default_device).strip().lower() or default_device
-    inference_enabled = env_bool(values, "INFERENCE_ENABLED", "true")
-    visualization_enabled = env_bool(values, "VISUALIZATION_ENABLED", "true")
+    cuda_device_index = env_text("CUDA_DEVICE_INDEX")
+    device = env_text("DEVICE").lower()
+    inference_enabled = env_bool("INFERENCE_ENABLED")
+    visualization_enabled = env_bool("VISUALIZATION_ENABLED")
     return {
-        "pipeline": env_value(values, "PIPELINE", "1").strip() or "1",
-        "model_required": env_bool(values, "MODEL_REQUIRED", "false"),
+        "pipeline": env_text("PIPELINE"),
+        "model_required": env_bool("MODEL_REQUIRED"),
         "inference_enabled": inference_enabled,
         "visualization_enabled": visualization_enabled,
         "model_active": inference_enabled or visualization_enabled,
-        "stream_infer_every_n": max(
-            1, int(env_value(values, "STREAM_INFER_EVERY_N", "1"))
+        "stream_infer_every_n": env_int(
+            "STREAM_INFER_EVERY_N", minimum=1
         ),
-        "inference_max_fps": max(
-            0.1,
-            float(env_value(values, "INFERENCE_MAX_FPS", str(STREAM_FPS))),
+        "inference_max_fps": env_float(
+            "INFERENCE_MAX_FPS", minimum=0.1
         ),
-        "adaptive_batching_enabled": env_bool(
-            values, "ADAPTIVE_BATCHING_ENABLED", "true"
+        "adaptive_batching_enabled": env_bool("ADAPTIVE_BATCHING_ENABLED"),
+        "adaptive_batch_max_wait_ms": env_float(
+            "ADAPTIVE_BATCH_MAX_WAIT_MS", minimum=0.0
         ),
-        "adaptive_batch_max_wait_ms": max(
-            0.0,
-            float(env_value(values, "ADAPTIVE_BATCH_MAX_WAIT_MS", "8")),
-        ),
-        "action_display_ttl_sec": max(
-            0.1,
-            float(env_value(values, "ACTION_DISPLAY_TTL_SEC", "1.0")),
+        "action_display_ttl_sec": env_float(
+            "ACTION_DISPLAY_TTL_SEC", minimum=0.1
         ),
         "trigger_suspicious_visual_enabled": env_bool(
-            values, "TRIGGER_SUSPICIOUS_VISUAL_ENABLED", "true"
+            "TRIGGER_SUSPICIOUS_VISUAL_ENABLED"
         ),
-        "inference_max_result_age_sec": float(
-            env_value(values, "INFERENCE_MAX_RESULT_AGE_SEC", "3.0")
+        "inference_max_result_age_sec": env_float(
+            "INFERENCE_MAX_RESULT_AGE_SEC", minimum=0.0
         ),
-        "inference_drop_older_than_sec": float(
-            env_value(values, "INFERENCE_DROP_OLDER_THAN_SEC", "2.0")
+        "inference_drop_older_than_sec": env_float(
+            "INFERENCE_DROP_OLDER_THAN_SEC", minimum=0.0
         ),
         "cuda_device_index": cuda_device_index,
         "device": device,
-        "gpu_required_for_inference": env_bool(
-            values, "GPU_REQUIRED_FOR_INFERENCE", "true"
-        ),
+        "gpu_required_for_inference": env_bool("GPU_REQUIRED_FOR_INFERENCE"),
     }
 
 
@@ -1601,43 +1564,32 @@ async def startup():
     start_persistence_workers()
     ensure_runtime_model_config(force=True, reason="startup")
 
-    lidar_enabled = (
-        os.getenv("LIDAR_ENABLE", "true").strip().lower()
-        in ("1", "true", "yes", "on")
-    )
+    lidar_enabled = env_bool("LIDAR_ENABLE")
 
     if lidar_enabled and LidarRosBridge is not None and lidar_ros_bridge is None:
         lidar_ros_bridge = LidarRosBridge(
-            ros_topic=os.getenv("LIDAR_ROS_TOPIC", "/scan"),
-            base_frame=os.getenv("LIDAR_BASE_FRAME", "base_link"),
-            lidar_frame=os.getenv("LIDAR_FRAME", "laser"),
-            lidar_x=float(os.getenv("LIDAR_X", "0.0")),
-            lidar_y=float(os.getenv("LIDAR_Y", "0.0")),
-            lidar_z=float(os.getenv("LIDAR_Z", "0.12")),
-            lidar_yaw=float(os.getenv("LIDAR_YAW", "0.0")),
-            dashboard_max_points=int(
-                os.getenv("LIDAR_DASHBOARD_MAX_POINTS", "360")
+            ros_topic=env_text("LIDAR_ROS_TOPIC"),
+            base_frame=env_text("LIDAR_BASE_FRAME"),
+            lidar_frame=env_text("LIDAR_FRAME"),
+            lidar_x=env_float("LIDAR_X"),
+            lidar_y=env_float("LIDAR_Y"),
+            lidar_z=env_float("LIDAR_Z"),
+            lidar_yaw=env_float("LIDAR_YAW"),
+            dashboard_max_points=env_int(
+                "LIDAR_DASHBOARD_MAX_POINTS", minimum=1
             ),
-            use_source_timestamp=(
-                os.getenv("LIDAR_USE_SOURCE_TIMESTAMP", "true").strip().lower()
-                in ("1", "true", "yes", "on")
-            ),
+            use_source_timestamp=env_bool("LIDAR_USE_SOURCE_TIMESTAMP"),
         )
         lidar_ros_bridge.start()
 
-    encoder_enabled = (
-        os.getenv("ENCODER_ROS_ENABLE", "true").strip().lower()
-        in ("1", "true", "yes", "on")
-    )
+    encoder_enabled = env_bool("ENCODER_ROS_ENABLE")
 
     if (
         encoder_enabled
         and EncoderRosBridge is not None
         and encoder_ros_bridge is None
     ):
-        encoder_ros_bridge = EncoderRosBridge(
-            ros_topic=os.getenv("ENCODER_ROS_TOPIC", "/wheel_ticks")
-        )
+        encoder_ros_bridge = EncoderRosBridge(ros_topic=env_text("ENCODER_ROS_TOPIC"))
         encoder_ros_bridge.start()
 
     if not navigation_map_api.start():
@@ -3043,6 +2995,14 @@ async def get_stream_status():
 
 @app.websocket("/ws/sensors/{robot_id}/lidar")
 async def lidar_sensor_websocket(websocket: WebSocket, robot_id: str):
+    supplied_token = websocket.headers.get("X-Robot-Control-Token", "")
+    if not ROBOT_CONTROL_TOKEN or not secrets.compare_digest(
+        supplied_token,
+        ROBOT_CONTROL_TOKEN,
+    ):
+        await websocket.close(code=1008, reason="robot authentication required")
+        return
+
     if lidar_ros_bridge is None:
         await websocket.close(code=1011)
         return
@@ -3137,7 +3097,7 @@ async def get_lidar_bridge_status():
 
 @app.websocket("/ws/robot/{robot_id}")
 async def robot_websocket(websocket: WebSocket, robot_id: str):
-    supplied_token = websocket.query_params.get("token", "")
+    supplied_token = websocket.headers.get("X-Robot-Control-Token", "")
     if not ROBOT_CONTROL_TOKEN or not secrets.compare_digest(supplied_token, ROBOT_CONTROL_TOKEN):
         await websocket.close(code=1008, reason="robot authentication required")
         return
@@ -3223,6 +3183,15 @@ async def send_robot_command(
     robot_id: str,
     request: Request,
 ):
+    robot_auth_error = robot_ingest_failure(request)
+    if robot_auth_error:
+        _, user_auth_error = authenticated_user(request)
+        if user_auth_error:
+            return user_auth_error
+        csrf_error = csrf_failure(request)
+        if csrf_error:
+            return csrf_error
+
     try:
         payload = await request.json()
     except (
@@ -3332,11 +3301,9 @@ async def send_robot_command(
                 status_code=400,
             )
 
-        max_wheel_mps = 0.50
-
         if (
-            abs(left_mps) > max_wheel_mps
-            or abs(right_mps) > max_wheel_mps
+            abs(left_mps) > MAX_WHEEL_MPS
+            or abs(right_mps) > MAX_WHEEL_MPS
         ):
             return JSONResponse(
                 {
@@ -3346,7 +3313,7 @@ async def send_robot_command(
                     "command": command,
                     "error": (
                         "wheel speed exceeds "
-                        f"{max_wheel_mps:.2f} m/s"
+                        f"{MAX_WHEEL_MPS:.2f} m/s"
                     ),
                 },
                 status_code=400,

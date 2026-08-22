@@ -1176,6 +1176,7 @@ let activePointerButton = null;
 
 const pressedKeys = new Set();
 let keyMoveInterval = null;
+let robotCommandCsrfPromise = null;
 
 
 function directionToCommand(direction) {
@@ -1194,48 +1195,59 @@ function directionToCommand(direction) {
 }
 
 
-function sendRobotCommand(
+function robotCommandCsrfToken() {
+    if (!robotCommandCsrfPromise) {
+        robotCommandCsrfPromise = fetch(
+            '/api/auth/csrf',
+            { credentials: 'same-origin' },
+        )
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.csrf_token) {
+                    throw new Error('robot command CSRF token unavailable');
+                }
+                return data.csrf_token;
+            })
+            .catch(error => {
+                robotCommandCsrfPromise = null;
+                throw error;
+            });
+    }
+    return robotCommandCsrfPromise;
+}
+
+
+async function sendRobotCommand(
     payload,
     keepalive = false,
 ) {
-    return fetch(
-        `/api/robots/${ROBOT_ID}/command`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+    try {
+        const csrfToken = await robotCommandCsrfToken();
+        const response = await fetch(
+            `/api/robots/${ROBOT_ID}/command`,
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: JSON.stringify(payload),
+                keepalive,
             },
-            body: JSON.stringify(payload),
-            keepalive,
-        },
-    )
-        .then(async response => {
-            const data = await response
-                .json()
-                .catch(() => ({}));
+        );
+        const data = await response.json().catch(() => ({}));
+        const ok = response.ok && data.ok;
 
-            const ok = (
-                response.ok
-                && data.ok
-            );
+        if (!ok) {
+            console.warn('로봇 명령 전송 실패:', data);
+        }
 
-            if (!ok) {
-                console.warn(
-                    '로봇 명령 전송 실패:',
-                    data,
-                );
-            }
-
-            return ok;
-        })
-        .catch(error => {
-            console.error(
-                '로봇 명령 통신 오류:',
-                error,
-            );
-
-            return false;
-        });
+        return ok;
+    } catch (error) {
+        console.error('로봇 명령 통신 오류:', error);
+        return false;
+    }
 }
 
 

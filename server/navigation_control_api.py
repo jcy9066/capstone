@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import math
-import os
 import threading
 import time
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ from fastapi.responses import JSONResponse
 from server.navigation_map_service import NavigationMapError
 from server.navigation_process_control import NavigationProcessError
 from server.navigation_ros_control import NavigationRosError
+from server.env_config import env_float, env_int, env_text
 
 
 class NavigationControlError(RuntimeError):
@@ -39,14 +39,14 @@ class NavigationWatchdogConfig:
     @classmethod
     def from_env(cls) -> "NavigationWatchdogConfig":
         return cls(
-            interval_sec=max(0.05, float(os.getenv("NAV_WATCHDOG_INTERVAL_SEC", "0.25"))),
-            lidar_timeout_sec=max(0.1, float(os.getenv("NAV_WATCHDOG_LIDAR_TIMEOUT_SEC", "1.5"))),
-            odometry_timeout_sec=max(0.1, float(os.getenv("NAV_WATCHDOG_ODOM_TIMEOUT_SEC", "1.0"))),
-            tf_timeout_sec=max(0.1, float(os.getenv("NAV_WATCHDOG_TF_TIMEOUT_SEC", "1.0"))),
-            localization_timeout_sec=max(0.1, float(os.getenv("NAV_WATCHDOG_LOCALIZATION_TIMEOUT_SEC", "2.0"))),
-            pi_timeout_sec=max(0.1, float(os.getenv("NAV_WATCHDOG_PI_TIMEOUT_SEC", "3.0"))),
-            stop_encoder_grace_sec=max(0.0, float(os.getenv("NAV_WATCHDOG_STOP_ENCODER_GRACE_SEC", "0.35"))),
-            stop_encoder_tick_threshold=max(1, int(os.getenv("NAV_WATCHDOG_STOP_ENCODER_TICKS", "4"))),
+            interval_sec=env_float("NAV_WATCHDOG_INTERVAL_SEC", minimum=0.05),
+            lidar_timeout_sec=env_float("NAV_WATCHDOG_LIDAR_TIMEOUT_SEC", minimum=0.1),
+            odometry_timeout_sec=env_float("NAV_WATCHDOG_ODOM_TIMEOUT_SEC", minimum=0.1),
+            tf_timeout_sec=env_float("NAV_WATCHDOG_TF_TIMEOUT_SEC", minimum=0.1),
+            localization_timeout_sec=env_float("NAV_WATCHDOG_LOCALIZATION_TIMEOUT_SEC", minimum=0.1),
+            pi_timeout_sec=env_float("NAV_WATCHDOG_PI_TIMEOUT_SEC", minimum=0.1),
+            stop_encoder_grace_sec=env_float("NAV_WATCHDOG_STOP_ENCODER_GRACE_SEC", minimum=0.0),
+            stop_encoder_tick_threshold=env_int("NAV_WATCHDOG_STOP_ENCODER_TICKS", minimum=1),
         )
 
 
@@ -78,9 +78,8 @@ class NavigationControlApi:
         self._send_robot_command = send_robot_command
         self._watchdog = watchdog or NavigationWatchdogConfig.from_env()
         self._motor_output_enabled = bool(motor_output_enabled)
-        self._driving_ready_timeout_sec = max(
-            1.0,
-            float(os.getenv("NAV_DRIVING_READY_TIMEOUT_SEC", "15.0")),
+        self._driving_ready_timeout_sec = env_float(
+            "NAV_DRIVING_READY_TIMEOUT_SEC", minimum=1.0
         )
         self._lock = threading.RLock()
         self._operation_lock = asyncio.Lock()
@@ -97,7 +96,7 @@ class NavigationControlApi:
         self._encoder_stop_violation = False
         self._estop_generation = 0
         self._state: dict[str, Any] = {
-            "navigation_mode": os.getenv("NAVIGATION_DEFAULT_MODE", "MAPPING").strip().upper(),
+            "navigation_mode": env_text("NAVIGATION_DEFAULT_MODE").upper(),
             "navigation_state": "IDLE",
             "emergency_stop": False,
             "emergency_reason": None,

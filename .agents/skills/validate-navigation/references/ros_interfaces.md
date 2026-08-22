@@ -1115,11 +1115,12 @@ wheel_track_m = 0.201
 
 ## 33. nav2_command_bridge 안전 상태
 
-현재 코드의 고정 안전 값:
+현재 코드의 ENV 기반 안전 정책:
 
 ```text
 server_request_enabled = true
-motor_output_enabled = false
+MOTOR_OUTPUT_ENABLED missing/empty/false -> motor_output_enabled = false
+MOTOR_OUTPUT_ENABLED invalid -> startup failure
 ```
 
 server까지 HTTP dry-run command는 전송할 수 있지만 실제 motor output은 차단된 상태다.
@@ -1131,7 +1132,8 @@ source = nav2_command_bridge
 dry_run = true
 ```
 
-`motor_output_enabled`를 검증 목적으로 `true`로 변경하면 안 된다.
+validator와 test 환경은 `MOTOR_OUTPUT_ENABLED=false`를 명시하며, 검증 목적으로
+`true`로 변경하면 안 된다.
 
 ---
 
@@ -1897,7 +1899,8 @@ lifecycle node active
 Nav2 action 존재
 Nav2 velocity가 dry-run topic으로 격리
 실제 /cmd_vel motor path 없음
-motor_output_enabled=false
+MOTOR_OUTPUT_ENABLED의 safe default=false
+검증 환경 motor_output_enabled=false
 ```
 
 hardware 검증을 요청한 경우 추가:
@@ -1980,6 +1983,7 @@ Localization stack
     <- /cmd_vel_nav_dry_run
     -> HTTP dry-run command
 
+MOTOR_OUTPUT_ENABLED=false
 motor_output_enabled = false
 ```
 
