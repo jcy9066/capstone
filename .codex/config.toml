@@ -1,5 +1,15 @@
 # dabom_capstone 프로젝트 전용 Codex 설정
 
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+writable_roots = [
+  "../dabom-worktrees",
+  "../dabom_capstone/.git"
+]
+network_access = false
+
+
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 4
@@ -77,10 +87,7 @@ bearer_token_env_var = "GITHUB_PERSONAL_ACCESS_TOKEN"
 # GitHub MCP는 계속 원격 저장소 read-only 용도로 사용한다.
 # 로컬 git add / git commit 허용 여부는 AGENTS.md와
 # .codex/hooks/pre_tool_policy.py에서 제어한다.
-http_headers = {
-  "X-MCP-Toolsets" = "context,repos,git,issues,pull_requests,actions,labels",
-  "X-MCP-Readonly" = "true"
-}
+http_headers = { "X-MCP-Toolsets" = "context,repos,git,issues,pull_requests,actions,labels", "X-MCP-Readonly" = "true" }
 
 enabled = true
 required = false
