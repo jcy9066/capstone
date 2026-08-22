@@ -9,6 +9,8 @@ os.environ["INFERENCE_ENABLED"] = "false"
 os.environ["VISUALIZATION_ENABLED"] = "false"
 os.environ["MODEL_REQUIRED"] = "false"
 os.environ["NAV_DRY_RUN_ENABLED"] = "true"
+os.environ["ROBOT_CONTROL_TOKEN"] = "test-robot-token"
+os.environ["ROBOT_ID"] = "pi-01"
 
 
 def valid_scan(front=0.32, left=1.4, right=0.72):
