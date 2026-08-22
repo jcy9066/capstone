@@ -15,6 +15,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.template_source = (TEMPLATE_DIR / "index.html").read_text(encoding="utf-8")
         self.script_source = (STATIC_DIR / "script.js").read_text(encoding="utf-8")
         self.state_source = (STATIC_DIR / "dashboard_state.js").read_text(encoding="utf-8")
+        self.app_source = (ROOT / "server" / "app.py").read_text(encoding="utf-8")
 
     def render_dashboard(self, user):
         environment = Environment(
@@ -91,6 +92,59 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertLess(script_position, state_position)
         self.assertLess(system_position, state_position)
         self.assertLess(map_position, state_position)
+
+    def test_current_situation_frontend_matches_authenticated_json_api(self):
+        for contract in (
+            "/api/logs/current-situation/preview",
+            "X-Frame-Token",
+            "description_content: description",
+            "include_image: includeImage",
+            "frame_token: includeImage ? currentSituationState.frameToken : null",
+            "JSON.stringify",
+            "response.status === 503",
+        ):
+            self.assertIn(contract, self.script_source)
+        self.assertIn('@app.post("/api/logs/current-situation/preview")', self.app_source)
+        self.assertIn('@app.post("/api/logs/current-situation")', self.app_source)
+
+    def test_gallery_filters_and_media_urls_match_backend_contract(self):
+        for contract in (
+            "/api/gallery?source=",
+            "loadGallery('all')",
+            "loadGallery('event')",
+            "loadGallery('action')",
+            "/api/media/events/",
+            "/api/media/actions/",
+        ):
+            self.assertIn(contract, self.script_source)
+        for route in (
+            '@app.get("/api/gallery")',
+            '@app.get("/api/media/events/{event_id}")',
+            '@app.get("/api/media/actions/{action_id}")',
+        ):
+            self.assertIn(route, self.app_source)
+
+    def test_dashboard_log_panels_use_existing_backend_endpoints(self):
+        self.assertIn("deviceLogs: '/api/logs/system-status'", self.state_source)
+        self.assertIn("patrolLogs: '/api/logs/events'", self.state_source)
+        self.assertIn("actionLogs: '/api/logs/actions'", self.state_source)
+        for route in (
+            '@app.get("/api/logs/system-status")',
+            '@app.get("/api/logs/events")',
+            '@app.get("/api/logs/actions")',
+        ):
+            self.assertIn(route, self.app_source)
+
+    def test_current_situation_has_no_browser_capture_or_binary_upload(self):
+        block = self.script_source.split("// 현재 상황 기록", 1)[1].split("// 갤러리", 1)[0]
+        for forbidden in ("getUserMedia", "toDataURL", "FormData", "multipart", "canvas"):
+            self.assertNotIn(forbidden, block)
+        self.assertIn("'Content-Type': 'application/json'", block)
+
+    def test_gallery_exposes_no_delete_api_call(self):
+        block = self.script_source.split("// 갤러리", 1)[1].split("// 텔레그램 신고", 1)[0]
+        self.assertNotIn("method: 'DELETE'", block)
+        self.assertIn("gallery-delete-disabled", block)
 
 
 if __name__ == "__main__":
