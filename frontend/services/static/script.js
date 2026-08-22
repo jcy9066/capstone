@@ -803,8 +803,32 @@ function clearAlerts() {
 const modalState = {
     statusModal:  { allRows: [], filtered: [], timer: null, loadState: 'idle', message: '' },
     patrolModal:  { allRows: [], filtered: [], timer: null, loadState: 'idle', message: '' },
-    bookmarkModal:{ allRows: [], filtered: [], timer: null, loadState: 'ready', message: '' },
+    actionsModal: { allRows: [], filtered: [], timer: null, loadState: 'idle', message: '' },
 };
+
+const ACTION_TYPE_LABELS = {
+    WARNING: '경고',
+    MANUAL_MOVING: '수동 주행',
+    REPORT: '신고',
+    COMMUNICATION: '직접 통신',
+    NOTE: '상황 기록',
+};
+
+const currentSituationState = {
+    frameToken: null,
+    previewUrl: null,
+    submitting: false,
+};
+
+const galleryState = {
+    source: 'all',
+    items: [],
+    selectedIndex: -1,
+    loadState: 'idle',
+    message: '',
+};
+
+let dashboardRecordsCsrfPromise = null;
 
 // ===================================================
 // 필터 적용 (초 단위까지 지원)
@@ -852,6 +876,25 @@ function escapeHtml(value) {
     return node.innerHTML;
 }
 
+function formatLogValue(value, suffix = '') {
+    if (value === undefined || value === null || value === '') return '-';
+    return `${escapeHtml(value)}${suffix}`;
+}
+
+function formatBooleanState(value, yesLabel, noLabel) {
+    if (value === true || value === 1 || value === '1') return yesLabel;
+    if (value === false || value === 0 || value === '0') return noLabel;
+    return '-';
+}
+
+function recordImageCell(source, id, hasImage) {
+    if (!hasImage || id === undefined || id === null) return '<span class="muted">-</span>';
+    const endpoint = source === 'event'
+        ? `/api/media/events/${encodeURIComponent(id)}`
+        : `/api/media/actions/${encodeURIComponent(id)}`;
+    return `<img class="record-thumbnail" src="${endpoint}" alt="기록 이미지" loading="lazy">`;
+}
+
 function renderTable(type) {
     const tbody = document.getElementById(`${type}-tbody`);
     const countEl = document.getElementById(`${type}-count`);
@@ -885,55 +928,51 @@ function renderTable(type) {
         const realIdx = modalState[type].filtered.length - 1 - idx;
         if (type === 'statusModal') {
             const cpuClass  = row.cpu_usage > 80 ? 'danger' : row.cpu_usage > 60 ? 'warn' : 'accent';
-            const tempClass = row.cpu_temp  > 80 ? 'danger' : row.cpu_temp  > 65 ? 'warn' : '';
-            const batClass  = row.battery   < 20 ? 'danger' : row.battery   < 40 ? 'warn' : 'success';
+            const tempClass = row.cpu_temperature > 80 ? 'danger' : row.cpu_temperature > 65 ? 'warn' : '';
+            const batClass  = row.battery_level < 20 ? 'danger' : row.battery_level < 40 ? 'warn' : 'success';
             const pingClass = row.ping > 150 ? 'danger' : row.ping > 100 ? 'warn' : '';
             return `<tr>
                 <td class="muted">${escapeHtml(row.date)}</td>
                 <td class="muted">${escapeHtml(row.time)}</td>
-                <td class="${cpuClass}">${escapeHtml(row.cpu_usage)}%</td>
-                <td class="${tempClass}">${escapeHtml(row.cpu_temp)}°C</td>
-                <td class="${row.ram_usage>80?'warn':''}">${escapeHtml(row.ram_usage)}%</td>
-                <td class="${batClass}">${escapeHtml(row.battery)}%</td>
-                <td class="${pingClass}">${escapeHtml(row.ping)}ms</td>
-                <td class="muted">${escapeHtml(row.location)}</td>
+                <td class="${cpuClass}">${formatLogValue(row.cpu_usage, '%')}</td>
+                <td class="${tempClass}">${formatLogValue(row.cpu_temperature, '°C')}</td>
+                <td class="${row.ram_usage>80?'warn':''}">${formatLogValue(row.ram_usage, '%')}</td>
+                <td class="${pingClass}">${formatLogValue(row.ping, 'ms')}</td>
+                <td class="${batClass}">${formatLogValue(row.battery_level, '%')}</td>
+                <td>${formatBooleanState(row.is_autonomous, '자동', '수동')}</td>
+                <td>${formatLogValue(row.speed)}</td>
+                <td class="muted">${formatLogValue(row.gps_lat)} / ${formatLogValue(row.gps_lng)} / ${formatLogValue(row.gps_alt)}</td>
+                <td class="muted">${formatLogValue(row.lidar_x)} / ${formatLogValue(row.lidar_y)}</td>
             </tr>`;
         } else if (type === 'patrolModal') {
-            const stateClass = row.state==='이상 감지'?'danger':row.state==='장애물 우회'?'warn':row.state==='정상 완료'?'success':'accent';
-            const repClass   = row.reported==='예'?'danger':'muted';
+            const confidence = Number.isFinite(Number(row.confidence))
+                ? `${(Number(row.confidence) * 100).toFixed(1)}%`
+                : '-';
             return `<tr>
                 <td class="muted">${escapeHtml(row.date)}</td>
                 <td class="muted">${escapeHtml(row.time)}</td>
-                <td><span class="status-badge status-${stateClass==='danger'?'danger':stateClass==='warn'?'warning':stateClass==='success'?'normal':'patrol'}">${escapeHtml(row.state)}</span></td>
-                <td class="muted">${escapeHtml(row.location)}</td>
-                <td>${escapeHtml(row.content)}</td>
-                <td class="${repClass}">${escapeHtml(row.reported)}</td>
+                <td>${escapeHtml(row.event_source)}</td>
+                <td><span class="status-badge status-patrol">${escapeHtml(row.event_type)}</span></td>
+                <td>${confidence}</td>
+                <td class="muted">${formatLogValue(row.lidar_x)} / ${formatLogValue(row.lidar_y)}</td>
+                <td class="muted">${formatLogValue(row.gps_lat)} / ${formatLogValue(row.gps_lng)} / ${formatLogValue(row.gps_alt)}</td>
+                <td>${formatBooleanState(row.is_resolved, '완료', '미조치')}</td>
+                <td>${formatBooleanState(row.is_reported, '신고', '미신고')}</td>
+                <td>${formatBooleanState(row.is_alerted, '경고', '미경고')}</td>
+                <td>${recordImageCell('event', row.event_id, row.has_image)}</td>
             </tr>`;
         } else {
-            // bookmarkModal
-            const stClass = row.state==='이상 감지'?'danger':row.state==='경고'?'warning':'normal';
             return `<tr>
                 <td class="muted">${escapeHtml(row.date)}</td>
                 <td class="muted">${escapeHtml(row.time)}</td>
-                <td>${escapeHtml(row.location)}</td>
-                <td>${escapeHtml(row.snapshot || '-')}</td>
-                <td><span class="status-badge status-${stClass}">${escapeHtml(row.state)}</span></td>
-                <td>
-                    <button class="del-btn" onclick="deleteBookmark(${realIdx})">삭제</button>
-                </td>
+                <td>${escapeHtml(row.administrator_name)}</td>
+                <td><span class="status-badge status-normal">${escapeHtml(ACTION_TYPE_LABELS[row.action_type] || row.action_type)}</span></td>
+                <td>${row.event_id == null ? '-' : escapeHtml(row.event_id)}</td>
+                <td class="record-description">${escapeHtml(row.description_content)}</td>
+                <td>${recordImageCell('action', row.action_id, row.has_image)}</td>
             </tr>`;
         }
     }).join('');
-}
-
-// ===================================================
-// 북마크 삭제
-// ===================================================
-function deleteBookmark(idx) {
-    if (confirm('이 기록을 삭제하시겠습니까?')) {
-        modalState['bookmarkModal'].allRows.splice(idx, 1);
-        applyFilter('bookmarkModal');
-    }
 }
 
 // ===================================================
@@ -961,16 +1000,19 @@ function buildModalHTML(type) {
     if (type === 'statusModal') {
         tableHead = `<tr>
             <th>날짜</th><th>시각</th><th>CPU Usage</th><th>CPU Temp</th>
-            <th>RAM Usage</th><th>Battery</th><th>Ping</th><th>위치 (X,Y,Z)</th>
+            <th>RAM Usage</th><th>Ping</th><th>Battery</th><th>주행</th><th>속도</th>
+            <th>GPS (위도/경도/고도)</th><th>LiDAR (X/Y)</th>
         </tr>`;
     } else if (type === 'patrolModal') {
         tableHead = `<tr>
-            <th>날짜</th><th>시각</th><th>상태</th><th>위치 (X,Y,Z)</th>
-            <th>내용</th><th>신고여부</th>
+            <th>날짜</th><th>시각</th><th>출처</th><th>유형</th><th>신뢰도</th>
+            <th>LiDAR (X/Y)</th><th>GPS (위도/경도/고도)</th>
+            <th>조치</th><th>신고</th><th>경고</th><th>이미지</th>
         </tr>`;
     } else {
         tableHead = `<tr>
-            <th>날짜</th><th>시각</th><th>위치</th><th>스냅샷</th><th>저장 당시 상태</th><th>삭제</th>
+            <th>날짜</th><th>시각</th><th>관리자</th><th>조치 유형</th>
+            <th>관련 이벤트</th><th>내용</th><th>이미지</th>
         </tr>`;
     }
 
@@ -995,19 +1037,15 @@ async function openModal(type) {
     const titles = {
         statusModal:   '기기 상태 로그',
         patrolModal:   '순찰 기록',
-        bookmarkModal: '북마크 조회',
-        galleryModal:  '위험 감지 갤러리'
+        actionsModal:  '관리자 조치 기록',
+        galleryModal:  '갤러리'
     };
 
     title.innerText = titles[type] || type;
 
     if (type === 'galleryModal') {
-        body.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:center; padding:60px 20px; color:var(--text-muted); font-family:var(--mono); font-size:12px; letter-spacing:1px; flex-direction:column; gap:8px;">
-                <span style="font-size:11px; opacity:0.4;">[ 갤러리 비어있음 ]</span>
-                <span>위험 감지 시 캡쳐된 이미지가 여기에 표시됩니다.</span>
-            </div>`;
         modal.style.display = 'flex';
+        await openGalleryModal();
         return;
     }
 
@@ -1016,7 +1054,7 @@ async function openModal(type) {
     modal.style.display = 'flex';
     renderTable(type);
 
-    if (type === 'statusModal' || type === 'patrolModal') {
+    if (type === 'statusModal' || type === 'patrolModal' || type === 'actionsModal') {
         const state = modalState[type];
         state.loadState = 'loading';
         state.message = '';
@@ -1036,6 +1074,8 @@ async function openModal(type) {
 
 function closeModal() {
     document.getElementById('commonModal').style.display = 'none';
+    releaseCurrentSituationPreview();
+    galleryState.selectedIndex = -1;
     Object.values(modalState).forEach(st => {
         if (st.timer) { clearInterval(st.timer); st.timer = null; }
     });
@@ -1047,37 +1087,300 @@ window.onclick = function(event) {
 };
 
 // ===================================================
-// 현재 화면 북마크 기록 (요구사항 8)
+// 현재 상황 기록
 // ===================================================
-function recordBookmark() {
-    const now = new Date();
-    const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+function dashboardRecordsCsrfToken() {
+    if (!dashboardRecordsCsrfPromise) {
+        dashboardRecordsCsrfPromise = fetch('/api/auth/csrf', { credentials: 'same-origin' })
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.csrf_token) throw new Error('보안 토큰을 준비하지 못했습니다.');
+                return data.csrf_token;
+            })
+            .catch(error => {
+                dashboardRecordsCsrfPromise = null;
+                throw error;
+            });
+    }
+    return dashboardRecordsCsrfPromise;
+}
 
-    const newRow = {
-        date,
-        time,
-        location: '현재 위치',   // 실제 위치 데이터 연동 시 교체
-        snapshot: '화면 기록됨',
-        state: '정상'             // 실제 감지 상태 연동 시 교체
-    };
+function releaseCurrentSituationPreview() {
+    if (currentSituationState.previewUrl) URL.revokeObjectURL(currentSituationState.previewUrl);
+    currentSituationState.previewUrl = null;
+    currentSituationState.frameToken = null;
+    currentSituationState.submitting = false;
+}
 
-    modalState['bookmarkModal'].allRows.push(newRow);
+async function openCurrentSituationModal() {
+    releaseCurrentSituationPreview();
+    const modal = document.getElementById('commonModal');
+    document.getElementById('modalTitle').innerText = '현재 상황 기록';
+    document.getElementById('modalBody').innerHTML = `
+        <form class="current-situation-form" onsubmit="submitCurrentSituation(event)">
+            <label class="record-field-label">현재 카메라 이미지</label>
+            <div class="privacy-preview-frame">
+                <img id="currentSituationPreview" alt="개인정보 보호 처리된 현재 카메라 미리보기" hidden>
+                <div id="currentSituationPreviewState" class="preview-state is-loading">개인정보 보호 미리보기를 불러오는 중입니다.</div>
+            </div>
+            <label class="record-field-label" for="currentSituationDescription">상황 내용</label>
+            <textarea id="currentSituationDescription" rows="5" placeholder="현재 상황을 입력하세요. 예: 1층 출입구 주변 확인 필요"></textarea>
+            <label class="record-image-option">
+                <input id="currentSituationIncludeImage" type="checkbox" disabled>
+                <span>위 이미지를 함께 저장</span>
+            </label>
+            <p class="record-requirement">※ 텍스트 또는 이미지 중 최소 하나는 기록해야 합니다.</p>
+            <div id="currentSituationError" class="record-error" role="alert"></div>
+            <div class="record-form-actions">
+                <button type="button" class="filter-btn secondary" onclick="closeModal()">취소</button>
+                <button id="currentSituationSubmit" type="submit" class="filter-btn">기록</button>
+            </div>
+        </form>`;
+    modal.style.display = 'flex';
 
-    // 짧은 피드백
-    const btn = document.querySelector('.bookmark-record-btn');
-    if (btn) {
-        const orig = btn.textContent;
-        btn.textContent = '✅ 기록 완료!';
-        btn.style.color = 'var(--success-color)';
-        btn.style.borderColor = 'var(--success-color)';
-        setTimeout(() => {
-            btn.textContent = orig;
-            btn.style.color = '';
-            btn.style.borderColor = '';
-        }, 1500);
+    const stateElement = document.getElementById('currentSituationPreviewState');
+    const checkbox = document.getElementById('currentSituationIncludeImage');
+    try {
+        const csrfToken = await dashboardRecordsCsrfToken();
+        const response = await fetch('/api/logs/current-situation/preview', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrfToken },
+        });
+        if (response.status === 503) throw new Error('PREVIEW_UNAVAILABLE');
+        if (!response.ok || !response.headers.get('Content-Type')?.includes('image/jpeg')) {
+            throw new Error('PREVIEW_FAILED');
+        }
+        const frameToken = response.headers.get('X-Frame-Token');
+        if (!frameToken) throw new Error('PREVIEW_FAILED');
+        const blob = await response.blob();
+        if (modal.style.display === 'none') return;
+        currentSituationState.frameToken = frameToken;
+        currentSituationState.previewUrl = URL.createObjectURL(blob);
+        const preview = document.getElementById('currentSituationPreview');
+        preview.src = currentSituationState.previewUrl;
+        preview.hidden = false;
+        stateElement.hidden = true;
+        checkbox.disabled = false;
+        checkbox.checked = false;
+    } catch (error) {
+        stateElement.className = 'preview-state is-unavailable';
+        stateElement.textContent = error.message === 'PREVIEW_UNAVAILABLE'
+            ? '현재 카메라 이미지를 사용할 수 없습니다. 텍스트 기록은 계속할 수 있습니다.'
+            : '미리보기를 불러오지 못했습니다. 텍스트 기록은 계속할 수 있습니다.';
+        checkbox.checked = false;
+        checkbox.disabled = true;
     }
 }
+
+async function submitCurrentSituation(event) {
+    event.preventDefault();
+    if (currentSituationState.submitting) return;
+    const description = document.getElementById('currentSituationDescription').value.trim();
+    const includeImage = document.getElementById('currentSituationIncludeImage').checked;
+    const errorElement = document.getElementById('currentSituationError');
+    if (!description && !includeImage) {
+        errorElement.textContent = '텍스트 또는 이미지 중 최소 하나를 기록해 주세요.';
+        return;
+    }
+    if (includeImage && !currentSituationState.frameToken) {
+        errorElement.textContent = '저장할 이미지 토큰이 유효하지 않습니다. 미리보기를 다시 열어 주세요.';
+        return;
+    }
+
+    currentSituationState.submitting = true;
+    errorElement.textContent = '';
+    const submitButton = document.getElementById('currentSituationSubmit');
+    submitButton.disabled = true;
+    submitButton.textContent = '기록 중...';
+    try {
+        const csrfToken = await dashboardRecordsCsrfToken();
+        const response = await fetch('/api/logs/current-situation', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify({
+                description_content: description,
+                include_image: includeImage,
+                frame_token: includeImage ? currentSituationState.frameToken : null,
+            }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.status !== 201) throw new Error(data.detail || data.error || `기록 실패 (HTTP ${response.status})`);
+        closeModal();
+        alert('현재 상황이 기록되었습니다.');
+    } catch (error) {
+        errorElement.textContent = error.message || '현재 상황을 기록하지 못했습니다.';
+        submitButton.disabled = false;
+        submitButton.textContent = '기록';
+        currentSituationState.submitting = false;
+    }
+}
+
+// ===================================================
+// 갤러리
+// ===================================================
+function extractRecordRows(payload) {
+    if (Array.isArray(payload)) return payload;
+    for (const key of ['items', 'rows', 'records', 'data']) {
+        if (Array.isArray(payload?.[key])) return payload[key];
+    }
+    return [];
+}
+
+function galleryItemSource(item) {
+    if (item.source === 'event' || item.event_id != null) return 'event';
+    return 'action';
+}
+
+function galleryItemId(item) {
+    return galleryItemSource(item) === 'event' ? item.event_id ?? item.id : item.action_id ?? item.id;
+}
+
+function galleryImageUrl(item) {
+    const source = galleryItemSource(item);
+    const id = galleryItemId(item);
+    if (id === undefined || id === null) return '';
+    return source === 'event'
+        ? `/api/media/events/${encodeURIComponent(id)}`
+        : `/api/media/actions/${encodeURIComponent(id)}`;
+}
+
+function galleryItemTimestamp(item) {
+    return item.detected_at || item.created_at || item.timestamp || '-';
+}
+
+function gallerySourceLabel(item) {
+    return galleryItemSource(item) === 'event' ? 'AI 자동 감지' : '수동 기록';
+}
+
+function renderGallery() {
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+    if (galleryState.loadState === 'loading') {
+        grid.innerHTML = '<div class="gallery-empty is-loading">갤러리를 불러오는 중입니다.</div>';
+        return;
+    }
+    if (galleryState.loadState !== 'ready') {
+        grid.innerHTML = `<div class="gallery-empty is-error">${escapeHtml(galleryState.message || '갤러리를 불러오지 못했습니다.')}</div>`;
+        return;
+    }
+    if (!galleryState.items.length) {
+        grid.innerHTML = '<div class="gallery-empty">저장된 이미지가 없습니다.</div>';
+        return;
+    }
+    grid.innerHTML = galleryState.items.map((item, index) => {
+        const source = galleryItemSource(item);
+        const type = source === 'event' ? item.event_type : ACTION_TYPE_LABELS[item.action_type] || item.action_type;
+        return `<button type="button" class="gallery-card" onclick="openGalleryDetail(${index})">
+            <img src="${galleryImageUrl(item)}" alt="${escapeHtml(gallerySourceLabel(item))} 이미지" loading="lazy">
+            <span class="gallery-card-source source-${source}">${escapeHtml(gallerySourceLabel(item))}</span>
+            <strong>${escapeHtml(type || '기록')}</strong>
+            <time>${escapeHtml(galleryItemTimestamp(item))}</time>
+        </button>`;
+    }).join('');
+}
+
+async function loadGallery(source) {
+    galleryState.source = source;
+    galleryState.loadState = 'loading';
+    galleryState.message = '';
+    galleryState.selectedIndex = -1;
+    document.querySelectorAll('.gallery-filter-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.source === source);
+    });
+    document.getElementById('galleryDetail')?.setAttribute('hidden', '');
+    renderGallery();
+    try {
+        const response = await fetch(`/api/gallery?source=${encodeURIComponent(source)}`, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || data.error || `HTTP ${response.status}`);
+        galleryState.items = extractRecordRows(data);
+        galleryState.loadState = 'ready';
+    } catch (error) {
+        galleryState.items = [];
+        galleryState.loadState = 'error';
+        galleryState.message = error.message || '갤러리를 불러오지 못했습니다.';
+    }
+    renderGallery();
+}
+
+async function openGalleryModal() {
+    document.getElementById('modalBody').innerHTML = `
+        <div class="gallery-toolbar" role="group" aria-label="갤러리 분류">
+            <button type="button" class="gallery-filter-btn active" data-source="all" onclick="loadGallery('all')">전체</button>
+            <button type="button" class="gallery-filter-btn" data-source="event" onclick="loadGallery('event')">AI 자동 감지</button>
+            <button type="button" class="gallery-filter-btn" data-source="action" onclick="loadGallery('action')">수동 기록</button>
+        </div>
+        <div id="galleryGrid" class="gallery-grid"></div>
+        <section id="galleryDetail" class="gallery-detail" hidden aria-label="갤러리 상세"></section>`;
+    await loadGallery('all');
+}
+
+function galleryMetadata(item) {
+    const source = galleryItemSource(item);
+    if (source === 'event') {
+        return [
+            ['출처', item.event_source],
+            ['유형', item.event_type],
+            ['신뢰도', item.confidence == null ? '-' : `${(Number(item.confidence) * 100).toFixed(1)}%`],
+            ['LiDAR X/Y', `${item.lidar_x ?? '-'} / ${item.lidar_y ?? '-'}`],
+            ['GPS', `${item.gps_lat ?? '-'} / ${item.gps_lng ?? '-'} / ${item.gps_alt ?? '-'}`],
+            ['조치/신고/경고', `${formatBooleanState(item.is_resolved, '완료', '미조치')} / ${formatBooleanState(item.is_reported, '신고', '미신고')} / ${formatBooleanState(item.is_alerted, '경고', '미경고')}`],
+        ];
+    }
+    return [
+        ['관리자', item.administrator_name || item.user_name || item.name || item.user_id],
+        ['조치 유형', ACTION_TYPE_LABELS[item.action_type] || item.action_type],
+        ['관련 이벤트', item.event_id ?? '-'],
+        ['내용', item.description_content || '-'],
+    ];
+}
+
+function openGalleryDetail(index) {
+    if (index < 0 || index >= galleryState.items.length) return;
+    galleryState.selectedIndex = index;
+    const item = galleryState.items[index];
+    const detail = document.getElementById('galleryDetail');
+    detail.hidden = false;
+    detail.innerHTML = `
+        <div class="gallery-detail-header">
+            <strong>${escapeHtml(gallerySourceLabel(item))} 상세</strong>
+            <button type="button" class="gallery-detail-close" onclick="closeGalleryDetail()" aria-label="상세 닫기">&times;</button>
+        </div>
+        <img class="gallery-detail-image" src="${galleryImageUrl(item)}" alt="기록 상세 이미지">
+        <dl class="gallery-metadata">
+            <div><dt>기록 시각</dt><dd>${escapeHtml(galleryItemTimestamp(item))}</dd></div>
+            ${galleryMetadata(item).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value ?? '-')}</dd></div>`).join('')}
+        </dl>
+        <div class="gallery-detail-actions">
+            <button type="button" onclick="changeGalleryDetail(-1)" ${index === 0 ? 'disabled' : ''}>← 이전</button>
+            <button type="button" class="gallery-delete-disabled" disabled title="삭제 기능 준비 중">삭제 (준비 중)</button>
+            <button type="button" onclick="changeGalleryDetail(1)" ${index === galleryState.items.length - 1 ? 'disabled' : ''}>다음 →</button>
+        </div>`;
+    detail.scrollIntoView({ block: 'nearest' });
+}
+
+function closeGalleryDetail() {
+    galleryState.selectedIndex = -1;
+    document.getElementById('galleryDetail')?.setAttribute('hidden', '');
+}
+
+function changeGalleryDetail(offset) {
+    openGalleryDetail(galleryState.selectedIndex + offset);
+}
+
+document.addEventListener('keydown', event => {
+    if (galleryState.selectedIndex < 0 || document.getElementById('commonModal')?.style.display === 'none') return;
+    if (event.key === 'ArrowLeft') changeGalleryDetail(-1);
+    if (event.key === 'ArrowRight') changeGalleryDetail(1);
+});
 
 // ===================================================
 // 텔레그램 신고
