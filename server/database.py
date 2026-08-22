@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Iterator
 
 from server.env_config import EnvConfigurationError, env_int, env_text
@@ -111,7 +112,6 @@ class Database:
             "gps_alt",
             "lidar_x",
             "lidar_y",
-            "lidar_z",
         )
         sql = f"""
             INSERT INTO system_status ({", ".join(columns)})
@@ -124,31 +124,32 @@ class Database:
         *,
         event_source: str,
         event_type: str,
+        image_path: str | None = None,
         confidence: float | None = None,
         gps_lat: float | None = None,
         gps_lng: float | None = None,
         gps_alt: float | None = None,
         lidar_x: float | None = None,
         lidar_y: float | None = None,
-        lidar_z: float | None = None,
     ) -> int:
+        image_path = self._relative_image_path(image_path)
         return self._insert(
             """
             INSERT INTO event_log
-                (event_source, event_type, video_path, confidence,
-                 gps_lat, gps_lng, gps_alt, lidar_x, lidar_y, lidar_z)
-            VALUES (%s, %s, NULL, %s, %s, %s, %s, %s, %s, %s)
+                (event_source, event_type, image_path, confidence,
+                 gps_lat, gps_lng, gps_alt, lidar_x, lidar_y)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 event_source,
                 event_type,
+                image_path,
                 confidence,
                 gps_lat,
                 gps_lng,
                 gps_alt,
                 lidar_x,
                 lidar_y,
-                lidar_z,
             ),
         )
 
@@ -159,14 +160,16 @@ class Database:
         action_type: str,
         event_id: int | None = None,
         description: str | None = None,
+        image_path: str | None = None,
     ) -> int:
+        image_path = self._relative_image_path(image_path)
         return self._insert(
             """
             INSERT INTO action_log
-                (user_id, event_id, action_type, description_content)
-            VALUES (%s, %s, %s, %s)
+                (user_id, event_id, action_type, description_content, image_path)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (user_id, event_id, action_type, description),
+            (user_id, event_id, action_type, description, image_path),
         )
 
     def mark_event_reported(self, event_id: int) -> bool:
@@ -229,7 +232,6 @@ class Database:
                 "gps_alt",
                 "lidar_x",
                 "lidar_y",
-                "lidar_z",
                 "recorded_at",
             ),
             start_at=start_at,
@@ -251,14 +253,13 @@ class Database:
                 "event_id",
                 "event_source",
                 "event_type",
-                "video_path",
+                "image_path",
                 "confidence",
                 "gps_lat",
                 "gps_lng",
                 "gps_alt",
                 "lidar_x",
                 "lidar_y",
-                "lidar_z",
                 "is_resolved",
                 "is_reported",
                 "reported_at",
@@ -280,22 +281,97 @@ class Database:
         end_at: datetime | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        return self._select_logs(
-            table="action_log",
-            timestamp_column="created_at",
-            columns=(
-                "action_id",
-                "user_id",
-                "event_id",
-                "action_type",
-                "description_content",
-                "created_at",
-            ),
-            start_at=start_at,
-            end_at=end_at,
-            limit=limit,
-            soft_delete=True,
+        conditions = ["a.is_deleted = 0"]
+        params: list[Any] = []
+        if start_at is not None:
+            conditions.append("a.created_at >= %s")
+            params.append(start_at)
+        if end_at is not None:
+            conditions.append("a.created_at <= %s")
+            params.append(end_at)
+        params.append(limit)
+        return self._select(
+            """
+            SELECT a.action_id, a.user_id, u.name AS user_name, a.event_id,
+                   a.action_type, a.description_content, a.image_path, a.created_at
+            FROM action_log AS a
+            INNER JOIN users AS u ON u.user_id = a.user_id
+            WHERE """
+            + " AND ".join(conditions)
+            + " ORDER BY a.created_at DESC LIMIT %s",
+            tuple(params),
         )
+
+    def list_gallery(
+        self,
+        *,
+        source: str = "all",
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        normalized_source = source.strip().lower()
+        if normalized_source not in {"all", "event", "action"}:
+            raise ValueError("source must be one of: all, event, action")
+
+        selects: list[str] = []
+        params: list[Any] = []
+        if normalized_source in {"all", "event"}:
+            conditions = ["e.is_deleted = 0", "e.image_path IS NOT NULL"]
+            if start_at is not None:
+                conditions.append("e.detected_at >= %s")
+                params.append(start_at)
+            if end_at is not None:
+                conditions.append("e.detected_at <= %s")
+                params.append(end_at)
+            selects.append(
+                """
+                SELECT 'event' AS source, e.event_id AS record_id,
+                       e.event_id, NULL AS action_id, NULL AS user_id,
+                       NULL AS user_name, e.event_source, e.event_type,
+                       NULL AS action_type, NULL AS description_content,
+                       e.image_path, e.confidence, e.gps_lat, e.gps_lng,
+                       e.gps_alt, e.lidar_x, e.lidar_y,
+                       e.detected_at AS recorded_at
+                FROM event_log AS e
+                WHERE """
+                + " AND ".join(conditions)
+            )
+        if normalized_source in {"all", "action"}:
+            conditions = ["a.is_deleted = 0", "a.image_path IS NOT NULL"]
+            if start_at is not None:
+                conditions.append("a.created_at >= %s")
+                params.append(start_at)
+            if end_at is not None:
+                conditions.append("a.created_at <= %s")
+                params.append(end_at)
+            selects.append(
+                """
+                SELECT 'action' AS source, a.action_id AS record_id,
+                       a.event_id, a.action_id, a.user_id, u.name AS user_name,
+                       e.event_source, e.event_type, a.action_type,
+                       a.description_content, a.image_path, e.confidence,
+                       e.gps_lat, e.gps_lng, e.gps_alt, e.lidar_x, e.lidar_y,
+                       a.created_at AS recorded_at
+                FROM action_log AS a
+                INNER JOIN users AS u ON u.user_id = a.user_id
+                LEFT JOIN event_log AS e
+                    ON e.event_id = a.event_id AND e.is_deleted = 0
+                WHERE """
+                + " AND ".join(conditions)
+            )
+        params.append(limit)
+        return self._select(
+            " UNION ALL ".join(selects)
+            + " ORDER BY recorded_at DESC LIMIT %s",
+            tuple(params),
+        )
+
+    def get_event_image_path(self, event_id: int) -> str | None:
+        return self._get_image_path("event_log", "event_id", event_id)
+
+    def get_action_image_path(self, action_id: int) -> str | None:
+        return self._get_image_path("action_log", "action_id", action_id)
 
     def _insert(self, sql: str, params: tuple[Any, ...]) -> int:
         try:
@@ -335,12 +411,48 @@ class Database:
             f"ORDER BY {timestamp_column} DESC LIMIT %s"
         )
         params.append(limit)
+        return self._select(sql, tuple(params))
+
+    def _select(
+        self, sql: str, params: tuple[Any, ...]
+    ) -> list[dict[str, Any]]:
         try:
             with self.transaction() as connection:
                 with connection.cursor() as cursor:
-                    cursor.execute(sql, tuple(params))
+                    cursor.execute(sql, params)
                     return list(cursor.fetchall())
         except DatabaseConfigurationError:
             raise
         except Exception as exc:
             raise DatabaseOperationError("Unable to read from the configured database.") from exc
+
+    def _get_image_path(
+        self, table: str, id_column: str, record_id: int
+    ) -> str | None:
+        # Identifiers are fixed by the two public callers above.
+        rows = self._select(
+            f"""
+            SELECT image_path FROM {table}
+            WHERE {id_column} = %s AND is_deleted = 0
+            LIMIT 1
+            """,
+            (record_id,),
+        )
+        if not rows or rows[0].get("image_path") is None:
+            return None
+        return str(rows[0]["image_path"])
+
+    @staticmethod
+    def _relative_image_path(image_path: str | None) -> str | None:
+        if image_path is None:
+            return None
+        normalized = image_path.strip().replace("\\", "/")
+        path = PurePosixPath(normalized)
+        if (
+            not normalized
+            or path.is_absolute()
+            or PureWindowsPath(image_path).is_absolute()
+            or ".." in path.parts
+        ):
+            raise ValueError("image_path must be a non-empty relative path")
+        return normalized
