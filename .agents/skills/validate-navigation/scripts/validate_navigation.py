@@ -364,6 +364,8 @@ def check_nodes(package_dir: Path, findings: list[Finding]) -> None:
                 "/navigation/map",
                 "/navigation/pose",
                 "/navigation/scan",
+                'env_text("ROBOT_CONTROL_TOKEN")',
+                '"X-Robot-Control-Token"',
             ),
             findings,
             "map-bridge-contract",
@@ -386,7 +388,9 @@ def check_nodes(package_dir: Path, findings: list[Finding]) -> None:
                 "0.50",
                 "twist_timeout_sec",
                 "server_request_enabled = True",
-                "motor_output_enabled = False",
+                'env_bool("MOTOR_OUTPUT_ENABLED", default=False)',
+                'env_text("ROBOT_CONTROL_TOKEN")',
+                '"X-Robot-Control-Token"',
                 '"source": "nav2_command_bridge"',
             ),
             findings,
@@ -395,6 +399,11 @@ def check_nodes(package_dir: Path, findings: list[Finding]) -> None:
         )
         if re.search(r"(?m)^\s*self\.motor_output_enabled\s*=\s*True\b", source):
             add(findings, "ERROR", "motor-safety", "motor_output_enabled=True가 감지되었습니다.")
+        if re.search(
+            r"env_bool\(\s*[\"']MOTOR_OUTPUT_ENABLED[\"']\s*,\s*default\s*=\s*True",
+            source,
+        ):
+            add(findings, "ERROR", "motor-safety", "MOTOR_OUTPUT_ENABLED의 기본값이 True입니다.")
 
 
 def check_configs(package_dir: Path, findings: list[Finding]) -> None:

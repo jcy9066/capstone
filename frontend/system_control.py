@@ -16,6 +16,8 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from server.env_config import env_bool, env_float, env_int, env_text
+
 
 def attach_system_control_routes(app, navigation_process_control=None) -> None:
     root_dir = Path(__file__).resolve().parents[1]
@@ -109,8 +111,8 @@ def attach_system_control_routes(app, navigation_process_control=None) -> None:
         if ros_install_setup.exists():
             source_parts.append(f"source {shlex.quote(str(ros_install_setup))}")
         source_parts.extend([
-            f"export ROS_DOMAIN_ID={shlex.quote(os.getenv('ROS_DOMAIN_ID', '27'))}",
-            f"export ROS_LOCALHOST_ONLY={shlex.quote(os.getenv('ROS_LOCALHOST_ONLY', '1'))}",
+            f"export ROS_DOMAIN_ID={shlex.quote(env_text('ROS_DOMAIN_ID'))}",
+            f"export ROS_LOCALHOST_ONLY={shlex.quote(env_text('ROS_LOCALHOST_ONLY'))}",
             f"exec {shlex.join(command)}",
         ])
         return ["bash", "-lc", " && ".join(source_parts)]
@@ -121,27 +123,24 @@ def attach_system_control_routes(app, navigation_process_control=None) -> None:
             if module.LidarRosBridge is None:
                 raise RuntimeError("LiDAR ROS bridge dependency is unavailable.")
             module.lidar_ros_bridge = module.LidarRosBridge(
-                ros_topic=os.getenv("LIDAR_ROS_TOPIC", "/scan"),
-                base_frame=os.getenv("LIDAR_BASE_FRAME", "base_link"),
-                lidar_frame=os.getenv("LIDAR_FRAME", "laser"),
-                lidar_x=float(os.getenv("LIDAR_X", "0.0")),
-                lidar_y=float(os.getenv("LIDAR_Y", "0.0")),
-                lidar_z=float(os.getenv("LIDAR_Z", "0.12")),
-                lidar_yaw=float(os.getenv("LIDAR_YAW", "0.0")),
-                dashboard_max_points=int(
-                    os.getenv("LIDAR_DASHBOARD_MAX_POINTS", "360")
+                ros_topic=env_text("LIDAR_ROS_TOPIC"),
+                base_frame=env_text("LIDAR_BASE_FRAME"),
+                lidar_frame=env_text("LIDAR_FRAME"),
+                lidar_x=env_float("LIDAR_X"),
+                lidar_y=env_float("LIDAR_Y"),
+                lidar_z=env_float("LIDAR_Z"),
+                lidar_yaw=env_float("LIDAR_YAW"),
+                dashboard_max_points=env_int(
+                    "LIDAR_DASHBOARD_MAX_POINTS", minimum=1
                 ),
-                use_source_timestamp=(
-                    os.getenv("LIDAR_USE_SOURCE_TIMESTAMP", "true")
-                    .strip().lower() in ("1", "true", "yes", "on")
-                ),
+                use_source_timestamp=env_bool("LIDAR_USE_SOURCE_TIMESTAMP"),
             )
             module.lidar_ros_bridge.start()
         elif component_id == "encoder_ros_bridge" and module.encoder_ros_bridge is None:
             if module.EncoderRosBridge is None:
                 raise RuntimeError("Encoder ROS bridge dependency is unavailable.")
             module.encoder_ros_bridge = module.EncoderRosBridge(
-                ros_topic=os.getenv("ENCODER_ROS_TOPIC", "/wheel_ticks")
+                ros_topic=env_text("ENCODER_ROS_TOPIC")
             )
             module.encoder_ros_bridge.start()
 

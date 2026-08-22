@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import threading
 import time
 from pathlib import Path
@@ -15,6 +14,10 @@ from dotenv import load_dotenv
 
 from controllers.motor_controller import MotorController
 from controllers.speaker_controller import SpeakerController
+try:
+    from raspberry.env_config import env_float, env_int, env_text
+except ModuleNotFoundError:  # Direct script execution from raspberry/.
+    from env_config import env_float, env_int, env_text
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -32,17 +35,18 @@ class RobotCommandClient:
         )
 
         ws_url = (
-            args.ws_url
-            or self.server_base_url
+            self.server_base_url
             .replace("http://", "ws://")
             .replace("https://", "wss://")
-            + f"/ws/robot/{self.robot_id}"
+            + f"/ws/robot/{quote(self.robot_id, safe='')}"
         )
-        separator = "&" if "?" in ws_url else "?"
-        self.ws_url = f"{ws_url}{separator}token={quote(self.control_token, safe='')}"
+        self.ws_url = ws_url
 
         self.status_interval_sec = (
             args.status_interval_sec
+        )
+        self.status_request_timeout_sec = (
+            args.status_request_timeout_sec
         )
         self.ws_reconnect_delay_sec = (
             args.ws_reconnect_delay_sec
@@ -121,7 +125,7 @@ class RobotCommandClient:
                     self.status_url,
                     json=self.status_payload(),
                     headers={"X-Robot-Control-Token": self.control_token},
-                    timeout=1.0,
+                    timeout=self.status_request_timeout_sec,
                 )
 
             except requests.RequestException as exc:
@@ -139,6 +143,7 @@ class RobotCommandClient:
             try:
                 async with websockets.connect(
                     self.ws_url,
+                    extra_headers={"X-Robot-Control-Token": self.control_token},
                     ping_interval=10,
                     ping_timeout=5,
                     close_timeout=1,
@@ -184,7 +189,7 @@ class RobotCommandClient:
                 raise
 
             except Exception as exc:
-                print(f"[ws] disconnected: {exc}")
+                print(f"[ws] disconnected: {type(exc).__name__}")
 
                 await asyncio.sleep(
                     self.ws_reconnect_delay_sec
@@ -495,110 +500,70 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--server-base-url",
-        default=os.getenv("SERVER_BASE_URL"),
+        default=env_text("SERVER_BASE_URL"),
     )
 
     parser.add_argument(
         "--robot-id",
-        default=os.getenv(
-            "ROBOT_ID",
-            "pi-01",
-        ),
+        default=env_text("ROBOT_ID"),
     )
 
     parser.add_argument(
         "--control-token",
-        default=os.getenv("ROBOT_CONTROL_TOKEN"),
-    )
-
-    parser.add_argument(
-        "--ws-url",
-        default=os.getenv("COMMAND_WS_URL"),
+        default=env_text("ROBOT_CONTROL_TOKEN"),
     )
 
     parser.add_argument(
         "--serial-port",
-        default=os.getenv(
-            "MOTOR_SERIAL_PORT",
-            "/dev/serial0",
-        ),
+        default=env_text("MOTOR_SERIAL_PORT"),
     )
 
     parser.add_argument(
         "--serial-baudrate",
         type=int,
-        default=int(
-            os.getenv(
-                "MOTOR_SERIAL_BAUDRATE",
-                "115200",
-            )
-        ),
+        default=env_int("MOTOR_SERIAL_BAUDRATE", minimum=1),
     )
 
     parser.add_argument(
         "--serial-timeout-sec",
         type=float,
-        default=float(
-            os.getenv(
-                "MOTOR_SERIAL_TIMEOUT_SEC",
-                "0.25",
-            )
-        ),
+        default=env_float("MOTOR_SERIAL_TIMEOUT_SEC", minimum=0.0),
     )
 
     parser.add_argument(
         "--command-timeout-sec",
         type=float,
-        default=float(
-            os.getenv(
-                "COMMAND_TIMEOUT_SEC",
-                "0.45",
-            )
-        ),
+        default=env_float("COMMAND_TIMEOUT_SEC", minimum=0.01),
     )
 
     parser.add_argument(
         "--max-wheel-mps",
         type=float,
-        default=float(
-            os.getenv(
-                "MAX_WHEEL_MPS",
-                "0.50",
-            )
-        ),
+        default=env_float("MAX_WHEEL_MPS", minimum=0.01),
     )
 
     parser.add_argument(
         "--status-interval-sec",
         type=float,
-        default=float(
-            os.getenv(
-                "STATUS_INTERVAL_SEC",
-                "1.0",
-            )
-        ),
+        default=env_float("STATUS_INTERVAL_SEC", minimum=0.01),
+    )
+
+    parser.add_argument(
+        "--status-request-timeout-sec",
+        type=float,
+        default=env_float("STATUS_REQUEST_TIMEOUT_SEC", minimum=0.01),
     )
 
     parser.add_argument(
         "--ws-reconnect-delay-sec",
         type=float,
-        default=float(
-            os.getenv(
-                "WS_RECONNECT_DELAY_SEC",
-                "1.0",
-            )
-        ),
+        default=env_float("WS_RECONNECT_DELAY_SEC", minimum=0.01),
     )
 
     parser.add_argument(
         "--encoder-interval-sec",
         type=float,
-        default=float(
-            os.getenv(
-                "ENCODER_INTERVAL_SEC",
-                "0.05",
-            )
-        ),
+        default=env_float("ENCODER_INTERVAL_SEC", minimum=0.001),
     )
 
     args = parser.parse_args()

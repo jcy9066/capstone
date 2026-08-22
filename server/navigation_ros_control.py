@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
-import os
 import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
+
+from server.env_config import env_float
 
 try:
     import rclpy
@@ -330,7 +331,7 @@ class NavigationRosControl:
             raise NavigationRosError("PATH_REJECTED", "Nav2 rejected the path request.", 422)
         result_wrapper = self._wait_future(
             goal_handle.get_result_async(),
-            timeout_sec=float(os.getenv("NAV_COMPUTE_PATH_TIMEOUT_SEC", "10.0")),
+            timeout_sec=env_float("NAV_COMPUTE_PATH_TIMEOUT_SEC", minimum=0.1),
             error_code="PATH_PLAN_TIMEOUT",
             message="Timed out while computing the path.",
         )
@@ -380,7 +381,7 @@ class NavigationRosControl:
             return {"requested": False, "confirmed": True}
         response = self._wait_future(
             goal_handle.cancel_goal_async(),
-            timeout_sec=float(os.getenv("NAV_CANCEL_TIMEOUT_SEC", "3.0")),
+            timeout_sec=env_float("NAV_CANCEL_TIMEOUT_SEC", minimum=0.1),
             error_code="NAVIGATION_CANCEL_TIMEOUT",
             message="Timed out while canceling the Nav2 goal.",
         )
@@ -397,7 +398,7 @@ class NavigationRosControl:
             )
         result = self._wait_future(
             result_future,
-            timeout_sec=float(os.getenv("NAV_CANCEL_RESULT_TIMEOUT_SEC", "3.0")),
+            timeout_sec=env_float("NAV_CANCEL_RESULT_TIMEOUT_SEC", minimum=0.1),
             error_code="NAVIGATION_CANCEL_TIMEOUT",
             message="Timed out waiting for Nav2 to finish canceling the goal.",
         )
@@ -444,9 +445,8 @@ class NavigationRosControl:
             stamp_ns = int(stamp.sec) * 1_000_000_000 + int(stamp.nanosec)
             clock_ns = int(self._node.get_clock().now().nanoseconds)
             tf_source_age_sec = max(0.0, (clock_ns - stamp_ns) / 1_000_000_000.0)
-            max_source_age = max(
-                0.05,
-                float(os.getenv("NAV_WATCHDOG_TF_SOURCE_MAX_AGE_SEC", "1.0")),
+            max_source_age = env_float(
+                "NAV_WATCHDOG_TF_SOURCE_MAX_AGE_SEC", minimum=0.05
             )
             tf_ok = stamp_ns > 0 and tf_source_age_sec <= max_source_age
         except Exception:

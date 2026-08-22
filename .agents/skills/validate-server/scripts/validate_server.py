@@ -62,6 +62,10 @@ ENV_GET_RE = re.compile(
 ENV_INDEX_RE = re.compile(
     r"""os\.environ\[\s*["']([A-Z][A-Z0-9_]*)["']\s*\]"""
 )
+ENV_HELPER_RE = re.compile(
+    r"""env_(?:text|bool|int|float)\(\s*["']([A-Z][A-Z0-9_]*)["']"""
+)
+SHELL_REQUIRED_ENV_RE = re.compile(r"\$\{([A-Z][A-Z0-9_]*):\?")
 
 
 def parse_args() -> argparse.Namespace:
@@ -382,10 +386,18 @@ def check_frontend_routes(root: Path, findings: list[Finding]) -> None:
 def collect_used_env_vars(root: Path) -> set[str]:
     used: set[str] = set()
 
-    for path in iter_server_python_files(root):
-        source = read_text(path)
-        used.update(ENV_GET_RE.findall(source))
-        used.update(ENV_INDEX_RE.findall(source))
+    for directory in ("server", "frontend", "perception", "raspberry", "navigation"):
+        source_dir = root / directory
+        if not source_dir.is_dir():
+            continue
+        for path in source_dir.rglob("*.py"):
+            source = read_text(path)
+            used.update(ENV_GET_RE.findall(source))
+            used.update(ENV_INDEX_RE.findall(source))
+            used.update(ENV_HELPER_RE.findall(source))
+
+    for path in root.rglob("*.sh"):
+        used.update(SHELL_REQUIRED_ENV_RE.findall(read_text(path)))
 
     return used
 
@@ -413,20 +425,50 @@ def collect_env_example_vars(root: Path) -> set[str]:
 
 
 def check_env_example(root: Path, findings: list[Finding]) -> None:
-    missing = sorted(
-        collect_used_env_vars(root) - collect_env_example_vars(root)
-    )
+    path = root / ".env.example"
+    used = collect_used_env_vars(root)
+    example = collect_env_example_vars(root)
+    missing = sorted(used - example)
+    extra = sorted(example - used)
 
     if missing:
         add(
             findings,
-            "WARN",
+            "ERROR",
             "env-example",
             (
-                ".env.example에 없는 server 환경변수가 있습니다: "
+                ".env.example에 없는 runtime 환경변수가 있습니다: "
                 + ", ".join(missing)
             ),
         )
+
+    if extra:
+        add(
+            findings,
+            "ERROR",
+            "env-example",
+            ".env.example에 미사용 환경변수가 있습니다: " + ", ".join(extra),
+        )
+
+    entries: list[str] = []
+    nonempty: list[str] = []
+    for raw_line in read_text(path).splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, separator, value = line.partition("=")
+        if not separator or not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
+            add(findings, "ERROR", "env-example", f"잘못된 항목 형식: {line}")
+            continue
+        entries.append(name)
+        if value:
+            nonempty.append(name)
+
+    duplicates = sorted({name for name in entries if entries.count(name) > 1})
+    if duplicates:
+        add(findings, "ERROR", "env-example", "중복 환경변수: " + ", ".join(duplicates))
+    if nonempty:
+        add(findings, "ERROR", "env-example", "값이 비어 있지 않은 항목: " + ", ".join(nonempty))
 
 
 def check_motor_safety(root: Path, findings: list[Finding]) -> None:
@@ -437,27 +479,24 @@ def check_motor_safety(root: Path, findings: list[Finding]) -> None:
 
     source = read_text(app_path)
 
-    if re.search(
-        r"(?m)^\s*MOTOR_OUTPUT_ENABLED\s*=\s*True\b",
+    if re.search(r"env_bool\(\s*[\"']MOTOR_OUTPUT_ENABLED[\"']\s*,\s*default\s*=\s*True", source):
+        add(
+            findings,
+            "ERROR",
+            "motor-safety",
+            "MOTOR_OUTPUT_ENABLED의 기본값이 True입니다.",
+        )
+        return
+
+    if not re.search(
+        r"MOTOR_OUTPUT_ENABLED\s*=\s*env_bool\(\s*[\"']MOTOR_OUTPUT_ENABLED[\"']\s*,\s*default\s*=\s*False\s*\)",
         source,
     ):
         add(
             findings,
             "ERROR",
-            "motor-safety",
-            "MOTOR_OUTPUT_ENABLED=True 입니다. 기본 검증 환경에서는 허용하지 않습니다.",
-        )
-        return
-
-    if not re.search(
-        r"(?m)^\s*MOTOR_OUTPUT_ENABLED\s*=\s*False\b",
-        source,
-    ):
-        add(
-            findings,
-            "WARN",
             "motor-safety-unresolved",
-            "MOTOR_OUTPUT_ENABLED=False를 정적으로 확인하지 못했습니다.",
+            "MOTOR_OUTPUT_ENABLED의 ENV 기반 false-safe 구성을 확인하지 못했습니다.",
         )
 
 

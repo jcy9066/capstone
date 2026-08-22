@@ -55,7 +55,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("setText('emergency-stop-status', 'UNAVAILABLE')", self.state_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260821-integrated"
+        version = "v=20260822-env-auth"
         for asset in (
             "static/style.css",
             "static/script.js",
@@ -64,6 +64,12 @@ class DashboardFrontendContractTests(unittest.TestCase):
             "static/dashboard_state.js",
         ):
             self.assertIn(f'{asset}?{version}', self.template_source)
+
+    def test_robot_commands_include_session_csrf_contract(self):
+        self.assertIn("function robotCommandCsrfToken()", self.script_source)
+        self.assertIn("'/api/auth/csrf'", self.script_source)
+        self.assertIn("'X-CSRF-Token': csrfToken", self.script_source)
+        self.assertIn("credentials: 'same-origin'", self.script_source)
 
     def test_existing_safety_and_logout_contracts_remain_present(self):
         for contract in (

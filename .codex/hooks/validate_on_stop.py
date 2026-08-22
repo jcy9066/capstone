@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -369,29 +370,67 @@ def _required_validators(changed_files: list[str]) -> set[str]:
     return required
 
 
-def _validation_attempts(state: dict[str, Any]) -> set[str]:
-    value = _first_value(
-        state,
-        "validation_attempts",
-        "validationAttempts",
-        "validators",
+def _report_marks_pass(message: str, label: str) -> bool:
+    if not message:
+        return False
+
+    escaped = re.escape(label)
+    separator = r"[ \t]*(?::|=|-)?[ \t]*"
+    return bool(
+        re.search(
+            rf"(?im)(?:{escaped}{separator}PASS\b|PASS{separator}{escaped}\b)",
+            message,
+        )
     )
 
-    if isinstance(value, dict):
-        return {
-            str(name)
-            for name, result in value.items()
-            if result
-        }
 
-    if isinstance(value, list):
-        return {
-            str(item)
-            for item in value
-            if str(item).strip()
-        }
+def _validation_passes(message: str) -> set[str]:
+    return {
+        validator
+        for validator in (*VALIDATOR_BY_AREA.values(), "review-change")
+        if _report_marks_pass(message, validator)
+    }
 
-    return set()
+
+def _validation_attempts(
+    payload: dict[str, Any],
+    state: dict[str, Any],
+) -> set[str]:
+    attempts: set[str] = set()
+
+    for source in (state, payload):
+        value = _first_value(
+            source,
+            "validation_attempts",
+            "validationAttempts",
+            "validators",
+        )
+
+        if isinstance(value, dict):
+            attempts.update(
+                str(name)
+                for name, result in value.items()
+                if result
+            )
+        elif isinstance(value, list):
+            attempts.update(
+                str(item)
+                for item in value
+                if str(item).strip()
+            )
+
+        tools = _first_value(source, "tools_used", "toolsUsed")
+        if isinstance(tools, list):
+            tool_text = " ".join(str(item).lower() for item in tools)
+            attempts.update(
+                validator
+                for validator in (*VALIDATOR_BY_AREA.values(), "review-change")
+                if validator.lower() in tool_text
+            )
+
+    attempts.update(_validation_passes(_last_assistant_message(payload)))
+
+    return attempts
 
 
 def _playwright_used(
@@ -423,6 +462,10 @@ def _playwright_used(
             if any(marker in lowered for marker in PLAYWRIGHT_MARKERS):
                 return True
 
+    message = _last_assistant_message(payload)
+    if any(_report_marks_pass(message, marker) for marker in PLAYWRIGHT_MARKERS):
+        return True
+
     return False
 
 
@@ -439,9 +482,7 @@ def _has_validation_report(message: str) -> bool:
 
 
 def _decision_allow() -> dict[str, Any]:
-    return {
-        "decision": "allow",
-    }
+    return {}
 
 
 def _decision_block(reason: str) -> dict[str, Any]:
@@ -480,20 +521,30 @@ def main() -> int:
         )
         return 0
 
-    attempted = _validation_attempts(state)
+    message = _last_assistant_message(payload)
+    attempted = _validation_attempts(payload, state)
     missing = sorted(required - attempted)
 
-    # state가 존재하고 validation attempt 기록이 있는데 일부 validator만
-    # 누락된 경우에는 기존 정책대로 block한다.
-    #
-    # state 자체가 없거나 attempt 기록이 전혀 없는 경우에는 Windows 전환
-    # 과정에서 PreToolUse state 기록이 아직 생성되지 않았을 수 있으므로
-    # hook 자체를 실패시키지 않는다. 이 경우 validation report 여부는 아래서
-    # 계속 확인한다.
-    if attempted and missing:
+    # State가 없더라도 payload, tools_used, 마지막 보고에서 실행 근거를 찾는다.
+    # 어느 경로에서도 필수 validator를 확인할 수 없으면 fail-open하지 않는다.
+    if missing:
         reason = (
             "변경 영역에 필요한 validator가 아직 실행되지 않았습니다: "
             + ", ".join(missing)
+        )
+        print(
+            json.dumps(
+                _decision_block(reason),
+                ensure_ascii=False,
+            )
+        )
+        return 0
+
+    missing_pass_reports = sorted(required - _validation_passes(message))
+    if missing_pass_reports:
+        reason = (
+            "필수 validator별 PASS 보고가 누락되었습니다: "
+            + ", ".join(missing_pass_reports)
         )
         print(
             json.dumps(
@@ -507,7 +558,6 @@ def main() -> int:
 
     if (
         dashboard_required
-        and attempted
         and "validate-dashboard" in attempted
         and not _playwright_used(payload, state)
     ):
@@ -522,9 +572,7 @@ def main() -> int:
         )
         return 0
 
-    message = _last_assistant_message(payload)
-
-    if attempted and not _has_validation_report(message):
+    if not _has_validation_report(message):
         reason = (
             "validation을 수행했지만 마지막 assistant message에 "
             "PASS / FAIL / WARN 검증 결과가 보고되지 않았습니다."

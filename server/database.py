@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterator
+
+from server.env_config import EnvConfigurationError, env_int, env_text
 
 try:
     import pymysql
@@ -36,18 +37,18 @@ class DatabaseConfig:
     @classmethod
     def from_environment(cls) -> "DatabaseConfig":
         try:
-            port = int(os.getenv("DB_PORT", "3306"))
-            timeout = int(os.getenv("DB_CONNECT_TIMEOUT_SEC", "5"))
-        except ValueError as exc:
-            raise DatabaseConfigurationError("Database port or timeout is invalid.") from exc
-        return cls(
-            host=os.getenv("DB_HOST", "").strip(),
-            port=port,
-            name=os.getenv("DB_NAME", "dabom").strip(),
-            user=os.getenv("DB_USER", "").strip(),
-            password=os.getenv("DB_PASSWORD", ""),
-            connect_timeout_sec=max(1, timeout),
-        )
+            return cls(
+                host=env_text("DB_HOST"),
+                port=env_int("DB_PORT", minimum=1, maximum=65535),
+                name=env_text("DB_NAME"),
+                user=env_text("DB_USER"),
+                password=env_text("DB_PASSWORD"),
+                connect_timeout_sec=env_int(
+                    "DB_CONNECT_TIMEOUT_SEC", minimum=1
+                ),
+            )
+        except EnvConfigurationError as exc:
+            raise DatabaseConfigurationError("Database configuration is invalid.") from exc
 
     def validate(self) -> None:
         if not all((self.host, self.name, self.user, self.password)):

@@ -1,6 +1,14 @@
-import os
-SUSPICIOUS_ACTION_THRESHOLD = float(os.getenv("ACTION_SUSPICIOUS_THRESHOLD", "0.20"))
-DANGER_ACTION_THRESHOLD = float(os.getenv("ACTION_DANGER_THRESHOLD", "0.50"))
+try:
+    from perception.env_config import env_float
+except ModuleNotFoundError:  # Direct perception script execution.
+    from env_config import env_float
+
+SUSPICIOUS_ACTION_THRESHOLD = env_float(
+    "ACTION_SUSPICIOUS_THRESHOLD", minimum=0.0, maximum=1.0
+)
+DANGER_ACTION_THRESHOLD = env_float(
+    "ACTION_DANGER_THRESHOLD", minimum=0.0, maximum=1.0
+)
 
 def classify_target_action(action_idx, score, target_actions):
     action_info = target_actions.get(action_idx)

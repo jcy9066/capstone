@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from server.env_config import env_float, env_text
+
 
 class NavigationProcessError(RuntimeError):
     pass
@@ -29,8 +31,8 @@ class NavigationProcessControl:
         self.root_dir = Path(root_dir)
         self.log_dir = self.root_dir / "logs" / "system_control"
         self.ros_install_setup = self.root_dir / "navigation" / "ros" / "install" / "setup.bash"
-        self.start_timeout_sec = max(0.2, float(os.getenv("NAV_PROCESS_START_TIMEOUT_SEC", "1.0")))
-        self.stop_timeout_sec = max(0.2, float(os.getenv("NAV_PROCESS_STOP_TIMEOUT_SEC", "2.0")))
+        self.start_timeout_sec = env_float("NAV_PROCESS_START_TIMEOUT_SEC", minimum=0.2)
+        self.stop_timeout_sec = env_float("NAV_PROCESS_STOP_TIMEOUT_SEC", minimum=0.2)
         self._lock = threading.RLock()
 
     def status(self) -> dict[str, Any]:
@@ -113,8 +115,8 @@ class NavigationProcessControl:
             source_parts.append(f"source {shlex.quote(str(self.ros_install_setup))}")
         source_parts.extend(
             [
-                f"export ROS_DOMAIN_ID={shlex.quote(os.getenv('ROS_DOMAIN_ID', '27'))}",
-                f"export ROS_LOCALHOST_ONLY={shlex.quote(os.getenv('ROS_LOCALHOST_ONLY', '1'))}",
+                f"export ROS_DOMAIN_ID={shlex.quote(env_text('ROS_DOMAIN_ID'))}",
+                f"export ROS_LOCALHOST_ONLY={shlex.quote(env_text('ROS_LOCALHOST_ONLY'))}",
                 f"exec {shlex.join(command)}",
             ]
         )
@@ -127,8 +129,8 @@ class NavigationProcessControl:
             "launch",
             "patrol_navigation",
             launch_name,
-            f"server_base_url:={os.getenv('NAV_SERVER_BASE_URL', 'http://127.0.0.1:21063')}",
-            f"robot_id:={os.getenv('ROBOT_ID', 'pi-01')}",
+            f"server_base_url:={env_text('SERVER_BASE_URL')}",
+            f"robot_id:={env_text('ROBOT_ID')}",
             "start_lidar:=false",
             "start_fake_odom:=false",
         ]

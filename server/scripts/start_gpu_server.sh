@@ -5,8 +5,24 @@ set -Eeo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-SERVER_HOST="${SERVER_HOST:-0.0.0.0}"
-SERVER_PORT="${SERVER_PORT:-21063}"
+if [[ -f "${PROJECT_DIR}/.env" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source <(sed 's/\r$//' "${PROJECT_DIR}/.env")
+    set +a
+fi
+
+: "${SERVER_HOST:?SERVER_HOST is required}"
+: "${SERVER_PORT:?SERVER_PORT is required}"
+: "${ROS_DOMAIN_ID:?ROS_DOMAIN_ID is required}"
+: "${ENCODER_ROS_ENABLE:?ENCODER_ROS_ENABLE is required}"
+: "${WHEEL_DIAMETER_M:?WHEEL_DIAMETER_M is required}"
+: "${WHEEL_TRACK_M:?WHEEL_TRACK_M is required}"
+: "${ENCODER_TICKS_PER_REV:?ENCODER_TICKS_PER_REV is required}"
+: "${WHEEL_TICKS_TOPIC:?WHEEL_TICKS_TOPIC is required}"
+: "${ODOM_TOPIC:?ODOM_TOPIC is required}"
+: "${ODOM_FRAME:?ODOM_FRAME is required}"
+: "${BASE_FRAME:?BASE_FRAME is required}"
 
 SERVER_PID=""
 ODOM_PID=""
@@ -52,20 +68,20 @@ set +u
 source /opt/ros/humble/setup.bash
 set -u
 
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-27}"
+export ROS_DOMAIN_ID
 
 # FastAPI encoder → ROS2 /wheel_ticks bridge
-export ENCODER_ROS_ENABLE="${ENCODER_ROS_ENABLE:-true}"
+export ENCODER_ROS_ENABLE
 
 # 실제 바닥 주행으로 보정한 odometry 값
-export WHEEL_DIAMETER_M="${WHEEL_DIAMETER_M:-0.0675}"
-export WHEEL_TRACK_M="${WHEEL_TRACK_M:-0.201}"
-export ENCODER_TICKS_PER_REV="${ENCODER_TICKS_PER_REV:-14289.848}"
+export WHEEL_DIAMETER_M
+export WHEEL_TRACK_M
+export ENCODER_TICKS_PER_REV
 
-export WHEEL_TICKS_TOPIC="${WHEEL_TICKS_TOPIC:-/wheel_ticks}"
-export ODOM_TOPIC="${ODOM_TOPIC:-/odom}"
-export ODOM_FRAME="${ODOM_FRAME:-odom}"
-export BASE_FRAME="${BASE_FRAME:-base_link}"
+export WHEEL_TICKS_TOPIC
+export ODOM_TOPIC
+export ODOM_FRAME
+export BASE_FRAME
 
 cd "${PROJECT_DIR}"
 

@@ -7,43 +7,138 @@ import sys
 from typing import Any
 
 
+# Local Git policy:
+# - Approved read-only Git commands are allowed.
+# - git switch --no-guess to an existing branch is allowed.
+# - git add and a new validated git commit are allowed.
+# - Branch creation/deletion, remote operations, merges, rebases, history rewriting,
+#   checkout/restore/reset, amend, and other mutating operations remain blocked.
 MUTATING_GIT_SUBCOMMANDS = frozenset(
     {
-        "am", "apply", "bisect", "checkout", "cherry-pick", "clean", "clone",
-        "fetch", "init", "merge", "mv", "pull", "push", "rebase", "reset",
-        "restore", "revert", "rm", "stash", "switch", "tag", "worktree",
+        "am",
+        "apply",
+        "bisect",
+        "checkout",
+        "cherry-pick",
+        "clean",
+        "clone",
+        "fetch",
+        "init",
+        "merge",
+        "mv",
+        "pull",
+        "push",
+        "rebase",
+        "reset",
+        "restore",
+        "revert",
+        "rm",
+        "stash",
+        "tag",
+        "worktree",
+    }
+)
+
+READ_ONLY_GIT_SUBCOMMANDS = frozenset(
+    {
+        "blame",
+        "cat-file",
+        "cherry",
+        "count-objects",
+        "describe",
+        "diff",
+        "diff-files",
+        "diff-index",
+        "diff-tree",
+        "for-each-ref",
+        "grep",
+        "log",
+        "ls-files",
+        "ls-tree",
+        "merge-base",
+        "name-rev",
+        "rev-list",
+        "rev-parse",
+        "shortlog",
+        "show",
+        "show-ref",
+        "status",
+        "verify-commit",
+        "verify-tag",
     }
 )
 
 MUTATING_GITHUB_TOOL_SUFFIXES = frozenset(
     {
-        "create_blob", "create_branch", "create_commit", "create_file",
-        "create_tree", "delete_file", "merge_pull_request", "update_file",
+        "create_blob",
+        "create_branch",
+        "create_commit",
+        "create_file",
+        "create_tree",
+        "delete_file",
+        "merge_pull_request",
+        "update_file",
         "update_ref",
     }
 )
 
 ALLOWED_COMMIT_TYPES = frozenset(
     {
-        "feat", "fix", "docs", "style", "design", "test", "refactor",
-        "build", "ci", "perf", "chore", "rename", "remove",
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "design",
+        "test",
+        "refactor",
+        "build",
+        "ci",
+        "perf",
+        "chore",
+        "rename",
+        "remove",
     }
 )
 
-# Accept both raw Git and RTK-wrapped Git so RTK cannot bypass Git policy.
-_GIT_PREFIX = (
-    r"(?:rtk(?:\.exe)?\s+)?git"
-    r"(?:\s+-C\s+(?:\"[^\"]*\"|'[^']*'|\S+))*"
-    r"(?:\s+--(?:git-dir|work-tree)(?:=|\s+)"
-    r"(?:\"[^\"]*\"|'[^']*'|\S+))*"
+# Accept raw/path-qualified Git and RTK-wrapped Git at shell-command boundaries.
+# Common shell wrappers are consumed conservatively before the Git executable;
+# each captured invocation is then parsed so global options cannot hide the
+# subcommand.
+_GIT_INVOCATION_RE = re.compile(
+    r"(?ix)(?:^|[\r\n;&|`!]|\$\()\s*"
+    r"(?:(?:env|command|cmd(?:\.exe)?|sudo|powershell(?:\.exe)?|pwsh(?:\.exe)?|"
+    r"bash|sh)\b[^\r\n;&|()`]*?\s+[\"']?)*"
+    r"((?:rtk(?:\.exe)?\s+)?(?:"
+    r"\"[^\"\r\n]*[\\/]git(?:\.exe)?\""
+    r"|'[^'\r\n]*[\\/]git(?:\.exe)?'"
+    r"|(?:[^\s\r\n;&|()`]*[\\/])?git(?:\.exe)?"
+    r")(?=\s|$)[^\r\n;&|)`]*)"
 )
 
-_GIT_COMMAND_RE = re.compile(
-    rf"(?ix)(?:^|[\r\n;&|]\s*){_GIT_PREFIX}\s+([a-z][a-z0-9-]*)\b"
+_GIT_GLOBAL_FLAGS = frozenset(
+    {
+        "--bare",
+        "--glob-pathspecs",
+        "--icase-pathspecs",
+        "--literal-pathspecs",
+        "--no-optional-locks",
+        "--no-pager",
+        "--no-replace-objects",
+        "--noglob-pathspecs",
+        "--paginate",
+    }
 )
 
-_GIT_COMMIT_SEGMENT_RE = re.compile(
-    rf"(?ix)(?:^|[\r\n;&|]\s*)({_GIT_PREFIX}\s+commit\b[^\r\n;&|]*)"
+_GIT_GLOBAL_OPTIONS_WITH_VALUE = frozenset(
+    {
+        "-C",
+        "-c",
+        "--config-env",
+        "--git-dir",
+        "--namespace",
+        "--super-prefix",
+        "--work-tree",
+    }
 )
 
 _SUBJECT_RE = re.compile(r"^(?P<type>[a-z]+): (?P<summary>.+)$")
@@ -83,7 +178,12 @@ def _tool_name(payload: dict[str, Any]) -> str:
 
 def _tool_input(payload: dict[str, Any]) -> dict[str, Any]:
     value = _first_value(
-        payload, "tool_input", "toolInput", "input", "arguments", "args"
+        payload,
+        "tool_input",
+        "toolInput",
+        "input",
+        "arguments",
+        "args",
     )
     if isinstance(value, dict):
         return value
@@ -150,6 +250,34 @@ def _extract_commit_message(segment: str) -> tuple[str | None, str | None]:
     return messages[0], None
 
 
+def _commit_args_are_blocked(args: list[str]) -> tuple[bool, str]:
+    message_count = 0
+    index = 0
+
+    while index < len(args):
+        token = args[index]
+        if token in {"-m", "--message"}:
+            if index + 1 >= len(args):
+                return True, "git commit message is missing"
+            message_count += 1
+            index += 2
+            continue
+        if token.startswith("--message="):
+            message_count += 1
+            index += 1
+            continue
+        if token.startswith("-m") and token != "-m":
+            message_count += 1
+            index += 1
+            continue
+        return True, f"git commit argument is not approved: {token}"
+
+    if message_count != 1:
+        return True, 'use one-line git commit -m "type: Summary"'
+
+    return False, ""
+
+
 def _validate_commit_message(message: str) -> str | None:
     if "\n" in message or "\r" in message:
         return "commit message must be one line"
@@ -176,67 +304,152 @@ def _validate_commit_message(message: str) -> str | None:
     return None
 
 
-def _git_command_is_blocked(command: str) -> tuple[bool, str]:
-    if not command:
+def _parse_git_invocation(
+    segment: str,
+) -> tuple[str | None, list[str], str | None]:
+    try:
+        argv = shlex.split(segment, posix=True)
+    except ValueError:
+        return None, [], "git command quoting is invalid"
+
+    index = 0
+    if index < len(argv) and argv[index].lower() in {"rtk", "rtk.exe"}:
+        index += 1
+    executable = argv[index].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if executable not in {"git", "git.exe"}:
+        return None, [], "git command parsing failed"
+    index += 1
+
+    while index < len(argv) and argv[index].startswith("-"):
+        token = argv[index]
+        if token == "--":
+            index += 1
+            break
+        if token in _GIT_GLOBAL_FLAGS:
+            index += 1
+            continue
+        if token in _GIT_GLOBAL_OPTIONS_WITH_VALUE:
+            if index + 1 >= len(argv):
+                return None, [], f"git global option value is missing: {token}"
+            index += 2
+            continue
+        if (
+            token.startswith("-C")
+            or token.startswith("-c")
+            or any(
+                token.startswith(option + "=")
+                for option in _GIT_GLOBAL_OPTIONS_WITH_VALUE
+                if option.startswith("--")
+            )
+        ):
+            index += 1
+            continue
+        return None, [], f"unsupported git global option: {token}"
+
+    if index >= len(argv):
+        return None, [], "git subcommand is missing"
+
+    return argv[index].lower(), argv[index + 1 :], None
+
+
+def _switch_is_blocked(args: list[str]) -> tuple[bool, str]:
+    # This is intentionally strict: no detach, force, merge, discard, tracking,
+    # or branch-creation options. --no-guess prevents implicit creation from a
+    # uniquely matching remote branch.
+    if args.count("--no-guess") != 1:
+        return True, "git switch requires --no-guess"
+
+    branch_args = [token for token in args if token != "--no-guess"]
+    if len(branch_args) != 1 or branch_args[0].startswith("-"):
+        return True, "git switch only permits one existing branch"
+
+    return False, ""
+
+
+def _branch_is_blocked(args: list[str]) -> tuple[bool, str]:
+    if not args:
         return False, ""
 
-    for match in _GIT_COMMAND_RE.finditer(command):
-        subcommand = match.group(1).lower()
-        if subcommand in MUTATING_GIT_SUBCOMMANDS:
-            return True, f"git {subcommand}"
+    read_only_flags = {
+        "-a",
+        "-l",
+        "-r",
+        "-v",
+        "-vv",
+        "--all",
+        "--contains",
+        "--list",
+        "--merged",
+        "--no-merged",
+        "--remotes",
+        "--show-current",
+    }
+    has_read_only_flag = False
 
-    for match in _GIT_COMMIT_SEGMENT_RE.finditer(command):
-        segment = match.group(1)
-
-        if re.search(r"(?i)(?:^|\s)--amend(?:\s|$)", segment):
-            return True, "git commit --amend"
-
-        message, error = _extract_commit_message(segment)
-        if error:
-            return True, error
-
-        error = _validate_commit_message(message or "")
-        if error:
-            return True, error
-
-    branch_re = re.compile(
-        rf"(?ix)(?:^|[\r\n;&|]\s*){_GIT_PREFIX}\s+branch\b([^\r\n;&|]*)"
-    )
-
-    for match in branch_re.finditer(command):
-        tail = match.group(1).strip()
-        if not tail:
-            continue
-
-        read_only_patterns = (
-            r"^(?:--list|-l)(?:\s|$)",
-            r"^--show-current(?:\s|$)",
-            r"^(?:-a|--all)(?:\s|$)",
-            r"^(?:-r|--remotes)(?:\s|$)",
-            r"^(?:-v|-vv)(?:\s|$)",
-            r"^--contains(?:\s|$)",
-            r"^--merged(?:\s|$)",
-            r"^--no-merged(?:\s|$)",
-        )
-        if any(
-            re.search(pattern, tail, flags=re.IGNORECASE)
-            for pattern in read_only_patterns
+    for token in args:
+        if token in read_only_flags or token.startswith(
+            ("--contains=", "--merged=", "--no-merged=")
         ):
+            has_read_only_flag = True
             continue
+        if token.startswith("-"):
+            return True, f"git branch option is not read-only: {token}"
+
+    if not has_read_only_flag:
         return True, "git branch mutation"
 
     return False, ""
 
 
-def _decision(permission: str, reason: str | None = None) -> dict[str, Any]:
-    specific: dict[str, Any] = {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": permission,
+def _git_command_is_blocked(command: str) -> tuple[bool, str]:
+    if not command:
+        return False, ""
+
+    for match in _GIT_INVOCATION_RE.finditer(command):
+        segment = match.group(1)
+        subcommand, args, error = _parse_git_invocation(segment)
+        if error:
+            return True, error
+        if subcommand in MUTATING_GIT_SUBCOMMANDS:
+            return True, f"git {subcommand}"
+        if subcommand == "switch":
+            blocked, reason = _switch_is_blocked(args)
+            if blocked:
+                return True, reason
+            continue
+        if subcommand == "branch":
+            blocked, reason = _branch_is_blocked(args)
+            if blocked:
+                return True, reason
+            continue
+        if subcommand == "commit":
+            blocked, reason = _commit_args_are_blocked(args)
+            if blocked:
+                return True, reason
+            message, error = _extract_commit_message(segment)
+            if error:
+                return True, error
+            error = _validate_commit_message(message or "")
+            if error:
+                return True, error
+            continue
+        if subcommand == "add":
+            continue
+        if subcommand not in READ_ONLY_GIT_SUBCOMMANDS:
+            return True, f"git subcommand is not approved: {subcommand}"
+
+    return False, ""
+
+
+def _deny_decision(reason: str) -> dict[str, Any]:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+            "additionalContext": reason,
+        }
     }
-    if reason:
-        specific["permissionDecisionReason"] = reason
-        specific["additionalContext"] = reason
-    return {"hookSpecificOutput": specific}
 
 
 def main() -> int:
@@ -247,9 +460,9 @@ def main() -> int:
     if github_blocked:
         reason = (
             "GitHub MCP repository writes are blocked: "
-            f"{github_action}. Local validated git add/new commit only."
+            f"{github_action}. Local git switch/add/new commit only."
         )
-        print(json.dumps(_decision("deny", reason), ensure_ascii=False))
+        print(json.dumps(_deny_decision(reason), ensure_ascii=False))
         return 0
 
     command = _extract_command(_tool_input(payload))
@@ -257,17 +470,20 @@ def main() -> int:
     if git_blocked:
         print(
             json.dumps(
-                _decision(
-                    "deny",
+                _deny_decision(
                     f"Git policy blocked this operation: {reason}. "
-                    "push/merge/history changes remain user-managed.",
+                    "Only local git switch/add/new commit are automated; "
+                    "branch creation, remote operations, merge/rebase, "
+                    "and history rewriting remain user-managed."
                 ),
                 ensure_ascii=False,
             )
         )
         return 0
 
-    print(json.dumps(_decision("allow"), ensure_ascii=False))
+    # No explicit "allow" decision: current Codex treats permissionDecision=allow
+    # without updatedInput as an unsupported PreToolUse result.
+    print("{}")
     return 0
 
 

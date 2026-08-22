@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import threading
 import time
 from urllib.error import HTTPError, URLError
@@ -12,6 +11,11 @@ from urllib.request import Request, urlopen
 import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
+
+try:
+    from server.env_config import env_bool, env_text
+except ModuleNotFoundError:  # Direct script execution from server/.
+    from env_config import env_bool, env_text
 
 
 class Nav2CommandBridge(Node):
@@ -36,17 +40,11 @@ class Nav2CommandBridge(Node):
         )
         self.declare_parameter(
             "server_base_url",
-            os.getenv(
-                "SERVER_BASE_URL",
-                "http://127.0.0.1:21063",
-            ),
+            env_text("SERVER_BASE_URL"),
         )
         self.declare_parameter(
             "robot_id",
-            os.getenv(
-                "ROBOT_ID",
-                "pi-01",
-            ),
+            env_text("ROBOT_ID"),
         )
         self.declare_parameter(
             "request_timeout_sec",
@@ -88,6 +86,8 @@ class Nav2CommandBridge(Node):
                 "robot_id"
             ).value
         ).strip()
+
+        self.control_token = env_text("ROBOT_CONTROL_TOKEN")
 
         self.request_timeout_sec = max(
             0.05,
@@ -133,7 +133,7 @@ class Nav2CommandBridge(Node):
         # 실제 Pi 모터 출력은 서버의 MOTOR_OUTPUT_ENABLED와
         # 아래 motor_output_enabled가 모두 활성화되기 전까지 차단한다.
         self.server_request_enabled = True
-        self.motor_output_enabled = False
+        self.motor_output_enabled = env_bool("MOTOR_OUTPUT_ENABLED", default=False)
 
         self.last_twist_at: float | None = None
         self.last_log_at = 0.0
@@ -176,7 +176,7 @@ class Nav2CommandBridge(Node):
             f"max_wheel_mps={self.max_wheel_mps:.3f} "
             f"command_url={self.command_url} "
             "server_request_enabled=true "
-            "motor_output_enabled=false"
+            f"motor_output_enabled={str(self.motor_output_enabled).lower()}"
         )
 
     def _queue_command(
@@ -241,6 +241,7 @@ class Nav2CommandBridge(Node):
             data=body,
             headers={
                 "Content-Type": "application/json",
+                "X-Robot-Control-Token": self.control_token,
             },
             method="POST",
         )
