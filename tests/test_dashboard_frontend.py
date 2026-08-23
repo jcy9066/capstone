@@ -15,6 +15,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.template_source = (TEMPLATE_DIR / "index.html").read_text(encoding="utf-8")
         self.script_source = (STATIC_DIR / "script.js").read_text(encoding="utf-8")
         self.state_source = (STATIC_DIR / "dashboard_state.js").read_text(encoding="utf-8")
+        self.style_source = (STATIC_DIR / "style.css").read_text(encoding="utf-8")
         self.app_source = (ROOT / "server" / "app.py").read_text(encoding="utf-8")
 
     def render_dashboard(self, user):
@@ -56,7 +57,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("setText('emergency-stop-status', 'UNAVAILABLE')", self.state_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260822-env-auth"
+        version = "v=20260823-records-followup"
         for asset in (
             "static/style.css",
             "static/script.js",
@@ -135,16 +136,66 @@ class DashboardFrontendContractTests(unittest.TestCase):
         ):
             self.assertIn(route, self.app_source)
 
+    def test_log_time_filters_are_sent_to_backend_queries(self):
+        for contract in (
+            "query.set('start_at', filters.startAt)",
+            "query.set('end_at', filters.endAt)",
+            "fetchLogRows(type, range)",
+        ):
+            self.assertIn(contract, self.state_source + self.script_source)
+        self.assertNotIn("st.allRows.filter(row =>", self.script_source)
+
+    def test_patrol_records_support_detected_time_false_alarm_and_gallery_detail(self):
+        self.assertIn(
+            "source.detected_at, source.timestamp, source.created_at",
+            self.state_source,
+        )
+        self.assertIn("is_false_alarm: row.is_false_alarm === true", self.state_source)
+        for contract in (
+            "/api/logs/events/${encodeURIComponent(eventId)}/false-alarm",
+            "method: 'PATCH'",
+            "JSON.stringify({ is_false_alarm: Boolean(isFalseAlarm) })",
+            "openPatrolGalleryDetail(this.dataset.recordId)",
+            "findIndex(item => String(item.event_id ?? item.id) === String(eventId))",
+        ):
+            self.assertIn(contract, self.script_source)
+
+    def test_header_is_compact_and_gallery_keeps_three_column_maximum(self):
+        self.assertIn("min-height: 36px;", self.style_source)
+        self.assertIn("margin: 0 0 6px;", self.style_source)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.style_source)
+
     def test_current_situation_has_no_browser_capture_or_binary_upload(self):
         block = self.script_source.split("// 현재 상황 기록", 1)[1].split("// 갤러리", 1)[0]
         for forbidden in ("getUserMedia", "toDataURL", "FormData", "multipart", "canvas"):
             self.assertNotIn(forbidden, block)
         self.assertIn("'Content-Type': 'application/json'", block)
 
-    def test_gallery_exposes_no_delete_api_call(self):
+    def test_gallery_delete_uses_frozen_contract_and_updates_detail_state(self):
         block = self.script_source.split("// 갤러리", 1)[1].split("// 텔레그램 신고", 1)[0]
-        self.assertNotIn("method: 'DELETE'", block)
-        self.assertIn("gallery-delete-disabled", block)
+        for contract in (
+            "confirm('이 이미지를 갤러리에서 삭제하시겠습니까?')",
+            "`/api/gallery/${source}/${encodeURIComponent(recordId)}`",
+            "method: 'DELETE'",
+            "credentials: 'same-origin'",
+            "'X-CSRF-Token': csrfToken",
+            "galleryState.items.splice(removedIndex, 1)",
+            "openGalleryDetail(Math.min(removedIndex, galleryState.items.length - 1))",
+            "closeGalleryDetail()",
+        ):
+            self.assertIn(contract, block)
+        self.assertNotIn("loadGallery(galleryState.source)", block)
+
+    def test_gallery_action_source_wins_over_related_event_id(self):
+        block = self.script_source.split("// 갤러리", 1)[1].split("// 텔레그램 신고", 1)[0]
+        explicit_source = "if (item.source === 'event' || item.source === 'action') return item.source;"
+        event_fallback = "if (item.event_id != null) return 'event';"
+        action_id = ": item.action_id ?? item.id;"
+        self.assertIn(explicit_source, block)
+        self.assertIn(event_fallback, block)
+        self.assertLess(block.index(explicit_source), block.index(event_fallback))
+        self.assertIn(action_id, block)
+        self.assertIn("`/api/gallery/${source}/${encodeURIComponent(recordId)}`", block)
 
 
 if __name__ == "__main__":

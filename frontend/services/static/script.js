@@ -831,10 +831,9 @@ const galleryState = {
 let dashboardRecordsCsrfPromise = null;
 
 // ===================================================
-// 필터 적용 (초 단위까지 지원)
+// 필터 적용 (초 단위까지 지원, 서버 재조회)
 // ===================================================
-function applyFilter(type) {
-    const st = modalState[type];
+function modalDateTimeRange(type) {
     const startDate = document.getElementById(`${type}-start-date`)?.value;
     const endDate   = document.getElementById(`${type}-end-date`)?.value;
     const startTime = document.getElementById(`${type}-start-time`)?.value;
@@ -844,27 +843,48 @@ function applyFilter(type) {
     const endDT   = endDate   && endTime   ? new Date(`${endDate}T${endTime}`)     : null;
 
     if (startDT && endDT && startDT > endDT) {
+        return null;
+    }
+    return {
+        startAt: startDate && startTime ? `${startDate}T${startTime}` : '',
+        endAt: endDate && endTime ? `${endDate}T${endTime}` : '',
+    };
+}
+
+async function loadModalRows(type) {
+    const range = modalDateTimeRange(type);
+    if (!range) {
         alert("종료 일시는 시작 일시보다 빠를 수 없습니다. 다시 확인해 주세요.");
         return;
     }
 
-    st.filtered = st.allRows.filter(row => {
-        const rowDT = new Date(`${row.date}T${row.time}`);
-        if (startDT && rowDT < startDT) return false;
-        if (endDT   && rowDT > endDT)   return false;
-        return true;
-    });
+    const state = modalState[type];
+    state.loadState = 'loading';
+    state.message = '';
+    state.allRows = [];
+    state.filtered = [];
+    renderTable(type);
+
+    const result = await window.DabomDashboardState?.fetchLogRows(type, range);
+    if (!result || document.getElementById('commonModal')?.style.display === 'none') return;
+    state.loadState = result.state;
+    state.message = result.message || '';
+    state.allRows = Array.isArray(result.rows) ? result.rows : [];
+    state.filtered = [...state.allRows];
     renderTable(type);
 }
 
-function resetFilter(type) {
+async function applyFilter(type) {
+    await loadModalRows(type);
+}
+
+async function resetFilter(type) {
     const today = todayStr();
     document.getElementById(`${type}-start-date`).value = today;
     document.getElementById(`${type}-end-date`).value   = today;
     document.getElementById(`${type}-start-time`).value = startOfDayTimeStr();
     document.getElementById(`${type}-end-time`).value   = nowTimeStr();
-    modalState[type].filtered = [...modalState[type].allRows];
-    renderTable(type);
+    await loadModalRows(type);
 }
 
 // ===================================================
@@ -892,6 +912,11 @@ function recordImageCell(source, id, hasImage) {
     const endpoint = source === 'event'
         ? `/api/media/events/${encodeURIComponent(id)}`
         : `/api/media/actions/${encodeURIComponent(id)}`;
+    if (source === 'event') {
+        return `<button type="button" class="record-thumbnail-button" data-record-id="${escapeHtml(id)}" onclick="openPatrolGalleryDetail(this.dataset.recordId)" aria-label="이 순찰 기록의 갤러리 상세 열기">
+            <img class="record-thumbnail" src="${endpoint}" alt="순찰 기록 이미지" loading="lazy">
+        </button>`;
+    }
     return `<img class="record-thumbnail" src="${endpoint}" alt="기록 이미지" loading="lazy">`;
 }
 
@@ -959,6 +984,12 @@ function renderTable(type) {
                 <td>${formatBooleanState(row.is_resolved, '완료', '미조치')}</td>
                 <td>${formatBooleanState(row.is_reported, '신고', '미신고')}</td>
                 <td>${formatBooleanState(row.is_alerted, '경고', '미경고')}</td>
+                <td>
+                    <span class="false-alarm-state ${row.is_false_alarm ? 'is-active' : ''}">${row.is_false_alarm ? '오탐' : '정상'}</span>
+                    <button type="button" class="false-alarm-btn" onclick="setEventFalseAlarm(${Number(row.event_id)}, ${!row.is_false_alarm}, this)" ${Number.isFinite(Number(row.event_id)) ? '' : 'disabled'}>
+                        ${row.is_false_alarm ? '오탐 취소' : '오탐 처리'}
+                    </button>
+                </td>
                 <td>${recordImageCell('event', row.event_id, row.has_image)}</td>
             </tr>`;
         } else {
@@ -1007,7 +1038,7 @@ function buildModalHTML(type) {
         tableHead = `<tr>
             <th>날짜</th><th>시각</th><th>출처</th><th>유형</th><th>신뢰도</th>
             <th>LiDAR (X/Y)</th><th>GPS (위도/경도/고도)</th>
-            <th>조치</th><th>신고</th><th>경고</th><th>이미지</th>
+            <th>조치</th><th>신고</th><th>경고</th><th>오탐</th><th>이미지</th>
         </tr>`;
     } else {
         tableHead = `<tr>
@@ -1055,20 +1086,7 @@ async function openModal(type) {
     renderTable(type);
 
     if (type === 'statusModal' || type === 'patrolModal' || type === 'actionsModal') {
-        const state = modalState[type];
-        state.loadState = 'loading';
-        state.message = '';
-        state.allRows = [];
-        state.filtered = [];
-        renderTable(type);
-
-        const result = await window.DabomDashboardState?.fetchLogRows(type);
-        if (!result || modal.style.display === 'none') return;
-        state.loadState = result.state;
-        state.message = result.message || '';
-        state.allRows = Array.isArray(result.rows) ? result.rows : [];
-        state.filtered = [...state.allRows];
-        renderTable(type);
+        await loadModalRows(type);
     }
 }
 
@@ -1103,6 +1121,40 @@ function dashboardRecordsCsrfToken() {
             });
     }
     return dashboardRecordsCsrfPromise;
+}
+
+async function setEventFalseAlarm(eventId, isFalseAlarm, button) {
+    if (!Number.isFinite(Number(eventId))) return;
+    const previousText = button?.textContent;
+    if (button) {
+        button.disabled = true;
+        button.textContent = '처리 중...';
+    }
+    try {
+        const csrfToken = await dashboardRecordsCsrfToken();
+        const response = await fetch(`/api/logs/events/${encodeURIComponent(eventId)}/false-alarm`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify({ is_false_alarm: Boolean(isFalseAlarm) }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || data.error || `오탐 상태 변경 실패 (HTTP ${response.status})`);
+
+        const row = modalState.patrolModal.allRows.find(item => String(item.event_id) === String(eventId));
+        if (row) row.is_false_alarm = Boolean(isFalseAlarm);
+        modalState.patrolModal.filtered = [...modalState.patrolModal.allRows];
+        renderTable('patrolModal');
+    } catch (error) {
+        alert(error.message || '오탐 상태를 변경하지 못했습니다.');
+        if (button) {
+            button.disabled = false;
+            button.textContent = previousText;
+        }
+    }
 }
 
 function releaseCurrentSituationPreview() {
@@ -1232,7 +1284,8 @@ function extractRecordRows(payload) {
 }
 
 function galleryItemSource(item) {
-    if (item.source === 'event' || item.event_id != null) return 'event';
+    if (item.source === 'event' || item.source === 'action') return item.source;
+    if (item.event_id != null) return 'event';
     return 'action';
 }
 
@@ -1311,16 +1364,26 @@ async function loadGallery(source) {
     renderGallery();
 }
 
-async function openGalleryModal() {
+async function openGalleryModal(initialSource = 'all') {
     document.getElementById('modalBody').innerHTML = `
         <div class="gallery-toolbar" role="group" aria-label="갤러리 분류">
-            <button type="button" class="gallery-filter-btn active" data-source="all" onclick="loadGallery('all')">전체</button>
+            <button type="button" class="gallery-filter-btn" data-source="all" onclick="loadGallery('all')">전체</button>
             <button type="button" class="gallery-filter-btn" data-source="event" onclick="loadGallery('event')">AI 자동 감지</button>
             <button type="button" class="gallery-filter-btn" data-source="action" onclick="loadGallery('action')">수동 기록</button>
         </div>
         <div id="galleryGrid" class="gallery-grid"></div>
         <section id="galleryDetail" class="gallery-detail" hidden aria-label="갤러리 상세"></section>`;
-    await loadGallery('all');
+    await loadGallery(initialSource);
+}
+
+async function openPatrolGalleryDetail(eventId) {
+    const modal = document.getElementById('commonModal');
+    document.getElementById('modalTitle').innerText = '갤러리';
+    modal.style.display = 'flex';
+    await openGalleryModal('event');
+    if (galleryState.loadState !== 'ready') return;
+    const index = galleryState.items.findIndex(item => String(item.event_id ?? item.id) === String(eventId));
+    if (index >= 0) openGalleryDetail(index);
 }
 
 function galleryMetadata(item) {
@@ -1361,10 +1424,55 @@ function openGalleryDetail(index) {
         </dl>
         <div class="gallery-detail-actions">
             <button type="button" onclick="changeGalleryDetail(-1)" ${index === 0 ? 'disabled' : ''}>← 이전</button>
-            <button type="button" class="gallery-delete-disabled" disabled title="삭제 기능 준비 중">삭제 (준비 중)</button>
+            <button type="button" class="gallery-delete-btn" onclick="deleteGalleryItem(${index}, this)">이미지 삭제</button>
             <button type="button" onclick="changeGalleryDetail(1)" ${index === galleryState.items.length - 1 ? 'disabled' : ''}>다음 →</button>
         </div>`;
     detail.scrollIntoView({ block: 'nearest' });
+}
+
+async function deleteGalleryItem(index, button) {
+    if (index < 0 || index >= galleryState.items.length) return;
+    const item = galleryState.items[index];
+    const source = galleryItemSource(item);
+    const recordId = galleryItemId(item);
+    if (recordId === undefined || recordId === null) {
+        alert('삭제할 기록을 확인할 수 없습니다.');
+        return;
+    }
+    if (!confirm('이 이미지를 갤러리에서 삭제하시겠습니까?')) return;
+
+    const previousText = button?.textContent;
+    if (button) {
+        button.disabled = true;
+        button.textContent = '삭제 중...';
+    }
+    try {
+        const csrfToken = await dashboardRecordsCsrfToken();
+        const response = await fetch(`/api/gallery/${source}/${encodeURIComponent(recordId)}`, {
+            method: 'DELETE',
+            credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': csrfToken },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || data.error || `이미지 삭제 실패 (HTTP ${response.status})`);
+
+        const removedIndex = galleryState.items.findIndex(candidate =>
+            galleryItemSource(candidate) === source && String(galleryItemId(candidate)) === String(recordId));
+        if (removedIndex < 0) return;
+        galleryState.items.splice(removedIndex, 1);
+        renderGallery();
+        if (!galleryState.items.length) {
+            closeGalleryDetail();
+            return;
+        }
+        openGalleryDetail(Math.min(removedIndex, galleryState.items.length - 1));
+    } catch (error) {
+        alert(error.message || '이미지를 삭제하지 못했습니다.');
+        if (button) {
+            button.disabled = false;
+            button.textContent = previousText;
+        }
+    }
 }
 
 function closeGalleryDetail() {
