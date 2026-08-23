@@ -213,12 +213,29 @@ def _extract_command(tool_input: dict[str, Any]) -> str:
     return ""
 
 
+_MSYS_DRIVE_PATH_RE = re.compile(r"^/([A-Za-z])(?:/(.*))?$")
+
+
+def _normalize_native_path_text(value: str, *, os_name: str | None = None) -> str:
+    platform = os.name if os_name is None else os_name
+    if platform != "nt":
+        return value
+
+    match = _MSYS_DRIVE_PATH_RE.fullmatch(value)
+    if match is None:
+        return value
+
+    drive = match.group(1).upper()
+    suffix = match.group(2)
+    return f"{drive}:/{suffix}" if suffix else f"{drive}:/"
+
+
 def _extract_tool_cwd(payload: dict[str, Any], tool_input: dict[str, Any]) -> Path:
     for mapping in (tool_input, payload):
         for key in ("cwd", "workdir", "working_directory", "workingDirectory"):
             value = mapping.get(key)
             if isinstance(value, str) and value.strip():
-                return Path(value).expanduser().resolve()
+                return Path(_normalize_native_path_text(value)).expanduser().resolve()
     return Path.cwd().resolve()
 
 
@@ -318,7 +335,7 @@ def _validate_commit_message(message: str) -> str | None:
 
 
 def _resolve_git_cwd(base_cwd: Path, value: str) -> Path:
-    candidate = Path(value).expanduser()
+    candidate = Path(_normalize_native_path_text(value)).expanduser()
     if candidate.is_absolute():
         return candidate.resolve()
     return (base_cwd / candidate).resolve()
