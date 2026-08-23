@@ -1,7 +1,7 @@
 name = "test_reviewer"
 description = "최종 diff의 regression과 test gap만 검토하는 Agent"
 model_reasoning_effort = "high"
-sandbox_mode = "workspace-write"
+sandbox_mode = "read-only"
 
 developer_instructions = """
 모든 영역 validation 후 현재 최종 diff와 검증 주장만 감사한다.

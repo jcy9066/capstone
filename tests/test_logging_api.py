@@ -1,11 +1,15 @@
 import importlib
 import os
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+import cv2
+import numpy as np
 import pytest
 
 from server.database import DatabaseConfigurationError
+from server.media_service import FrozenFrameCache, FrozenFrameTokenError, UnsafeMediaPathError
 
 
 os.environ["INFERENCE_ENABLED"] = "false"
@@ -19,6 +23,11 @@ class FakeDatabase:
         self.filters = None
         self.actions = []
         self.reported = []
+        self.insert_error = None
+        self.gallery_filters = None
+        self.gallery_rows = []
+        self.event_images = {}
+        self.action_images = {}
         self.rows = {
             "system": [],
             "events": [{"event_id": 7, "detected_at": datetime(2026, 8, 14, 9)}],
@@ -38,8 +47,23 @@ class FakeDatabase:
         return self.rows["actions"]
 
     def insert_action(self, **values):
+        if self.insert_error is not None:
+            raise self.insert_error
         self.actions.append(values)
         return len(self.actions)
+
+    def list_gallery(self, **filters):
+        self.gallery_filters = filters
+        source = filters["source"]
+        if source == "all":
+            return list(self.gallery_rows)
+        return [row for row in self.gallery_rows if row["source"] == source]
+
+    def get_event_image_path(self, event_id):
+        return self.event_images.get(event_id)
+
+    def get_action_image_path(self, action_id):
+        return self.action_images.get(action_id)
 
     def mark_event_reported(self, event_id):
         self.reported.append(event_id)
@@ -49,8 +73,50 @@ class FakeDatabase:
         return event_id == 7
 
 
+class PassthroughPrivacyProcessor:
+    def process(self, frame):
+        return frame.copy()
+
+
+class FakeImageStore:
+    def __init__(self, project_root):
+        self.project_root = Path(project_root).resolve()
+        self.gallery_root = (self.project_root / "received_frames" / "gallery").resolve()
+        self.saved = []
+        self.deleted = []
+        self.fail_save = False
+
+    def save_image(self, category, frame):
+        if self.fail_save:
+            raise RuntimeError("privacy save failed")
+        assert category in {"events", "actions"}
+        assert frame.flags.writeable is False
+        relative_path = f"received_frames/gallery/{category}/{len(self.saved) + 1}.jpg"
+        target = self.resolve(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"private-jpeg")
+        self.saved.append(relative_path)
+        return relative_path
+
+    def resolve(self, relative_path):
+        supplied = Path(relative_path)
+        if supplied.is_absolute() or ".." in supplied.parts:
+            raise UnsafeMediaPathError("unsafe")
+        target = (self.project_root / supplied).resolve()
+        try:
+            target.relative_to(self.gallery_root)
+        except ValueError as exc:
+            raise UnsafeMediaPathError("unsafe") from exc
+        return target
+
+    def delete(self, relative_path):
+        self.deleted.append(relative_path)
+        self.resolve(relative_path).unlink(missing_ok=True)
+        return True
+
+
 @pytest.fixture
-def api():
+def api(tmp_path):
     try:
         from fastapi.testclient import TestClient
     except ImportError as exc:
@@ -59,12 +125,27 @@ def api():
     client = TestClient(server.app)
     fake_database = FakeDatabase()
     original_database = server.database
+    original_cache = server.frozen_frame_cache
+    original_store = server.private_image_store
+    original_processor = server.privacy_processor
+    original_frame = server.current_frame
+    original_frame_seq = server.current_frame_seq
     server.database = fake_database
+    server.frozen_frame_cache = FrozenFrameCache(ttl_sec=30)
+    server.private_image_store = FakeImageStore(tmp_path)
+    server.privacy_processor = PassthroughPrivacyProcessor()
+    server.current_frame = None
+    server.current_frame_seq = 0
     client.cookies.clear()
     try:
         yield server, client, fake_database
     finally:
         server.database = original_database
+        server.frozen_frame_cache = original_cache
+        server.private_image_store = original_store
+        server.privacy_processor = original_processor
+        server.current_frame = original_frame
+        server.current_frame_seq = original_frame_seq
         client.close()
 
 
@@ -79,6 +160,25 @@ def login(server, client):
         )
     assert response.status_code == 200
     return client.get("/api/auth/csrf").json()["csrf_token"]
+
+
+def set_current_frame(server, value=80):
+    frame = np.full((8, 10, 3), value, dtype=np.uint8)
+    ok, encoded = cv2.imencode(".jpg", frame)
+    assert ok
+    with server.state_lock:
+        server.current_frame = encoded.tobytes()
+        server.current_frame_seq += 1
+    return frame
+
+
+def preview_token(client, csrf):
+    response = client.post(
+        "/api/logs/current-situation/preview",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert response.status_code == 200
+    return response.headers["X-Frame-Token"]
 
 
 def test_read_apis_require_authentication_and_empty_is_200(api):
@@ -203,3 +303,340 @@ def test_manual_report_returns_success_if_post_send_event_update_fails(api):
         assert len(database.actions) == 1
     finally:
         server.TELEGRAM_TOKEN, server.TELEGRAM_CHAT_ID = original_token, original_chat
+
+
+def test_current_situation_preview_requires_auth_and_csrf_and_handles_no_frame(api):
+    server, client, _database = api
+    assert client.post("/api/logs/current-situation/preview").status_code == 401
+    csrf = login(server, client)
+    assert client.post("/api/logs/current-situation/preview").status_code == 403
+    response = client.post(
+        "/api/logs/current-situation/preview",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert response.status_code == 503
+
+
+def test_current_situation_preview_returns_private_jpeg_and_frozen_token(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+
+    response = client.post(
+        "/api/logs/current-situation/preview",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/jpeg")
+    assert response.headers["X-Frame-Token"]
+    decoded = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
+    assert decoded is not None
+
+
+def test_current_situation_save_requires_auth_and_csrf(api):
+    server, client, database = api
+    payload = {"description_content": "note", "include_image": False}
+    assert client.post("/api/logs/current-situation", json=payload).status_code == 401
+    login(server, client)
+    assert client.post("/api/logs/current-situation", json=payload).status_code == 403
+    assert database.actions == []
+
+
+def test_current_situation_rejects_neither_text_nor_image_and_missing_token(api):
+    server, client, database = api
+    csrf = login(server, client)
+    headers = {"X-CSRF-Token": csrf}
+
+    neither = client.post(
+        "/api/logs/current-situation",
+        headers=headers,
+        json={"description_content": "  ", "include_image": False, "frame_token": None},
+    )
+    missing_token = client.post(
+        "/api/logs/current-situation",
+        headers=headers,
+        json={"description_content": "note", "include_image": True},
+    )
+
+    assert neither.status_code == 400
+    assert missing_token.status_code == 400
+    assert database.actions == []
+
+
+def test_current_situation_text_only_success_normalizes_description(api):
+    server, client, database = api
+    csrf = login(server, client)
+    response = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={"description_content": "  entrance checked  ", "include_image": False},
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {"ok": True, "action_id": 1, "image_url": None}
+    assert database.actions == [
+        {
+            "user_id": 11,
+            "event_id": None,
+            "action_type": "NOTE",
+            "description": "entrance checked",
+            "image_path": None,
+        }
+    ]
+
+
+@pytest.mark.parametrize("description", ["", "camera and text"])
+def test_current_situation_image_only_and_text_image_success(api, description):
+    server, client, database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+    token = preview_token(client, csrf)
+
+    response = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={
+            "description_content": description,
+            "include_image": True,
+            "frame_token": token,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["image_url"] == "/api/media/actions/1"
+    assert database.actions[0]["description"] == (description or None)
+    assert database.actions[0]["image_path"].startswith(
+        "received_frames/gallery/actions/"
+    )
+
+
+def test_current_situation_rejects_invalid_expired_and_wrong_owner_tokens(api):
+    server, client, database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+    payload = {"description_content": "", "include_image": True}
+
+    invalid = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={**payload, "frame_token": "invalid"},
+    )
+    wrong_owner_token = server.frozen_frame_cache.store(
+        np.zeros((2, 2, 3), dtype=np.uint8),
+        user_id=999,
+        session_id="another-session",
+    )
+    wrong_owner = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={**payload, "frame_token": wrong_owner_token},
+    )
+
+    now = [10.0]
+    server.frozen_frame_cache = FrozenFrameCache(ttl_sec=1, clock=lambda: now[0])
+    expired_token = server.frozen_frame_cache.store(
+        np.zeros((2, 2, 3), dtype=np.uint8),
+        user_id=11,
+        session_id=csrf,
+    )
+    now[0] = 11.0
+    expired = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={**payload, "frame_token": expired_token},
+    )
+
+    assert invalid.status_code == 400
+    assert wrong_owner.status_code == 400
+    assert expired.status_code == 400
+    assert database.actions == []
+
+
+def test_current_situation_image_save_failure_prevents_database_insert(api):
+    server, client, database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+    token = preview_token(client, csrf)
+    server.private_image_store.fail_save = True
+
+    response = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={"description_content": "", "include_image": True, "frame_token": token},
+    )
+
+    assert response.status_code == 500
+    assert database.actions == []
+
+
+def test_current_situation_database_failure_cleans_saved_image(api):
+    server, client, database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+    token = preview_token(client, csrf)
+    database.insert_error = DatabaseConfigurationError("offline")
+
+    response = client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json={"description_content": "note", "include_image": True, "frame_token": token},
+    )
+
+    assert response.status_code == 503
+    assert len(server.private_image_store.deleted) == 1
+    assert not server.private_image_store.resolve(
+        server.private_image_store.deleted[0]
+    ).exists()
+
+
+def test_current_situation_success_invalidates_token(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    set_current_frame(server)
+    token = preview_token(client, csrf)
+    payload = {"description_content": "", "include_image": True, "frame_token": token}
+
+    assert client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    ).status_code == 201
+    assert client.post(
+        "/api/logs/current-situation",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    ).status_code == 400
+
+
+def test_gallery_requires_auth_filters_sources_and_hides_raw_paths(api):
+    server, client, database = api
+    database.gallery_rows = [
+        {
+            "source": "event",
+            "record_id": 7,
+            "event_id": 7,
+            "action_id": None,
+            "event_type": "ASSAULT",
+            "image_path": "received_frames/gallery/events/7.jpg",
+            "confidence": 0.9,
+            "recorded_at": datetime(2026, 8, 23, 10),
+        },
+        {
+            "source": "action",
+            "record_id": 8,
+            "event_id": None,
+            "action_id": 8,
+            "action_type": "NOTE",
+            "description_content": "checked",
+            "image_path": "received_frames/gallery/actions/8.jpg",
+            "recorded_at": datetime(2026, 8, 23, 11),
+        },
+    ]
+    assert client.get("/api/gallery").status_code == 401
+    login(server, client)
+
+    all_rows = client.get("/api/gallery?source=all")
+    event_rows = client.get("/api/gallery?source=event")
+    action_rows = client.get("/api/gallery?source=action")
+
+    assert all_rows.status_code == 200 and len(all_rows.json()) == 2
+    assert len(event_rows.json()) == 1 and event_rows.json()[0]["source_type"] == "EVENT"
+    assert len(action_rows.json()) == 1 and action_rows.json()[0]["source_type"] == "ACTION"
+    assert all("image_path" not in row for row in all_rows.json())
+    assert all_rows.json()[0]["image_url"] == "/api/media/events/7"
+    assert all_rows.json()[1]["image_url"] == "/api/media/actions/8"
+    assert all_rows.json()[0]["source_id"] == 7
+    assert all_rows.json()[0]["created_at"] == "2026-08-23T10:00:00"
+    assert client.get("/api/gallery?source=unknown").status_code == 400
+
+
+def test_authenticated_media_serves_event_and_action_private_images(api):
+    server, client, database = api
+    event_path = "received_frames/gallery/events/event-7.jpg"
+    action_path = "received_frames/gallery/actions/action-8.jpg"
+    for relative_path in (event_path, action_path):
+        target = server.private_image_store.resolve(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"private-jpeg")
+    database.event_images[7] = event_path
+    database.action_images[8] = action_path
+
+    assert client.get("/api/media/events/7").status_code == 401
+    login(server, client)
+    event = client.get("/api/media/events/7")
+    action = client.get("/api/media/actions/8")
+    assert event.status_code == 200 and event.content == b"private-jpeg"
+    assert action.status_code == 200 and action.content == b"private-jpeg"
+
+
+def test_authenticated_media_rejects_missing_and_unsafe_paths(api):
+    server, client, database = api
+    login(server, client)
+    database.event_images[1] = None
+    database.event_images[2] = "received_frames/gallery/events/missing.jpg"
+    database.event_images[3] = "../secret.jpg"
+    database.action_images[4] = "received_frames/gallery/events/wrong-category.jpg"
+
+    assert client.get("/api/media/events/999").status_code == 404
+    assert client.get("/api/media/events/1").status_code == 404
+    assert client.get("/api/media/events/2").status_code == 404
+    assert client.get("/api/media/events/3").status_code == 404
+    assert client.get("/api/media/actions/4").status_code == 404
+
+
+def test_existing_log_responses_hide_removed_and_private_path_fields(api):
+    server, client, database = api
+    database.rows["system"] = [{"status_id": 1, "lidar_z": 3.5}]
+    database.rows["events"] = [
+        {
+            "event_id": 7,
+            "image_path": "received_frames/gallery/events/7.jpg",
+            "video_path": "private.mp4",
+            "lidar_z": 2.0,
+        }
+    ]
+    database.rows["actions"] = [
+        {
+            "action_id": 8,
+            "image_path": "received_frames/gallery/actions/8.jpg",
+        }
+    ]
+    login(server, client)
+
+    status = client.get("/api/logs/system-status").json()[0]
+    event = client.get("/api/logs/events").json()[0]
+    action = client.get("/api/logs/actions").json()[0]
+    assert "lidar_z" not in status
+    assert "image_path" not in event and "video_path" not in event and "lidar_z" not in event
+    assert event["has_image"] is True
+    assert event["image_url"] == "/api/media/events/7"
+    assert "image_path" not in action
+    assert action["has_image"] is True
+    assert action["image_url"] == "/api/media/actions/8"
+
+
+def test_automatic_event_delegates_frame_and_uses_only_worker_cooldown(api):
+    server, _client, _database = api
+
+    class RecordingWorker:
+        def __init__(self):
+            self.calls = []
+
+        def submit(self, **values):
+            self.calls.append(values)
+            return True
+
+    original_worker = server.event_log_worker
+    worker = RecordingWorker()
+    server.event_log_worker = worker
+    try:
+        set_current_frame(server, value=120)
+        assert server.submit_automatic_event("VISION_AI", "ASSAULT") is True
+        assert server.submit_automatic_event("VISION_AI", "ASSAULT") is True
+        assert isinstance(worker.calls[0]["frame"], np.ndarray)
+        assert len(worker.calls) == 2
+        assert server.submit_automatic_event("SYSTEM_MONITOR", "SYSTEM_ERROR") is True
+        assert worker.calls[-1]["frame"] is None
+    finally:
+        server.event_log_worker = original_worker

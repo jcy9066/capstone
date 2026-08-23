@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 import re
 import shlex
+import subprocess
 import sys
 from typing import Any
 
@@ -10,9 +13,14 @@ from typing import Any
 # Local Git policy:
 # - Approved read-only Git commands are allowed.
 # - git switch --no-guess to an existing branch is allowed.
-# - git add and a new validated git commit are allowed.
-# - Branch creation/deletion, remote operations, merges, rebases, history rewriting,
-#   checkout/restore/reset, amend, and other mutating operations remain blocked.
+# - New branch creation is allowed without delete/rename/force options.
+# - git worktree add -b is allowed; destructive worktree operations are blocked.
+# - git add/new commit are allowed only on non-protected linked worktrees.
+# - main/dev are protected from add/commit.
+# - Remote operations, merges/rebases, history rewriting, checkout/restore/reset,
+#   amend, branch deletion/rename/force, and worktree removal/prune remain blocked.
+PROTECTED_BRANCHES = frozenset({"main", "dev"})
+
 MUTATING_GIT_SUBCOMMANDS = frozenset(
     {
         "am",
@@ -35,7 +43,6 @@ MUTATING_GIT_SUBCOMMANDS = frozenset(
         "rm",
         "stash",
         "tag",
-        "worktree",
     }
 )
 
@@ -101,9 +108,6 @@ ALLOWED_COMMIT_TYPES = frozenset(
 )
 
 # Accept raw/path-qualified Git and RTK-wrapped Git at shell-command boundaries.
-# Common shell wrappers are consumed conservatively before the Git executable;
-# each captured invocation is then parsed so global options cannot hide the
-# subcommand.
 _GIT_INVOCATION_RE = re.compile(
     r"(?ix)(?:^|[\r\n;&|`!]|\$\()\s*"
     r"(?:(?:env|command|cmd(?:\.exe)?|sudo|powershell(?:\.exe)?|pwsh(?:\.exe)?|"
@@ -209,6 +213,15 @@ def _extract_command(tool_input: dict[str, Any]) -> str:
     return ""
 
 
+def _extract_tool_cwd(payload: dict[str, Any], tool_input: dict[str, Any]) -> Path:
+    for mapping in (tool_input, payload):
+        for key in ("cwd", "workdir", "working_directory", "workingDirectory"):
+            value = mapping.get(key)
+            if isinstance(value, str) and value.strip():
+                return Path(value).expanduser().resolve()
+    return Path.cwd().resolve()
+
+
 def _github_tool_is_mutating(tool_name: str) -> tuple[bool, str]:
     normalized = tool_name.strip().lower()
     for suffix in MUTATING_GITHUB_TOOL_SUFFIXES:
@@ -304,21 +317,34 @@ def _validate_commit_message(message: str) -> str | None:
     return None
 
 
+def _resolve_git_cwd(base_cwd: Path, value: str) -> Path:
+    candidate = Path(value).expanduser()
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (base_cwd / candidate).resolve()
+
+
 def _parse_git_invocation(
     segment: str,
-) -> tuple[str | None, list[str], str | None]:
+    default_cwd: Path,
+) -> tuple[str | None, list[str], Path, str | None]:
     try:
         argv = shlex.split(segment, posix=True)
     except ValueError:
-        return None, [], "git command quoting is invalid"
+        return None, [], default_cwd, "git command quoting is invalid"
 
     index = 0
     if index < len(argv) and argv[index].lower() in {"rtk", "rtk.exe"}:
         index += 1
+    if index >= len(argv):
+        return None, [], default_cwd, "git command parsing failed"
+
     executable = argv[index].replace("\\", "/").rsplit("/", 1)[-1].lower()
     if executable not in {"git", "git.exe"}:
-        return None, [], "git command parsing failed"
+        return None, [], default_cwd, "git command parsing failed"
     index += 1
+
+    git_cwd = default_cwd
 
     while index < len(argv) and argv[index].startswith("-"):
         token = argv[index]
@@ -330,32 +356,35 @@ def _parse_git_invocation(
             continue
         if token in _GIT_GLOBAL_OPTIONS_WITH_VALUE:
             if index + 1 >= len(argv):
-                return None, [], f"git global option value is missing: {token}"
+                return None, [], git_cwd, f"git global option value is missing: {token}"
+            value = argv[index + 1]
+            if token == "-C":
+                git_cwd = _resolve_git_cwd(git_cwd, value)
             index += 2
             continue
-        if (
-            token.startswith("-C")
-            or token.startswith("-c")
-            or any(
-                token.startswith(option + "=")
-                for option in _GIT_GLOBAL_OPTIONS_WITH_VALUE
-                if option.startswith("--")
-            )
+        if token.startswith("-C") and token != "-C":
+            git_cwd = _resolve_git_cwd(git_cwd, token[2:])
+            index += 1
+            continue
+        if token.startswith("-c") and token != "-c":
+            index += 1
+            continue
+        if any(
+            token.startswith(option + "=")
+            for option in _GIT_GLOBAL_OPTIONS_WITH_VALUE
+            if option.startswith("--")
         ):
             index += 1
             continue
-        return None, [], f"unsupported git global option: {token}"
+        return None, [], git_cwd, f"unsupported git global option: {token}"
 
     if index >= len(argv):
-        return None, [], "git subcommand is missing"
+        return None, [], git_cwd, "git subcommand is missing"
 
-    return argv[index].lower(), argv[index + 1 :], None
+    return argv[index].lower(), argv[index + 1 :], git_cwd, None
 
 
 def _switch_is_blocked(args: list[str]) -> tuple[bool, str]:
-    # This is intentionally strict: no detach, force, merge, discard, tracking,
-    # or branch-creation options. --no-guess prevents implicit creation from a
-    # uniquely matching remote branch.
     if args.count("--no-guess") != 1:
         return True, "git switch requires --no-guess"
 
@@ -364,6 +393,23 @@ def _switch_is_blocked(args: list[str]) -> tuple[bool, str]:
         return True, "git switch only permits one existing branch"
 
     return False, ""
+
+
+def _valid_new_branch_name(branch: str) -> tuple[bool, str]:
+    normalized = branch.strip()
+    if not normalized or normalized.startswith("-"):
+        return False, "new branch name is invalid"
+    if normalized in PROTECTED_BRANCHES:
+        return False, f"protected branch cannot be created or replaced: {normalized}"
+    if normalized in {"HEAD", "@"}:
+        return False, "new branch name is invalid"
+    if any(part in normalized for part in ("..", "~", "^", ":", "?", "*", "[", "\\")):
+        return False, "new branch name contains unsafe ref syntax"
+    if normalized.startswith("/") or normalized.endswith("/") or normalized.endswith("."):
+        return False, "new branch name is invalid"
+    if "//" in normalized or "@{" in normalized:
+        return False, "new branch name is invalid"
+    return True, ""
 
 
 def _branch_is_blocked(args: list[str]) -> tuple[bool, str]:
@@ -393,36 +439,142 @@ def _branch_is_blocked(args: list[str]) -> tuple[bool, str]:
             has_read_only_flag = True
             continue
         if token.startswith("-"):
-            return True, f"git branch option is not read-only: {token}"
+            return True, f"git branch option is not approved: {token}"
 
-    if not has_read_only_flag:
-        return True, "git branch mutation"
+    if has_read_only_flag:
+        return False, ""
+
+    # Creation only: git branch <new-branch> [<start-point>]
+    if len(args) not in {1, 2}:
+        return True, "git branch only permits read-only listing or simple branch creation"
+    valid, reason = _valid_new_branch_name(args[0])
+    if not valid:
+        return True, reason
+    if len(args) == 2 and args[1].startswith("-"):
+        return True, "git branch start point is invalid"
+    return False, ""
+
+
+def _worktree_is_blocked(args: list[str]) -> tuple[bool, str]:
+    if not args:
+        return True, "git worktree requires an approved subcommand"
+
+    subcommand = args[0].lower()
+    rest = args[1:]
+
+    if subcommand == "list":
+        allowed = {"--porcelain", "-v", "--verbose", "-z"}
+        for token in rest:
+            if token not in allowed:
+                return True, f"git worktree list option is not approved: {token}"
+        return False, ""
+
+    if subcommand != "add":
+        return True, f"git worktree {subcommand} is blocked"
+
+    # Creation only:
+    #   git worktree add -b <new-branch> <path> [<start-point>]
+    if len(rest) not in {3, 4} or rest[0] != "-b":
+        return True, "git worktree only permits: add -b <branch> <path> [<start-point>]"
+
+    branch = rest[1]
+    path = rest[2]
+    start_point = rest[3] if len(rest) == 4 else None
+
+    valid, reason = _valid_new_branch_name(branch)
+    if not valid:
+        return True, reason
+    if not path or path in {".", ".."} or path.startswith("-"):
+        return True, "git worktree target path is not approved"
+    if start_point is not None and start_point.startswith("-"):
+        return True, "git worktree start point is invalid"
 
     return False, ""
 
 
-def _git_command_is_blocked(command: str) -> tuple[bool, str]:
+def _run_git(cwd: Path, *args: str) -> tuple[str | None, str | None]:
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=5,
+        )
+    except Exception as exc:
+        return None, f"git context check failed: {exc}"
+
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip() or "unknown git error"
+        return None, f"git context check failed: {detail}"
+    return completed.stdout.strip(), None
+
+
+def _write_context_is_blocked(cwd: Path) -> tuple[bool, str]:
+    branch, error = _run_git(cwd, "branch", "--show-current")
+    if error:
+        return True, error
+    if not branch:
+        return True, "git add/commit are blocked on detached HEAD"
+    if branch in PROTECTED_BRANCHES:
+        return True, f"git add/commit are blocked on protected branch: {branch}"
+
+    git_dir, error = _run_git(cwd, "rev-parse", "--git-dir")
+    if error:
+        return True, error
+    common_dir, error = _run_git(cwd, "rev-parse", "--git-common-dir")
+    if error:
+        return True, error
+
+    git_dir_path = _resolve_git_cwd(cwd, git_dir or ".git")
+    common_dir_path = _resolve_git_cwd(cwd, common_dir or ".git")
+    if git_dir_path == common_dir_path:
+        return True, "git add/commit are allowed only inside a linked Git worktree"
+
+    return False, ""
+
+
+def _git_command_is_blocked(
+    command: str,
+    default_cwd: Path,
+) -> tuple[bool, str]:
     if not command:
         return False, ""
 
     for match in _GIT_INVOCATION_RE.finditer(command):
         segment = match.group(1)
-        subcommand, args, error = _parse_git_invocation(segment)
+        subcommand, args, git_cwd, error = _parse_git_invocation(segment, default_cwd)
         if error:
             return True, error
+
         if subcommand in MUTATING_GIT_SUBCOMMANDS:
             return True, f"git {subcommand}"
+
         if subcommand == "switch":
             blocked, reason = _switch_is_blocked(args)
             if blocked:
                 return True, reason
             continue
+
         if subcommand == "branch":
             blocked, reason = _branch_is_blocked(args)
             if blocked:
                 return True, reason
             continue
+
+        if subcommand == "worktree":
+            blocked, reason = _worktree_is_blocked(args)
+            if blocked:
+                return True, reason
+            continue
+
         if subcommand == "commit":
+            blocked, reason = _write_context_is_blocked(git_cwd)
+            if blocked:
+                return True, reason
             blocked, reason = _commit_args_are_blocked(args)
             if blocked:
                 return True, reason
@@ -433,8 +585,13 @@ def _git_command_is_blocked(command: str) -> tuple[bool, str]:
             if error:
                 return True, error
             continue
+
         if subcommand == "add":
+            blocked, reason = _write_context_is_blocked(git_cwd)
+            if blocked:
+                return True, reason
             continue
+
         if subcommand not in READ_ONLY_GIT_SUBCOMMANDS:
             return True, f"git subcommand is not approved: {subcommand}"
 
@@ -460,21 +617,26 @@ def main() -> int:
     if github_blocked:
         reason = (
             "GitHub MCP repository writes are blocked: "
-            f"{github_action}. Local git switch/add/new commit only."
+            f"{github_action}. Local branch/worktree creation and linked-worktree "
+            "git add/new commit only."
         )
         print(json.dumps(_deny_decision(reason), ensure_ascii=False))
         return 0
 
-    command = _extract_command(_tool_input(payload))
-    git_blocked, reason = _git_command_is_blocked(command)
+    tool_input = _tool_input(payload)
+    command = _extract_command(tool_input)
+    default_cwd = _extract_tool_cwd(payload, tool_input)
+    git_blocked, reason = _git_command_is_blocked(command, default_cwd)
     if git_blocked:
         print(
             json.dumps(
                 _deny_decision(
                     f"Git policy blocked this operation: {reason}. "
-                    "Only local git switch/add/new commit are automated; "
-                    "branch creation, remote operations, merge/rebase, "
-                    "and history rewriting remain user-managed."
+                    "main/dev are read-only bases; automated writes require a "
+                    "non-protected linked worktree. Branch/worktree creation is "
+                    "limited to simple creation; remote operations, integration, "
+                    "destructive worktree operations, and history rewriting remain "
+                    "user-managed."
                 ),
                 ensure_ascii=False,
             )

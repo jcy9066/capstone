@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 import threading
 import time
 
@@ -75,6 +76,81 @@ def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
     assert params[1] is None
     assert params[3] is None
     assert params[6] is None
+    assert "lidar_z" not in sql
+
+
+def test_database_inserts_relative_image_paths_without_removed_columns():
+    cursor = FakeCursor()
+    database = DatabaseHarness(cursor)
+
+    event_id = database.insert_event(
+        event_source="VISION_AI",
+        event_type="ASSAULT",
+        image_path="received_frames/gallery/events/event-1.jpg",
+        confidence=0.91,
+        lidar_x=1.5,
+        lidar_y=2.5,
+    )
+    action_id = database.insert_action(
+        user_id=3,
+        event_id=event_id,
+        action_type="NOTE",
+        description="현장 확인",
+        image_path="received_frames/gallery/actions/action-1.jpg",
+    )
+
+    assert event_id == 41
+    assert action_id == 41
+    event_sql, event_params = cursor.executions[0]
+    assert "INSERT INTO event_log" in event_sql
+    assert "image_path" in event_sql
+    assert "video_path" not in event_sql
+    assert "lidar_z" not in event_sql
+    assert event_params == (
+        "VISION_AI",
+        "ASSAULT",
+        "received_frames/gallery/events/event-1.jpg",
+        0.91,
+        None,
+        None,
+        None,
+        1.5,
+        2.5,
+    )
+    action_sql, action_params = cursor.executions[1]
+    assert "INSERT INTO action_log" in action_sql
+    assert "image_path" in action_sql
+    assert action_params == (
+        3,
+        41,
+        "NOTE",
+        "현장 확인",
+        "received_frames/gallery/actions/action-1.jpg",
+    )
+
+
+def test_database_rejects_absolute_or_escaping_image_paths():
+    cursor = FakeCursor()
+    database = DatabaseHarness(cursor)
+
+    invalid_paths = (
+        "C:\\private\\event.jpg",
+        "/private/event.jpg",
+        "received_frames/gallery/../raw.jpg",
+        "",
+    )
+    for image_path in invalid_paths:
+        try:
+            database.insert_event(
+                event_source="VISION_AI",
+                event_type="ASSAULT",
+                image_path=image_path,
+            )
+        except ValueError as exc:
+            assert "relative path" in str(exc)
+        else:
+            raise AssertionError(f"unsafe image path was accepted: {image_path}")
+    assert cursor.executions == []
 
 
 def test_database_reads_latest_first_with_time_and_limit_binding():
@@ -87,7 +163,127 @@ def test_database_reads_latest_first_with_time_and_limit_binding():
     sql, params = cursor.executions[0]
     assert "is_deleted = 0" in sql
     assert "ORDER BY detected_at DESC LIMIT %s" in sql
+    assert "image_path" in sql
+    assert "video_path" not in sql
+    assert "lidar_z" not in sql
     assert params == (start, end, 25)
+
+
+def test_database_lists_system_status_and_actions_with_dashboard_fields():
+    cursor = FakeCursor([])
+    database = DatabaseHarness(cursor)
+
+    database.list_system_status(limit=10)
+    status_sql, status_params = cursor.executions[0]
+    assert "lidar_x" in status_sql and "lidar_y" in status_sql
+    assert "lidar_z" not in status_sql
+    assert status_params == (10,)
+
+    database.list_actions(limit=15)
+    action_sql, action_params = cursor.executions[1]
+    assert "u.name AS user_name" in action_sql
+    assert "a.image_path" in action_sql
+    assert "a.is_deleted = 0" in action_sql
+    assert "ORDER BY a.created_at DESC LIMIT %s" in action_sql
+    assert action_params == (15,)
+
+
+def test_database_lists_gallery_images_from_events_and_actions():
+    expected = [
+        {
+            "source": "event",
+            "record_id": 9,
+            "image_path": "received_frames/gallery/events/event-9.jpg",
+        },
+        {
+            "source": "action",
+            "record_id": 4,
+            "image_path": "received_frames/gallery/actions/action-4.jpg",
+        },
+    ]
+    cursor = FakeCursor(expected)
+    database = DatabaseHarness(cursor)
+    start = datetime(2026, 8, 1)
+    end = datetime(2026, 8, 23)
+
+    assert database.list_gallery(
+        source="all", start_at=start, end_at=end, limit=12
+    ) == expected
+    sql, params = cursor.executions[0]
+    assert "'event' AS source" in sql
+    assert "'action' AS source" in sql
+    assert "UNION ALL" in sql
+    assert sql.count("image_path IS NOT NULL") == 2
+    assert "ORDER BY recorded_at DESC LIMIT %s" in sql
+    assert "video_path" not in sql
+    assert "lidar_z" not in sql
+    assert params == (start, end, start, end, 12)
+
+
+def test_database_filters_gallery_source_and_rejects_unknown_source():
+    cursor = FakeCursor([])
+    database = DatabaseHarness(cursor)
+
+    database.list_gallery(source="event", limit=5)
+    event_sql, event_params = cursor.executions[0]
+    assert "FROM event_log AS e" in event_sql
+    assert "FROM action_log AS a" not in event_sql
+    assert event_params == (5,)
+
+    try:
+        database.list_gallery(source="unknown")
+    except ValueError as exc:
+        assert "all, event, action" in str(exc)
+    else:
+        raise AssertionError("unknown gallery source was accepted")
+
+
+def test_database_gets_event_and_action_image_paths_by_bound_id():
+    event_cursor = FakeCursor(
+        [{"image_path": "received_frames/gallery/events/event-7.jpg"}]
+    )
+    event_database = DatabaseHarness(event_cursor)
+    assert event_database.get_event_image_path(7) == (
+        "received_frames/gallery/events/event-7.jpg"
+    )
+    event_sql, event_params = event_cursor.executions[0]
+    assert "FROM event_log" in event_sql
+    assert "event_id = %s" in event_sql
+    assert "is_deleted = 0" in event_sql
+    assert event_params == (7,)
+
+    action_cursor = FakeCursor(
+        [{"image_path": "received_frames/gallery/actions/action-8.jpg"}]
+    )
+    action_database = DatabaseHarness(action_cursor)
+    assert action_database.get_action_image_path(8) == (
+        "received_frames/gallery/actions/action-8.jpg"
+    )
+    action_sql, action_params = action_cursor.executions[0]
+    assert "FROM action_log" in action_sql
+    assert "action_id = %s" in action_sql
+    assert action_params == (8,)
+
+
+def test_dashboard_records_schema_and_forward_migration_match_contract():
+    repository_root = Path(__file__).resolve().parents[1]
+    schema = (repository_root / "data/database/init_schema.sql").read_text(
+        encoding="utf-8"
+    )
+    migration = (
+        repository_root
+        / "data/database/migrations/20260823_dashboard_records.sql"
+    ).read_text(encoding="utf-8")
+
+    assert schema.count("`image_path` varchar(255) DEFAULT NULL") == 2
+    assert "`is_false_alarm`" in schema
+    assert "`video_path`" not in schema
+    assert "`lidar_z`" not in schema
+    assert "CHANGE COLUMN `video_path` `image_path`" in migration
+    assert "ALTER TABLE `action_log`" in migration
+    assert migration.count("DROP COLUMN `lidar_z`") == 2
+    assert "DROP TABLE" not in migration
+    assert "TRUNCATE" not in migration
 
 
 def test_database_checks_reportable_event_with_bound_id():

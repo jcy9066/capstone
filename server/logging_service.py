@@ -11,7 +11,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+
 from server.database import Database
+from server.media_service import PrivateImageStore
 
 
 EVENT_SOURCES = frozenset({"VISION_AI", "SYSTEM_MONITOR"})
@@ -70,7 +73,6 @@ def normalize_system_status(status: Mapping[str, Any]) -> dict[str, Any]:
         "gps_alt": _finite_number(status.get("gps_alt")),
         "lidar_x": _finite_number(status.get("lidar_x")),
         "lidar_y": _finite_number(status.get("lidar_y")),
-        "lidar_z": _finite_number(status.get("lidar_z")),
     }
 
 
@@ -103,6 +105,7 @@ class PendingEvent:
     confidence: float | None
     message: str
     location: Mapping[str, Any]
+    frame: np.ndarray | None
 
 
 class EventLogWorker:
@@ -115,10 +118,12 @@ class EventLogWorker:
         *,
         cooldown_sec: float = 10,
         queue_size: int = 100,
+        image_store: PrivateImageStore | None = None,
     ) -> None:
         self.database = database
         self.notifier = notifier
         self.gate = CooldownGate(cooldown_sec)
+        self.image_store = image_store
         self.queue: queue.Queue[PendingEvent | None] = queue.Queue(maxsize=queue_size)
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
@@ -144,11 +149,15 @@ class EventLogWorker:
         confidence: float | None = None,
         message: str | None = None,
         location: Mapping[str, Any] | None = None,
+        frame: np.ndarray | None = None,
     ) -> bool:
         if event_source not in EVENT_SOURCES or event_type not in EVENT_TYPES:
             raise ValueError("Unsupported event taxonomy.")
         if self.stop_event.is_set():
             return False
+        frozen_frame = self._freeze_frame(frame) if event_source == "VISION_AI" else None
+        if frozen_frame is not None and self.image_store is None:
+            raise ValueError("An image store is required when an event includes a frame.")
         key = (str(robot_id), event_type)
         if not self.gate.allow(key):
             return False
@@ -159,6 +168,7 @@ class EventLogWorker:
             confidence=_finite_number(confidence, minimum=0, maximum=1),
             message=message or f"{event_type} detected by {robot_id}",
             location=dict(location or {}),
+            frame=frozen_frame,
         )
         try:
             self.queue.put_nowait(item)
@@ -193,10 +203,14 @@ class EventLogWorker:
                 self.queue.task_done()
                 break
             try:
+                image_path: str | None = None
                 try:
+                    if item.frame is not None:
+                        image_path = self.image_store.save_image("events", item.frame)
                     self.database.insert_event(
                         event_source=item.event_source,
                         event_type=item.event_type,
+                        image_path=image_path,
                         confidence=item.confidence,
                         gps_lat=_finite_number(
                             item.location.get("gps_lat"), minimum=-90, maximum=90
@@ -207,9 +221,15 @@ class EventLogWorker:
                         gps_alt=_finite_number(item.location.get("gps_alt")),
                         lidar_x=_finite_number(item.location.get("lidar_x")),
                         lidar_y=_finite_number(item.location.get("lidar_y")),
-                        lidar_z=_finite_number(item.location.get("lidar_z")),
                     )
                 except Exception as exc:
+                    if image_path is not None:
+                        try:
+                            self.image_store.delete(image_path)
+                        except Exception as cleanup_exc:
+                            self.logger.warning(
+                                "Automatic event image cleanup failed: %s", cleanup_exc
+                            )
                     self.logger.warning("Automatic event persistence failed: %s", exc)
                 try:
                     self.notifier.send_event_alert_async(
@@ -221,6 +241,16 @@ class EventLogWorker:
                     self.logger.warning("Automatic Telegram alert failed: %s", exc)
             finally:
                 self.queue.task_done()
+
+    @staticmethod
+    def _freeze_frame(frame: np.ndarray | None) -> np.ndarray | None:
+        if frame is None:
+            return None
+        if not isinstance(frame, np.ndarray) or frame.ndim not in (2, 3) or frame.size == 0:
+            raise ValueError("A non-empty image frame is required.")
+        frozen = frame.copy()
+        frozen.setflags(write=False)
+        return frozen
 
 
 class SystemStatusWriter:

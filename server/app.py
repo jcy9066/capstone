@@ -19,7 +19,7 @@ import numpy as np
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import ClientDisconnect
@@ -56,6 +56,12 @@ from server.database import (
 )
 from server.env_config import env_bool, env_float, env_int, env_text
 from server.logging_service import ACTION_TYPES, EventLogWorker, SystemStatusWriter
+from server.media_service import (
+    FrozenFrameCache,
+    FrozenFrameTokenError,
+    PrivateImageStore,
+    UnsafeMediaPathError,
+)
 from server.navigation_control_api import NavigationControlApi
 from server.navigation_map_api import NavigationMapApi
 from server.privacy import PrivacyProcessingError, PrivacyProcessor
@@ -490,6 +496,9 @@ event_log_worker = None
 system_status_writer = None
 privacy_processor = None
 privacy_processor_lock = threading.Lock()
+frozen_frame_cache = FrozenFrameCache()
+private_image_store = None
+private_image_store_lock = threading.Lock()
 
 
 def robot_status_snapshot():
@@ -504,6 +513,7 @@ def start_persistence_workers():
             database,
             automatic_notifier,
             cooldown_sec=EVENT_SAVE_COOLDOWN_SEC,
+            image_store=get_private_image_store(),
         )
     if system_status_writer is None:
         system_status_writer = SystemStatusWriter(
@@ -531,10 +541,20 @@ def submit_automatic_event(
     confidence=None,
     message=None,
     robot_id=SERVER_ROBOT_ID,
+    frame=None,
 ):
     worker = event_log_worker
     if worker is None:
         return False
+    event_frame = frame
+    if event_source == "VISION_AI" and event_frame is None:
+        with state_lock:
+            encoded_frame = bytes(current_frame) if current_frame is not None else None
+        if encoded_frame is not None:
+            try:
+                event_frame = decode_camera_frame(encoded_frame)
+            except ValueError:
+                event_frame = None
     return worker.submit(
         robot_id=robot_id,
         event_source=event_source,
@@ -542,6 +562,7 @@ def submit_automatic_event(
         confidence=confidence,
         message=message,
         location=robot_status_snapshot(),
+        frame=event_frame,
     )
 
 
@@ -551,6 +572,25 @@ def get_privacy_processor():
         if privacy_processor is None:
             privacy_processor = PrivacyProcessor()
         return privacy_processor
+
+
+def get_private_image_store():
+    global private_image_store
+    with private_image_store_lock:
+        if private_image_store is None:
+            private_image_store = PrivateImageStore(
+                project_root=ROOT_DIR,
+                processor=get_privacy_processor(),
+            )
+        return private_image_store
+
+
+def decode_camera_frame(encoded_frame):
+    encoded = np.frombuffer(encoded_frame, dtype=np.uint8)
+    frame = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    if frame is None or frame.size == 0:
+        raise ValueError("Current camera frame could not be decoded.")
+    return frame
 
 
 env_reload_state = {
@@ -1318,6 +1358,7 @@ def process_frame_for_dashboard(frame):
                             event_type,
                             confidence=detection["score"],
                             message=f"위험 행동 감지: {current_action['label']}",
+                            frame=frame,
                         )
                     else:
                         automatic_notifier.send_event_alert_async(
@@ -1628,6 +1669,71 @@ def authenticated_user(request):
     return user, None
 
 
+def frozen_frame_owner(request, user):
+    session_id = request.session.get("csrf_token") or issue_csrf_token(request)
+    return int(user["user_id"]), str(session_id)
+
+
+def encode_private_preview(frame):
+    private_frame = get_privacy_processor().process(frame)
+    ok, encoded = cv2.imencode(".jpg", private_frame)
+    if not ok:
+        raise PrivacyProcessingError("Private preview encoding failed.")
+    return encoded.tobytes()
+
+
+def public_log_rows(rows, method_name):
+    public_rows = []
+    for row in rows:
+        public = dict(row)
+        image_path = public.pop("image_path", None)
+        public.pop("video_path", None)
+        public.pop("lidar_z", None)
+        if method_name == "list_events":
+            event_id = public.get("event_id")
+            public["has_image"] = bool(image_path)
+            public["image_url"] = (
+                f"/api/media/events/{event_id}" if image_path and event_id is not None else None
+            )
+        elif method_name == "list_actions":
+            action_id = public.get("action_id")
+            public["has_image"] = bool(image_path)
+            public["image_url"] = (
+                f"/api/media/actions/{action_id}"
+                if image_path and action_id is not None
+                else None
+            )
+        public_rows.append(public)
+    return public_rows
+
+
+def gallery_dto(row):
+    source = str(row.get("source") or "").strip().lower()
+    source_type = source.upper()
+    source_id = row.get("record_id")
+    if source == "event":
+        source_id = row.get("event_id", source_id)
+        image_url = f"/api/media/events/{source_id}"
+    else:
+        source_id = row.get("action_id", source_id)
+        image_url = f"/api/media/actions/{source_id}"
+    public = {
+        key: value
+        for key, value in dict(row).items()
+        if key not in {"image_path", "record_id"}
+    }
+    public.update(
+        {
+            "source": source,
+            "source_type": source_type,
+            "source_id": source_id,
+            "image_url": image_url,
+            "created_at": row.get("recorded_at"),
+        }
+    )
+    return public
+
+
 def parse_log_filters(request):
     def parse_time(name):
         raw = request.query_params.get(name)
@@ -1661,7 +1767,8 @@ async def read_persisted_logs(request, method_name):
         return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
     try:
         method = getattr(database, method_name)
-        return await asyncio.to_thread(method, **filters)
+        rows = await asyncio.to_thread(method, **filters)
+        return public_log_rows(rows, method_name)
     except (DatabaseConfigurationError, DatabaseOperationError):
         return JSONResponse(
             {"ok": False, "detail": "Database is unavailable."},
@@ -1682,6 +1789,223 @@ async def read_event_logs(request: Request):
 @app.get("/api/logs/actions")
 async def read_action_logs(request: Request):
     return await read_persisted_logs(request, "list_actions")
+
+
+@app.post("/api/logs/current-situation/preview")
+async def preview_current_situation(request: Request):
+    user, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    with state_lock:
+        if current_frame is None:
+            return JSONResponse(
+                {"ok": False, "detail": "Current camera frame is unavailable."},
+                status_code=503,
+            )
+        encoded_frame = bytes(current_frame)
+        frame_sequence = current_frame_seq
+    try:
+        frame = await asyncio.to_thread(decode_camera_frame, encoded_frame)
+        preview_jpeg = await asyncio.to_thread(encode_private_preview, frame)
+        user_id, session_id = frozen_frame_owner(request, user)
+        frame_token = frozen_frame_cache.store(
+            frame,
+            user_id=user_id,
+            session_id=session_id,
+            frame_sequence=frame_sequence,
+        )
+    except (ValueError, PrivacyProcessingError):
+        return JSONResponse(
+            {"ok": False, "detail": "Current camera preview is unavailable."},
+            status_code=503,
+        )
+    return Response(
+        content=preview_jpeg,
+        media_type="image/jpeg",
+        headers={"X-Frame-Token": frame_token},
+    )
+
+
+@app.post("/api/logs/current-situation")
+async def create_current_situation(request: Request):
+    user, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    include_image = payload.get("include_image", False)
+    if not isinstance(include_image, bool):
+        return JSONResponse(
+            {"ok": False, "detail": "include_image must be a boolean."},
+            status_code=400,
+        )
+    description = payload.get("description_content")
+    description = None if description is None else str(description).strip()
+    if description and len(description) > 2000:
+        return JSONResponse(
+            {"ok": False, "detail": "description_content is too long."},
+            status_code=400,
+        )
+    if not description and not include_image:
+        return JSONResponse(
+            {"ok": False, "detail": "Text or an image is required."},
+            status_code=400,
+        )
+
+    frame_token = payload.get("frame_token")
+    frozen = None
+    user_id, session_id = frozen_frame_owner(request, user)
+    if include_image:
+        if not isinstance(frame_token, str) or not frame_token.strip():
+            return JSONResponse(
+                {"ok": False, "detail": "frame_token is required."},
+                status_code=400,
+            )
+        frame_token = frame_token.strip()
+        try:
+            frozen = frozen_frame_cache.get(
+                frame_token,
+                user_id=user_id,
+                session_id=session_id,
+            )
+        except FrozenFrameTokenError as exc:
+            return JSONResponse(
+                {"ok": False, "detail": str(exc)},
+                status_code=400,
+            )
+
+    image_path = None
+    image_store = None
+    if frozen is not None:
+        try:
+            image_store = get_private_image_store()
+            image_path = await asyncio.to_thread(
+                image_store.save_image,
+                "actions",
+                frozen.frame,
+            )
+        except Exception:
+            return JSONResponse(
+                {"ok": False, "detail": "Private image could not be saved."},
+                status_code=500,
+            )
+    try:
+        action_id = await asyncio.to_thread(
+            database.insert_action,
+            user_id=user_id,
+            event_id=None,
+            action_type="NOTE",
+            description=description or None,
+            image_path=image_path,
+        )
+    except Exception as exc:
+        if image_path is not None:
+            try:
+                await asyncio.to_thread(image_store.delete, image_path)
+            except Exception as cleanup_exc:
+                logging.getLogger(__name__).warning(
+                    "Current situation image cleanup failed: %s", cleanup_exc
+                )
+        status_code = (
+            503
+            if isinstance(exc, (DatabaseConfigurationError, DatabaseOperationError))
+            else 500
+        )
+        return JSONResponse(
+            {"ok": False, "detail": "Current situation could not be saved."},
+            status_code=status_code,
+        )
+    if frame_token is not None:
+        frozen_frame_cache.invalidate(
+            frame_token,
+            user_id=user_id,
+            session_id=session_id,
+        )
+    return JSONResponse(
+        {
+            "ok": True,
+            "action_id": action_id,
+            "image_url": (
+                f"/api/media/actions/{action_id}" if image_path is not None else None
+            ),
+        },
+        status_code=201,
+    )
+
+
+@app.get("/api/gallery")
+async def read_gallery(request: Request):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    source = request.query_params.get("source", "all").strip().lower()
+    if source not in {"all", "event", "action"}:
+        return JSONResponse(
+            {"ok": False, "detail": "source must be one of: all, event, action"},
+            status_code=400,
+        )
+    try:
+        filters = parse_log_filters(request)
+        rows = await asyncio.to_thread(database.list_gallery, source=source, **filters)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    return [gallery_dto(row) for row in rows]
+
+
+async def authenticated_media(request, record_id, *, category, database_method):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    try:
+        image_path = await asyncio.to_thread(database_method, record_id)
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    if not image_path:
+        return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
+    image_store = get_private_image_store()
+    try:
+        target = image_store.resolve(image_path)
+        target.relative_to((image_store.gallery_root / category).resolve())
+    except (UnsafeMediaPathError, ValueError, OSError):
+        return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
+    if not target.is_file():
+        return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
+    return FileResponse(target, media_type="image/jpeg")
+
+
+@app.get("/api/media/events/{event_id}")
+async def read_event_image(request: Request, event_id: int):
+    return await authenticated_media(
+        request,
+        event_id,
+        category="events",
+        database_method=database.get_event_image_path,
+    )
+
+
+@app.get("/api/media/actions/{action_id}")
+async def read_action_image(request: Request, action_id: int):
+    return await authenticated_media(
+        request,
+        action_id,
+        category="actions",
+        database_method=database.get_action_image_path,
+    )
 
 
 @app.post("/api/logs/actions")
