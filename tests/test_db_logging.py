@@ -214,6 +214,8 @@ def test_database_lists_gallery_images_from_events_and_actions():
     assert "'action' AS source" in sql
     assert "UNION ALL" in sql
     assert sql.count("image_path IS NOT NULL") == 2
+    assert "e.image_deleted_at IS NULL" in sql
+    assert "a.image_deleted_at IS NULL" in sql
     assert "ORDER BY recorded_at DESC LIMIT %s" in sql
     assert "video_path" not in sql
     assert "lidar_z" not in sql
@@ -250,6 +252,7 @@ def test_database_gets_event_and_action_image_paths_by_bound_id():
     assert "FROM event_log" in event_sql
     assert "event_id = %s" in event_sql
     assert "is_deleted = 0" in event_sql
+    assert "image_deleted_at IS NULL" in event_sql
     assert event_params == (7,)
 
     action_cursor = FakeCursor(
@@ -262,7 +265,50 @@ def test_database_gets_event_and_action_image_paths_by_bound_id():
     action_sql, action_params = action_cursor.executions[0]
     assert "FROM action_log" in action_sql
     assert "action_id = %s" in action_sql
+    assert "image_deleted_at IS NULL" in action_sql
     assert action_params == (8,)
+
+
+def test_database_soft_deletes_only_event_and_action_images():
+    cursor = FakeCursor()
+    database = DatabaseHarness(cursor)
+
+    assert database.soft_delete_event_image(7) is True
+    assert database.soft_delete_action_image(8) is True
+
+    event_sql, event_params = cursor.executions[0]
+    action_sql, action_params = cursor.executions[1]
+    for sql in (event_sql, action_sql):
+        assert "SET image_deleted_at = CURRENT_TIMESTAMP" in sql
+        assert "image_deleted_at IS NULL" in sql
+        assert "image_path IS NOT NULL" in sql
+        assert "SET is_deleted" not in sql
+        assert "SET image_path" not in sql
+        assert "DELETE FROM" not in sql
+    assert "UPDATE event_log" in event_sql
+    assert "event_id = %s" in event_sql
+    assert event_params == (7,)
+    assert "UPDATE action_log" in action_sql
+    assert "action_id = %s" in action_sql
+    assert action_params == (8,)
+
+
+def test_database_sets_event_false_alarm_with_bound_values():
+    cursor = FakeCursor()
+    database = DatabaseHarness(cursor)
+
+    assert database.set_event_false_alarm(9, True) is True
+    assert database.set_event_false_alarm(9, False) is True
+
+    true_sql, true_params = cursor.executions[0]
+    false_sql, false_params = cursor.executions[1]
+    assert "UPDATE event_log" in true_sql
+    assert "SET is_false_alarm = %s" in true_sql
+    assert "event_id = %s" in true_sql
+    assert "is_deleted = 0" in true_sql
+    assert true_params == (1, 9)
+    assert false_sql == true_sql
+    assert false_params == (0, 9)
 
 
 def test_dashboard_records_schema_and_forward_migration_match_contract():
@@ -274,8 +320,13 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
         repository_root
         / "data/database/migrations/20260823_dashboard_records.sql"
     ).read_text(encoding="utf-8")
+    followup_migration = (
+        repository_root
+        / "data/database/migrations/20260823_dashboard_records_followup.sql"
+    ).read_text(encoding="utf-8")
 
     assert schema.count("`image_path` varchar(255) DEFAULT NULL") == 2
+    assert schema.count("`image_deleted_at` datetime DEFAULT NULL") == 2
     assert "`is_false_alarm`" in schema
     assert "`video_path`" not in schema
     assert "`lidar_z`" not in schema
@@ -284,6 +335,11 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
     assert migration.count("DROP COLUMN `lidar_z`") == 2
     assert "DROP TABLE" not in migration
     assert "TRUNCATE" not in migration
+    assert followup_migration.count("COLUMN_NAME = 'image_deleted_at'") == 2
+    assert followup_migration.count("ADD COLUMN `image_deleted_at`") == 2
+    assert followup_migration.count("IF NOT EXISTS") == 2
+    assert "DROP TABLE" not in followup_migration
+    assert "TRUNCATE" not in followup_migration
 
 
 def test_database_checks_reportable_event_with_bound_id():
