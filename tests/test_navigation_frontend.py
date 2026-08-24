@@ -1,0 +1,102 @@
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class NavigationFrontendContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.control = (ROOT / "frontend/services/static/navigation_control.js").read_text(encoding="utf-8")
+        cls.map_control = (ROOT / "frontend/services/static/navigation_map_control.js").read_text(encoding="utf-8")
+        cls.drive_component = (ROOT / "frontend/components/controls/drive_mode_control.js").read_text(encoding="utf-8")
+        cls.navigation_component = (ROOT / "frontend/components/controls/navigation_mode_control.js").read_text(encoding="utf-8")
+        cls.controls_css = (ROOT / "frontend/components/controls/controls.css").read_text(encoding="utf-8")
+
+    def test_consumes_frozen_dashboard_navigation_contract(self):
+        for contract in (
+            "payload?.dashboard_config",
+            "config.estop_cooldown_sec",
+            "config.goal_reached_tolerance_m",
+            "NAVIGATION_STOP_CONFIRMATION_REQUIRED",
+            "confirm_stop: true",
+            "'/api/navigation/control/emergency-stop'",
+            "'/api/navigation/control/resume'",
+        ):
+            self.assertIn(contract, self.control)
+
+    def test_mapping_goal_and_manual_auto_transition_rules_are_wired(self):
+        self.assertIn(
+            "Mapping 모드에서는 주행 목표를 설정할 수 없습니다. Driving 모드로 전환해주세요.",
+            self.control,
+        )
+        auto_request = self.control.index("await requestDriveMode('AUTO', { announce: false })")
+        goal_request = self.control.index("mutate('/api/navigation/control/goal', { goal })")
+        self.assertLess(auto_request, goal_request)
+        self.assertIn("state.draftGoal = null", self.control)
+        self.assertIn("drawGoalFlag", self.control)
+
+    def test_dashboard_and_expanded_map_share_navigation_state(self):
+        self.assertIn("controls.syncNavigationMode", self.navigation_component)
+        self.assertIn("controls?.syncNavigationMode?.(payload.navigation_mode", self.control)
+        self.assertIn("dashboard-navigation-mode-controls-mount", self.drive_component)
+        self.assertIn("window.navigationControl?.applyState?.(payload)", self.map_control)
+
+    def test_saved_map_requires_explicit_or_server_active_selection(self):
+        self.assertNotIn("maps[0]", self.map_control)
+        self.assertNotIn("map === maps[0]", self.map_control)
+        self.assertIn("const selectedName = retainedSelection || activeName", self.map_control)
+        self.assertIn("radio.checked = map.map_name === selectedName", self.map_control)
+        self.assertIn("load.disabled = !selectedMapName(container)", self.map_control)
+        self.assertIn("labels.selectRequired", self.map_control)
+
+    def test_estop_is_independent_from_directional_dpad_disable(self):
+        self.assertIn(".d-pad-container.disabled .d-btn", self.controls_css)
+        self.assertIn("#dpad-center-action-mount", self.controls_css)
+        self.assertIn("payload.connected === true", self.control)
+        self.assertIn("state.estopPending", self.control)
+        self.assertIn("state.estopCooldownUntil", self.control)
+
+    def test_only_hazard_navigation_events_are_emitted(self):
+        for code in (
+            "PI_CONNECTION_LOSS",
+            "LIDAR_DATA_LOSS",
+            "ODOMETRY_LOSS",
+            "LOCALIZATION_LOST",
+            "REQUIRED_TF_FAILURE",
+            "EMERGENCY_STOP_ACTIVE",
+            "EMERGENCY_STOP_CLEARED",
+        ):
+            self.assertIn(code, self.control)
+        self.assertIn("dabom:navigation-hazard", self.control)
+        self.assertIn("document.addEventListener('dabom:navigation-hazard', renderNavigationHazard)", self.control)
+        self.assertIn("const target = $('alertBox')", self.control)
+        self.assertIn("row.className = `alert-entry", self.control)
+        self.assertIn("const MAX_HAZARD_ENTRIES = 50", self.control)
+        self.assertIn("new MutationObserver(scheduleHazardReconcile)", self.control)
+        self.assertIn("reconcileNavigationHazards(true)", self.control)
+        self.assertIn("알림 내역이 삭제되었습니다", self.control)
+        self.assertNotIn("dabom:navigation-normal-operation", self.control)
+
+    def test_manual_mode_pauses_navigation_and_retains_goal_before_pi_mode_command(self):
+        start = self.control.index("async function requestDriveMode")
+        end = self.control.index("function navigationIsMoving", start)
+        request = self.control[start:end]
+        state_read = request.index("requestJson('/api/navigation/control/state')")
+        pause = request.index("mutate('/api/navigation/control/pause-for-manual')")
+        mode_command = request.index("mutate('/api/robots/pi-01/command'")
+        self.assertLess(state_read, pause)
+        self.assertLess(pause, mode_command)
+        self.assertNotIn("mutate('/api/navigation/control/cancel')", request)
+        self.assertIn("paused.goal_retained !== true", request)
+        self.assertIn("JSON.stringify(paused.active_goal) !== retainedGoal", request)
+        self.assertIn("JSON.stringify(paused.planned_path) !== retainedPath", request)
+        stop_delivery = request.index("paused.stop_delivered !== true")
+        self.assertLess(stop_delivery, mode_command)
+        self.assertIn("MANUAL 전환을 중단했습니다", request)
+        self.assertIn("state.drivePending", request)
+
+
+if __name__ == "__main__":
+    unittest.main()

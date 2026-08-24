@@ -60,12 +60,6 @@ def normalize_system_status(status: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "ram_usage": _finite_number(status.get("ram_usage"), minimum=0, maximum=100),
         "ping": _finite_number(status.get("ping"), minimum=0, maximum=32767, integer=True),
-        "battery_level": _finite_number(
-            status.get("battery_level", status.get("battery")),
-            minimum=0,
-            maximum=100,
-            integer=True,
-        ),
         "is_autonomous": is_autonomous,
         "speed": _finite_number(status.get("speed"), minimum=-128, maximum=127, integer=True),
         "gps_lat": _finite_number(status.get("gps_lat"), minimum=-90, maximum=90),

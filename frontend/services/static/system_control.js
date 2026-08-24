@@ -2,6 +2,7 @@
     'use strict';
 
     const state = { status: null, pending: new Set() };
+    const guideViewName = 'dashboard-usage-guide';
 
     const text = {
         gpu: '\u0047\u0050\u0055 \uc11c\ubc84 \uc81c\uc5b4',
@@ -11,15 +12,15 @@
         processing: '\ucc98\ub9ac \uc911',
         instances: '\uc2e4\ud589 \uc778\uc2a4\ud134\uc2a4',
         normalize: '\uc911\ubcf5 \uc815\ub9ac',
-        manual: '\u0052\u004f\u0053 \uc81c\uc5b4 \ub9e4\ub274\uc5bc',
+        guide: '\ub300\uc2dc\ubcf4\ub4dc \uc0ac\uc6a9 \uc548\ub0b4',
         noStatus: '\uc0c1\ud0dc \uc815\ubcf4\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.',
         actionFailed: '\u0052\u004f\u0053 \uc81c\uc5b4 \uc2e4\ud328',
         start: '\uc2dc\uc791',
         stop: '\uc911\uc9c0',
         duplicate: '\uc911\ubcf5',
         error: '\uc624\ub958',
-        manualTitle: '\u0052\u004f\u0053 \ud504\ub85c\uc138\uc2a4 \uc81c\uc5b4 \uc548\ub0b4',
-        manualBody: '\u0050\u0049 LiDAR \uc11c\ube44\uc2a4\ub97c \uc2dc\uc791\ud55c \ud6c4 GPU \uc5f0\uacb0\uc744 \ud655\uc778\ud558\uc138\uc694. GPU\uc5d0\uc11c LiDAR Bridge, Encoder Bridge, Wheel Odometry\ub97c \uc2dc\uc791\ud55c \ub4a4 SLAM Mapping\uc744 \uc2dc\uc791\ud569\ub2c8\ub2e4. PI \uc11c\ube44\uc2a4 \uc2e4\uc81c \uc81c\uc5b4\ub294 PI \ud074\ub77c\uc774\uc5b8\ud2b8\uac00 systemd \uc81c\uc5b4\uba85\ub839\uc744 \uc9c0\uc6d0\ud560 \ub54c\uae4c\uc9c0 \ud328\ub110\uc5d0\uc11c \ube44\ud65c\uc131\ud654\ub429\ub2c8\ub2e4.'
+        guideTitle: '\ub300\uc2dc\ubcf4\ub4dc \uc0ac\uc6a9 \uc548\ub0b4',
+        processUnavailable: '\uc0c1\ud0dc \uc870\ud68c \ud6c4 \ud504\ub85c\uc138\uc2a4 \uc21c\uc11c\ub97c \ud655\uc778\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.'
     };
 
     const make = (tag, className, value) => {
@@ -59,10 +60,10 @@
         pi.append(piHeading, make('div', 'system-control-list'));
         pi.lastChild.id = 'piSystemControls';
 
-        const manual = make('button', 'system-control-manual', text.manual);
-        manual.type = 'button';
-        manual.addEventListener('click', openManual);
-        wrapper.append(gpu, divider, pi, manual);
+        const guide = make('button', 'system-control-manual', text.guide);
+        guide.type = 'button';
+        guide.addEventListener('click', openGuide);
+        wrapper.append(gpu, divider, pi, guide);
         if (slot) {
             slot.append(wrapper);
         } else {
@@ -88,7 +89,8 @@
             details.append(make('div', 'system-control-name', component.label || component.id));
             details.append(make('div', 'system-control-description', component.description || ''));
             const action = component.state === 'on' || component.state === 'duplicate' ? 'stop' : 'start';
-            const button = make('button', `system-control-switch state-${component.state || 'error'}`, pending ? text.processing : stateLabel(component));
+            const availabilityClass = pending ? ' is-pending' : unreachable ? ' is-unavailable' : '';
+            const button = make('button', `system-control-switch state-${component.state || 'error'}${availabilityClass}`, pending ? text.processing : stateLabel(component));
             button.type = 'button';
             button.disabled = pending || unreachable;
             button.addEventListener('click', () => control(group, component.id, action));
@@ -100,7 +102,8 @@
             card.append(make('div', 'system-control-meta', `${count}${pids}`));
             if (component.message) card.append(make('div', 'system-control-message', component.message));
             if (component.duplicate) {
-                const normalize = make('button', 'system-control-normalize', text.normalize);
+                const normalizeClass = pending ? ' is-pending' : unreachable ? ' is-unavailable' : '';
+                const normalize = make('button', `system-control-normalize${normalizeClass}`, text.normalize);
                 normalize.type = 'button';
                 normalize.disabled = pending || unreachable;
                 normalize.addEventListener('click', () => control(group, component.id, 'normalize'));
@@ -110,8 +113,8 @@
         }
     }
 
-    function render(status) {
-        state.status = status;
+    function render(status, available = true) {
+        state.status = available ? status : null;
         renderGroup('gpuSystemControls', status.gpu, 'gpu');
         renderGroup('piSystemControls', status.pi, 'pi');
         const updated = document.getElementById('systemControlUpdated');
@@ -131,7 +134,7 @@
             render({ updated_at: null, gpu: [], pi: [{
                 id: 'lidar_ros', label: 'LiDAR ROS Service', description: '', state: 'unreachable',
                 instance_count: null, control_available: false, message: error.message
-            }] });
+            }] }, false);
             document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
                 detail: { available: false, error: error.message }
             }));
@@ -165,13 +168,76 @@
         }
     }
 
-    function openManual() {
+    function appendGuideSection(container, titleValue, items) {
+        const section = make('section', 'system-control-guide-section');
+        section.append(make('h3', 'system-control-guide-heading', titleValue));
+        const list = make('ol', 'system-control-guide-list');
+        for (const item of items) list.append(make('li', '', item));
+        section.append(list);
+        container.append(section);
+    }
+
+    function processGuideItems() {
+        if (!state.status) return [text.processUnavailable];
+        const piComponents = Array.isArray(state.status.pi) ? state.status.pi : [];
+        const gpuComponents = Array.isArray(state.status.gpu) ? state.status.gpu : [];
+        const components = [...piComponents, ...gpuComponents];
+        if (!components.length) return [text.processUnavailable];
+        const normalStartOrder = components.filter(component => component.id !== 'map_bridge');
+        const items = normalStartOrder.map(component => component.label || component.id).filter(Boolean);
+        const mapBridge = components.find(component => component.id === 'map_bridge');
+        if (mapBridge) {
+            const label = mapBridge.label || mapBridge.id;
+            items.push(`\ucc38\uace0: SLAM Mapping\uc740 ${label}\ub97c \ud568\uaed8 \uc2dc\uc791. ${label}\ub294 \ubcf5\uad6c\u00b7\ub3c5\ub9bd \uc2e4\ud589 \uc2dc\uc5d0\ub9cc \uc0ac\uc6a9`);
+        }
+        return items;
+    }
+
+    function renderGuide() {
+        const guide = make('div', 'system-control-guide');
+        appendGuideSection(guide, 'Mapping', [
+            '[Mapping] \uc120\ud0dd',
+            '[\uc218\ub3d9] \uc120\ud0dd',
+            'D-Pad \uc774\ub3d9',
+            'LiDAR Mapping \uc218\ud589',
+            '[SAVE] \uc9c0\ub3c4 \uc800\uc7a5',
+        ]);
+        appendGuideSection(guide, 'Driving', [
+            '[Driving] \uc120\ud0dd',
+            '[\uae30\uc874 \uc9c0\ub3c4 \uc120\ud0dd]',
+            'Initial Pose \uc9c0\uc815',
+            'Goal \uc9c0\uc815',
+            '\uacbd\ub85c \ud655\uc778',
+            '[\uc8fc\ud589 \uc2dc\uc791]',
+        ]);
+        appendGuideSection(guide, '\uc704\ud5d8 \ub300\uc751', [
+            '\uc2e4\uc2dc\uac04 \uc704\ud5d8/\uacbd\uace0 \uc54c\ub9bc \ud655\uc778',
+            '[\uc21c\ucc30 \uae30\ub85d \uc870\ud68c]',
+            '[\uc774\ubbf8\uc9c0 \uac24\ub7ec\ub9ac]',
+            '\ud544\uc694 \uc2dc [\uc2e0\uace0] \ub610\ub294 [\u26a0\ufe0f \uacbd\uace0]',
+            '\ud544\uc694 \uc2dc [\uae34\uae09 \uc815\uc9c0]',
+            '[\ud604\uc7ac \uc0c1\ud669 \uc791\uc131]',
+            '[\uad00\ub9ac\uc790 \uc870\uce58 \uc870\ud68c]',
+        ]);
+        appendGuideSection(guide, '\uae30\uae30 \uc0c1\ud0dc', ['\uc2dc\uc2a4\ud15c \uc9c4\ub2e8: [\uae30\uae30 \uc0c1\ud0dc \uc870\ud68c]']);
+        appendGuideSection(guide, '\ud504\ub85c\uc138\uc2a4 \uc2e4\ud589 \uc21c\uc11c', processGuideItems());
+        return guide;
+    }
+
+    function openGuide() {
+        const modalApi = window.DabomDashboardComponents?.modal;
+        const manager = modalApi?.getDefault?.() || modalApi?.mount?.();
+        if (manager) {
+            manager.register(guideViewName, { title: text.guideTitle, render: renderGuide });
+            manager.open(guideViewName, {}, { replace: true });
+            return;
+        }
         const modal = document.getElementById('commonModal');
         const title = document.getElementById('modalTitle');
         const body = document.getElementById('modalBody');
         if (!modal || !title || !body) return;
-        title.textContent = text.manualTitle;
-        body.replaceChildren(make('p', '', text.manualBody));
+        title.textContent = text.guideTitle;
+        body.replaceChildren(renderGuide());
         modal.style.display = 'flex';
     }
 

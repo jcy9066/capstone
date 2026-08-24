@@ -2,6 +2,8 @@
     'use strict';
 
     const POLL_MS = 750;
+    const DRIVE_MODE_CONFIRM_TIMEOUT_MS = 5000;
+    const MAX_HAZARD_ENTRIES = 50;
     const state = {
         control: null,
         draftGoal: null,
@@ -9,6 +11,18 @@
         pointerStart: null,
         csrf: null,
         busy: false,
+        drivePending: false,
+        navigationPending: false,
+        estopPending: false,
+        estopCooldownUntil: 0,
+        controlWaiters: new Set(),
+        previousConnected: null,
+        previousEmergencyStop: null,
+        lastHazardCode: null,
+        hazardEntries: [],
+        hazardSequence: 0,
+        hazardObserver: null,
+        hazardReconcileScheduled: false,
     };
 
     const $ = id => document.getElementById(id);
@@ -41,6 +55,167 @@
         });
     }
 
+    function dashboardConfig(payload = state.control) {
+        const config = payload?.dashboard_config || {};
+        const estopCooldownSec = Number(config.estop_cooldown_sec);
+        const goalReachedToleranceM = Number(config.goal_reached_tolerance_m);
+        return {
+            estopCooldownSec: Number.isFinite(estopCooldownSec) && estopCooldownSec >= 0
+                ? estopCooldownSec
+                : null,
+            goalReachedToleranceM: Number.isFinite(goalReachedToleranceM) && goalReachedToleranceM >= 0
+                ? goalReachedToleranceM
+                : null,
+        };
+    }
+
+    function waitForControl(predicate, timeoutMs = DRIVE_MODE_CONFIRM_TIMEOUT_MS) {
+        if (predicate(state.control)) return Promise.resolve(state.control);
+        return new Promise((resolve, reject) => {
+            const waiter = { predicate, resolve, reject, timer: null };
+            waiter.timer = window.setTimeout(() => {
+                state.controlWaiters.delete(waiter);
+                reject(new Error('서버 상태 확인 시간이 초과되었습니다.'));
+            }, timeoutMs);
+            state.controlWaiters.add(waiter);
+        });
+    }
+
+    function resolveControlWaiters(payload) {
+        for (const waiter of Array.from(state.controlWaiters)) {
+            if (!waiter.predicate(payload)) continue;
+            window.clearTimeout(waiter.timer);
+            state.controlWaiters.delete(waiter);
+            waiter.resolve(payload);
+        }
+    }
+
+    function emitHazard(code, message, level = 'warning') {
+        document.dispatchEvent(new CustomEvent('dabom:navigation-hazard', {
+            detail: { code, message, level, timestamp: new Date().toISOString() },
+        }));
+    }
+
+    function createNavigationHazardRow(detail) {
+        const row = document.createElement('div');
+        row.className = `alert-entry ${detail.level === 'danger' ? 'alert-danger' : 'alert-warning'}`;
+        row.dataset.navigationHazard = detail.id;
+        const time = document.createElement('span');
+        time.className = 'alert-time';
+        const timestamp = new Date(detail.timestamp || Date.now());
+        time.textContent = Number.isNaN(timestamp.getTime())
+            ? '--:--:--'
+            : timestamp.toLocaleTimeString('ko-KR', { hour12: false });
+        const message = document.createElement('span');
+        message.className = 'alert-message';
+        message.textContent = String(detail.message);
+        row.append(time, message);
+        return row;
+    }
+
+    function hasExplicitAlertClear(target) {
+        return Array.from(target.querySelectorAll('.alert-message')).some(element => (
+            element.textContent.includes('알림 내역이 삭제되었습니다')
+        ));
+    }
+
+    function reconcileNavigationHazards(respectClear = true) {
+        const target = $('alertBox');
+        if (!target) return;
+        if (respectClear && hasExplicitAlertClear(target)) {
+            state.hazardEntries = [];
+            target.querySelectorAll('[data-navigation-hazard]').forEach(element => element.remove());
+            return;
+        }
+        const existing = Array.from(target.querySelectorAll('[data-navigation-hazard]'));
+        const existingIds = existing.map(element => element.dataset.navigationHazard);
+        const expectedIds = state.hazardEntries.map(entry => entry.id);
+        if (
+            existingIds.length === expectedIds.length
+            && existingIds.every((id, index) => id === expectedIds[index])
+        ) return;
+        existing.forEach(element => element.remove());
+        for (const entry of [...state.hazardEntries].reverse()) {
+            target.prepend(createNavigationHazardRow(entry));
+        }
+    }
+
+    function scheduleHazardReconcile() {
+        if (state.hazardReconcileScheduled) return;
+        state.hazardReconcileScheduled = true;
+        const schedule = window.queueMicrotask || (callback => Promise.resolve().then(callback));
+        schedule(() => {
+            state.hazardReconcileScheduled = false;
+            reconcileNavigationHazards(true);
+        });
+    }
+
+    function renderNavigationHazard(event) {
+        const detail = event?.detail || {};
+        const target = $('alertBox');
+        if (!target || !detail.message) return;
+        target.querySelectorAll('.alert-entry').forEach(element => {
+            if (element.querySelector('.alert-message')?.textContent.includes('알림 내역이 삭제되었습니다')) {
+                element.remove();
+            }
+        });
+        const entry = {
+            code: String(detail.code || 'NAVIGATION_HAZARD'),
+            id: `${detail.timestamp || new Date().toISOString()}:${detail.code || 'NAVIGATION_HAZARD'}:${state.hazardSequence++}`,
+            level: detail.level === 'danger' ? 'danger' : 'warning',
+            message: String(detail.message),
+            timestamp: detail.timestamp || new Date().toISOString(),
+        };
+        state.hazardEntries.unshift(entry);
+        state.hazardEntries.length = Math.min(state.hazardEntries.length, MAX_HAZARD_ENTRIES);
+        reconcileNavigationHazards(false);
+    }
+
+    function updateHazardHooks(payload) {
+        const connected = payload?.connected === true;
+        const stopped = Boolean(payload?.emergency_stop);
+        if (state.previousConnected !== connected && !connected) {
+            emitHazard('PI_CONNECTION_LOSS', '⚠️ Pi 연결 끊김', 'warning');
+        }
+        if (state.previousEmergencyStop !== null && state.previousEmergencyStop !== stopped) {
+            emitHazard(
+                stopped ? 'EMERGENCY_STOP_ACTIVE' : 'EMERGENCY_STOP_CLEARED',
+                stopped ? '긴급 정지 활성화' : '긴급 정지 해제',
+                stopped ? 'danger' : 'warning',
+            );
+        }
+        const code = String(payload?.emergency_reason || payload?.last_error || '').toUpperCase();
+        const messages = {
+            LIDAR_DATA_LOSS: '⚠️ LiDAR 데이터 손실',
+            ODOMETRY_LOSS: '⚠️ Odometry 손실',
+            LOCALIZATION_LOST: '⚠️ Localization 손실',
+            REQUIRED_TF_FAILURE: '⚠️ 필수 TF 오류',
+            PI_CONNECTION_LOSS: '⚠️ Pi 연결 끊김',
+        };
+        if (messages[code] && state.lastHazardCode !== code) emitHazard(code, messages[code], 'warning');
+        state.lastHazardCode = messages[code] ? code : null;
+        state.previousConnected = connected;
+        state.previousEmergencyStop = stopped;
+    }
+
+    function syncControlComponents(payload = state.control) {
+        if (!payload) return;
+        const controls = window.DabomDashboardComponents?.controls;
+        controls?.driveMode?.sync(payload.robot_mode, {
+            connected: payload.connected === true,
+            pending: state.drivePending,
+        });
+        controls?.syncNavigationMode?.(payload.navigation_mode, {
+            pending: state.navigationPending,
+        });
+        controls?.emergencyStop?.sync({
+            active: Boolean(payload.emergency_stop),
+            connected: payload.connected === true && dashboardConfig(payload).estopCooldownSec !== null,
+            pending: state.estopPending,
+            cooldownUntil: state.estopCooldownUntil,
+        });
+    }
+
     function setFeedback(message, error = false) {
         const element = $('navigation-control-feedback');
         if (!element) return;
@@ -65,13 +240,20 @@
         if ($('navigation-start')) $('navigation-start').hidden = !pathReady;
         if ($('navigation-cancel')) $('navigation-cancel').hidden = !payload.active_goal;
         if ($('navigation-resume')) $('navigation-resume').hidden = !stopped;
+        if ($('navigation-resume')) $('navigation-resume').textContent = '정지 해제';
         if ($('navigation-estop')) $('navigation-estop').classList.toggle('latched', stopped);
+        if ($('navigation-estop')) $('navigation-estop').disabled = payload?.connected !== true || state.estopPending || Date.now() < state.estopCooldownUntil;
+        if ($('navigation-resume')) $('navigation-resume').disabled = payload?.connected !== true || state.estopPending || Date.now() < state.estopCooldownUntil;
         const hint = $('navigation-goal-hint');
         if (hint) {
             hint.textContent = ready
                 ? '확대 지도에서 누른 뒤 드래그하여 Goal 방향을 지정하세요.'
                 : 'DRIVING 및 localization/Nav2 준비 후 Goal을 지정할 수 있습니다.';
         }
+        syncControlComponents(payload);
+        updateHazardHooks(payload);
+        resolveControlWaiters(payload);
+        document.dispatchEvent(new CustomEvent('dabom:navigation-control-state', { detail: payload }));
         window.navigationMapView?.requestRender();
     }
 
@@ -92,11 +274,22 @@
             && control?.localization_ready
             && control?.nav2_ready
             && !control?.emergency_stop
+            && control?.connected === true
+            && !state.drivePending
         );
     }
 
     function beginGoal(event) {
-        if ((event.button !== 0 && event.button !== 2) || !canSetGoal()) return;
+        if (event.button !== 0 && event.button !== 2) return;
+        const view = window.navigationMapView?.snapshot();
+        if (view?.expanded && state.control?.navigation_mode === 'MAPPING') {
+            setFeedback('Mapping 모드에서는 주행 목표를 설정할 수 없습니다. Driving 모드로 전환해주세요.', true);
+            return;
+        }
+        if (!canSetGoal()) {
+            if (view?.expanded) setFeedback('Driving 모드와 Pi·Localization·Nav2 상태를 확인해주세요.', true);
+            return;
+        }
         const point = window.navigationMapView?.canvasToWorld(event);
         if (!point) {
             setFeedback('지도 밖에는 Goal을 지정할 수 없습니다.', true);
@@ -129,10 +322,18 @@
         state.pointerStart = null;
         setFeedback('경로를 계산하는 중입니다...');
         try {
+            if (String(state.control?.robot_mode || '').toUpperCase() === 'MANUAL') {
+                setFeedback('자동 모드 전환을 확인하는 중입니다...');
+                await requestDriveMode('AUTO', { announce: false });
+            }
+            if (String(state.control?.robot_mode || '').toUpperCase() !== 'AUTO') {
+                throw new Error('AUTO 모드 전환을 확인하지 못해 Goal 등록을 중단했습니다.');
+            }
             applyControlState(await mutate('/api/navigation/control/goal', { goal }));
             state.draftGoal = null;
             setFeedback('경로 미리보기가 준비되었습니다. 주행 시작 전에는 로봇이 움직이지 않습니다.');
         } catch (error) {
+            state.draftGoal = null;
             setFeedback(`경로 계산 실패: ${error.message}`, true);
         } finally {
             window.navigationMapView?.requestRender();
@@ -173,6 +374,32 @@
         ctx.restore();
     }
 
+    function drawGoalFlag(ctx, goal, worldToCanvas, layout) {
+        if (!goal) return;
+        const point = worldToCanvas(goal.x, goal.y, layout);
+        const height = Math.max(22, Math.min(38, 0.55 * layout.scale));
+        const width = Math.max(14, height * 0.62);
+        ctx.save();
+        ctx.translate(point.x, point.y);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#a855f7';
+        ctx.fillStyle = '#a855f7';
+        ctx.beginPath();
+        ctx.moveTo(0, 5);
+        ctx.lineTo(0, -height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(2, -height);
+        ctx.lineTo(width, -height + height * 0.22);
+        ctx.lineTo(2, -height + height * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 5, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
     window.navigationControlOverlay = {
         draw(ctx, layout, worldToCanvas) {
             const path = state.control?.planned_path || [];
@@ -191,152 +418,129 @@
                 ctx.stroke();
                 ctx.restore();
             }
-            drawArrow(
-                ctx,
-                state.draftGoal || state.control?.active_goal,
-                worldToCanvas,
-                layout,
-                state.draftGoal ? '#f59e0b' : '#a855f7',
-            );
+            if (state.control?.active_goal) drawGoalFlag(ctx, state.control.active_goal, worldToCanvas, layout);
+            if (state.draftGoal) drawArrow(ctx, state.draftGoal, worldToCanvas, layout, '#f59e0b');
         },
     };
 
+    async function requestDriveMode(mode, options = {}) {
+        const target = String(mode || '').toUpperCase();
+        if (!['AUTO', 'MANUAL'].includes(target) || state.drivePending) return false;
+        if (state.control?.connected !== true) {
+            setFeedback('Pi가 연결되어 있지 않아 주행 모드를 변경할 수 없습니다.', true);
+            return false;
+        }
+        if (String(state.control?.robot_mode || '').toUpperCase() === target) return true;
+        state.drivePending = true;
+        state.pointerId = null;
+        state.pointerStart = null;
+        state.draftGoal = null;
+        syncControlComponents();
+        if (options.announce !== false) setFeedback(`${target === 'AUTO' ? '자동' : '수동'} 모드 전환 요청 중...`);
+        try {
+            if (target === 'MANUAL') {
+                const latest = await requestJson('/api/navigation/control/state');
+                applyControlState(latest);
+                const retainedGoal = latest.active_goal ? JSON.stringify(latest.active_goal) : null;
+                const retainedPath = Array.isArray(latest.planned_path) && latest.planned_path.length
+                    ? JSON.stringify(latest.planned_path)
+                    : null;
+                setFeedback('Navigation을 안전하게 일시 정지하는 중...');
+                const paused = await mutate('/api/navigation/control/pause-for-manual');
+                applyControlState(paused);
+                if (paused.stop_delivered !== true) {
+                    throw new Error('Pi 정지 명령 전달을 확인하지 못해 MANUAL 전환을 중단했습니다.');
+                }
+                const pausedState = String(paused.navigation_state || '').toUpperCase();
+                const pausedRosState = String(paused.ros_navigation?.state || '').toUpperCase();
+                if (
+                    ['NAVIGATING', 'RESUMING'].includes(pausedState)
+                    || ['NAVIGATING', 'RESUMING'].includes(pausedRosState)
+                ) {
+                    throw new Error('Navigation 일시 정지 완료를 확인하지 못했습니다.');
+                }
+                if (
+                    retainedGoal
+                    && (paused.goal_retained !== true || JSON.stringify(paused.active_goal) !== retainedGoal)
+                ) {
+                    throw new Error('수동 주행용 active Goal이 유지되지 않았습니다.');
+                }
+                if (retainedPath && JSON.stringify(paused.planned_path) !== retainedPath) {
+                    throw new Error('수동 주행용 경로가 유지되지 않았습니다.');
+                }
+            }
+            await mutate('/api/robots/pi-01/command', { type: 'mode', mode: target.toLowerCase() });
+            await waitForControl(payload => (
+                payload?.connected === true
+                && String(payload?.robot_mode || '').toUpperCase() === target
+            ));
+            if (options.announce !== false) setFeedback(`${target === 'AUTO' ? '자동' : '수동'} 모드로 전환되었습니다.`);
+            return true;
+        } catch (error) {
+            setFeedback(`주행 모드 전환 실패: ${error.message}`, true);
+            return false;
+        } finally {
+            state.drivePending = false;
+            syncControlComponents();
+        }
+    }
+
+    function navigationIsMoving() {
+        const navigationState = String(state.control?.navigation_state || '').toUpperCase();
+        const rosState = String(state.control?.ros_navigation?.state || '').toUpperCase();
+        return ['NAVIGATING', 'RESUMING'].includes(navigationState)
+            || ['NAVIGATING', 'RESUMING'].includes(rosState);
+    }
+
     async function setMappingMode() {
-        if (state.busy || state.control?.navigation_mode === 'MAPPING') return;
-        if (!window.confirm('Mapping 모드로 전환하면 실행 중인 Nav2 goal이 취소됩니다. 계속하시겠습니까?')) return;
+        if (state.busy || state.drivePending || state.navigationPending || state.control?.navigation_mode === 'MAPPING') return;
+        const moving = navigationIsMoving();
+        if (moving && !window.confirm('현재 자율주행 중입니다. 주행을 중지하고 Mapping 모드로 전환하시겠습니까?')) return;
         state.busy = true;
+        state.navigationPending = true;
+        syncControlComponents();
         setFeedback('Mapping 모드로 전환 중...');
         try {
-            applyControlState(await mutate('/api/navigation/control/mode', { mode: 'MAPPING' }));
-            setFeedback('Mapping 모드입니다. Nav2 주행은 비활성화되었습니다.');
+            const mappingPayload = {
+                mode: 'MAPPING',
+                ...(moving ? { confirm_stop: true } : {}),
+            };
+            let response;
+            try {
+                response = await mutate('/api/navigation/control/mode', mappingPayload);
+            } catch (error) {
+                if (
+                    error.code !== 'NAVIGATION_STOP_CONFIRMATION_REQUIRED'
+                    || !window.confirm('현재 자율주행 중입니다. 주행을 중지하고 Mapping 모드로 전환하시겠습니까?')
+                ) throw error;
+                response = await mutate('/api/navigation/control/mode', { mode: 'MAPPING', confirm_stop: true });
+            }
+            applyControlState(response);
+            setFeedback(moving
+                ? '주행을 긴급 정지하고 Mapping 모드로 전환했습니다. 정지 해제는 직접 실행해주세요.'
+                : (response.emergency_stop
+                    ? '주행을 긴급 정지하고 Mapping 모드로 전환했습니다. 정지 해제는 직접 실행해주세요.'
+                    : 'Mapping 모드로 전환했습니다.'));
         } catch (error) {
             setFeedback(`모드 전환 실패: ${error.message}`, true);
         } finally {
             state.busy = false;
+            state.navigationPending = false;
+            syncControlComponents();
         }
     }
 
-    function field(label, id, value = '0') {
-        const wrapper = document.createElement('label');
-        wrapper.textContent = label;
-        const input = document.createElement('input');
-        input.id = id;
-        input.type = id.includes('name') ? 'text' : 'number';
-        input.step = 'any';
-        input.value = value;
-        wrapper.append(input);
-        return wrapper;
-    }
-
-    function initialPose(container) {
-        return {
-            x: Number(container.querySelector('#navigation-pose-x').value),
-            y: Number(container.querySelector('#navigation-pose-y').value),
-            yaw_degrees: Number(container.querySelector('#navigation-pose-yaw').value),
-        };
-    }
-
-    async function submitDriving(container, source) {
-        const pose = initialPose(container);
-        if (!Object.values(pose).every(Number.isFinite)) {
-            setFeedback('초기 위치에는 유한한 숫자만 입력할 수 있습니다.', true);
-            return;
-        }
-        const mapName = source === 'save_current'
-            ? container.querySelector('#navigation-map-name').value.trim()
-            : container.querySelector('input[name="navigation-existing-map"]:checked')?.value;
-        if (!mapName) {
-            setFeedback('지도 이름 또는 기존 지도를 선택하세요.', true);
-            return;
-        }
-        state.busy = true;
-        container.querySelectorAll('button,input').forEach(item => { item.disabled = true; });
-        setFeedback(source === 'save_current' ? 'Mapping 결과 저장 후 DRIVING 전환 중...' : '기존 지도와 localization을 준비하는 중...');
-        try {
-            const payload = await mutate('/api/navigation/control/mode', {
-                mode: 'DRIVING',
-                source,
-                map_name: mapName,
-                initial_pose: pose,
-            });
-            applyControlState(payload);
-            closeModal();
-            setFeedback('DRIVING 모드가 준비되었습니다. Goal을 지정하세요.');
-        } catch (error) {
-            setFeedback(`DRIVING 전환 실패: ${error.message}`, true);
-            container.querySelectorAll('button,input').forEach(item => { item.disabled = false; });
-        } finally {
-            state.busy = false;
-        }
-    }
-
-    function closeModal() {
-        const modal = $('commonModal');
-        if (modal) modal.style.display = 'none';
-    }
-
-    async function openDrivingModal() {
-        if (state.busy || state.control?.navigation_mode === 'DRIVING') return;
-        const modal = $('commonModal');
-        const title = $('modalTitle');
-        const body = $('modalBody');
-        if (!modal || !title || !body) return;
-        title.textContent = 'Mapping / Driving 전환';
-        body.replaceChildren();
-        const container = document.createElement('div');
-        container.className = 'navigation-driving-modal';
-        const question = document.createElement('p');
-        question.textContent = '현재 Mapping 결과를 저장하시겠습니까?';
-        const saveSection = document.createElement('section');
-        saveSection.append(field('Map name', 'navigation-map-name', `mapping_${Date.now()}`));
-        const existingSection = document.createElement('section');
-        existingSection.className = 'navigation-existing-maps';
-        existingSection.textContent = '저장 지도 불러오는 중...';
-        try {
-            const maps = await requestJson('/api/navigation/maps');
-            existingSection.replaceChildren();
-            for (const map of maps.maps || []) {
-                const option = document.createElement('label');
-                const radio = document.createElement('input');
-                radio.type = 'radio';
-                radio.name = 'navigation-existing-map';
-                radio.value = map.map_name;
-                radio.checked = !existingSection.children.length;
-                option.append(radio, document.createTextNode(map.map_name));
-                existingSection.append(option);
-            }
-            if (!existingSection.children.length) existingSection.textContent = '저장된 지도가 없습니다.';
-        } catch (error) {
-            existingSection.textContent = `지도 목록 실패: ${error.message}`;
-        }
-        const pose = document.createElement('div');
-        pose.className = 'navigation-initial-pose';
-        pose.append(
-            field('Initial X (m)', 'navigation-pose-x'),
-            field('Initial Y (m)', 'navigation-pose-y'),
-            field('Initial yaw (deg)', 'navigation-pose-yaw'),
-        );
-        const actions = document.createElement('div');
-        actions.className = 'navigation-modal-actions';
-        for (const [label, action, className] of [
-            ['저장 후 주행', () => submitDriving(container, 'save_current'), 'primary'],
-            ['기존 지도 선택', () => submitDriving(container, 'existing'), 'secondary'],
-            ['취소', closeModal, ''],
-        ]) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = label;
-            button.className = className;
-            button.addEventListener('click', action);
-            actions.append(button);
-        }
-        container.append(question, saveSection, existingSection, pose, actions);
-        body.append(container);
-        modal.style.display = 'flex';
+    async function requestNavigationMode(mode) {
+        const target = String(mode || '').toUpperCase();
+        if (target === 'MAPPING') return setMappingMode();
+        if (target !== 'DRIVING' || state.drivePending || state.navigationPending || state.control?.navigation_mode === 'DRIVING') return;
+        if (!window.navigationMapView?.snapshot()?.expanded) window.toggleMinimapExpand?.();
+        setFeedback('Driving 준비를 위해 저장 지도와 Initial Pose를 지정해주세요.');
+        return window.openSavedMapModal?.();
     }
 
     async function simpleAction(path, progress) {
-        if (state.busy) return;
+        if (state.busy || state.drivePending) return;
         state.busy = true;
         setFeedback(progress);
         try {
@@ -364,6 +568,40 @@
         }
     }
 
+    async function requestEmergencyToggle(action) {
+        const requestedAction = String(action || (state.control?.emergency_stop ? 'RESUME' : 'STOP')).toUpperCase();
+        if (state.estopPending || Date.now() < state.estopCooldownUntil) return false;
+        if (state.control?.connected !== true) {
+            setFeedback('Pi가 연결되어 있지 않아 긴급 정지 상태를 변경할 수 없습니다.', true);
+            return false;
+        }
+        const cooldownSec = dashboardConfig().estopCooldownSec;
+        if (cooldownSec === null) {
+            setFeedback('긴급 정지 cooldown 설정을 확인할 수 없습니다.', true);
+            return false;
+        }
+        state.estopPending = true;
+        state.estopCooldownUntil = Date.now() + cooldownSec * 1000;
+        syncControlComponents();
+        setFeedback(requestedAction === 'RESUME' ? '긴급 정지 해제 요청 중...' : '긴급 정지 요청 중...');
+        try {
+            const response = requestedAction === 'RESUME'
+                ? await mutate('/api/navigation/control/resume')
+                : await mutate('/api/navigation/control/emergency-stop', { reason: 'dashboard_emergency_stop' });
+            applyControlState(response);
+            setFeedback(requestedAction === 'RESUME'
+                ? '긴급 정지를 해제했습니다.'
+                : '긴급 정지가 유지됩니다. 자동 재개하지 않습니다.');
+            return true;
+        } catch (error) {
+            setFeedback(`${requestedAction === 'RESUME' ? '정지 해제' : '긴급 정지'} 요청 실패: ${error.message}`, true);
+            return false;
+        } finally {
+            state.estopPending = false;
+            syncControlComponents();
+        }
+    }
+
     async function warning() {
         try {
             await mutate('/api/navigation/control/warning', { led_duration_ms: 3000 });
@@ -380,14 +618,33 @@
         canvas?.addEventListener('pointermove', moveGoal);
         canvas?.addEventListener('pointerup', finishGoal);
         canvas?.addEventListener('pointercancel', cancelGoalDraft);
-        $('navigation-mode-mapping')?.addEventListener('click', setMappingMode);
-        $('navigation-mode-driving')?.addEventListener('click', openDrivingModal);
+        const controls = window.DabomDashboardComponents?.controls;
+        const dashboardModes = $('dashboard-mode-controls-mount');
+        controls?.mountDriveMode(dashboardModes, { request: requestDriveMode });
+        const dashboardNavigation = $('dashboard-navigation-mode-controls-mount');
+        controls?.mountNavigationMode(dashboardNavigation, { request: requestNavigationMode });
+        controls?.mountNavigationMode($('navigation-control-panel'), { request: requestNavigationMode });
+        controls?.mountEmergencyStop($('dpad-center-action-mount'), { request: requestEmergencyToggle });
+        document.addEventListener('dabom:navigation-hazard', renderNavigationHazard);
+        const alertBox = $('alertBox');
+        if (alertBox && window.MutationObserver) {
+            state.hazardObserver = new MutationObserver(scheduleHazardReconcile);
+            state.hazardObserver.observe(alertBox, { childList: true });
+        }
         $('navigation-start')?.addEventListener('click', () => simpleAction('/api/navigation/control/start', 'NavigateToPose 시작 중...'));
         $('navigation-cancel')?.addEventListener('click', () => simpleAction('/api/navigation/control/cancel', '목표 취소 중...'));
-        $('navigation-estop')?.addEventListener('click', () => emergencyStop());
-        $('navigation-resume')?.addEventListener('click', () => simpleAction('/api/navigation/control/resume', '현재 pose에서 경로를 재계산하고 재개하는 중...'));
+        $('navigation-estop')?.addEventListener('click', () => requestEmergencyToggle('STOP'));
+        $('navigation-resume')?.addEventListener('click', () => requestEmergencyToggle('RESUME'));
         $('navigation-led-test')?.addEventListener('click', () => simpleAction('/api/navigation/control/led-test', 'LED test 명령 전송 중...'));
-        window.navigationControl = { emergencyStop, warning, refreshState };
+        window.navigationControl = {
+            applyState: applyControlState,
+            emergencyStop,
+            refreshState,
+            requestDriveMode,
+            requestEmergencyToggle,
+            requestNavigationMode,
+            warning,
+        };
         csrfToken().catch(() => {});
         refreshState();
         window.setInterval(refreshState, POLL_MS);

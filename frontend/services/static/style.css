@@ -19,7 +19,8 @@
     --border-color: #e2e8f4;
     --border-bright: #c4cfdf;
     --accent: #0891b2;
-    --mono: 'Space Mono', monospace;
+    --font-family: 'Noto Sans KR', 'Noto Sans', sans-serif;
+    --mono: var(--font-family);
     --header-bg: rgba(255,255,255,0.92);
     --sidebar-bg: #ffffff;
     --sidebar-border: #e2e8f4;
@@ -77,11 +78,19 @@ body {
         radial-gradient(ellipse at 20% 50%, rgba(37, 99, 235, 0.04) 0%, transparent 60%),
         radial-gradient(ellipse at 80% 20%, rgba(8, 145, 178, 0.03) 0%, transparent 50%);
     color: var(--text-dark);
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: var(--font-family);
     margin: 0; padding: 10px 20px; box-sizing: border-box;
     height: 100vh; width: 100vw;
     display: flex; flex-direction: column; overflow: hidden;
     transition: background-color 0.3s, color 0.3s;
+}
+
+button,
+input,
+select,
+textarea,
+table {
+    font-family: var(--font-family);
 }
 
 /* ===================================================
@@ -685,12 +694,12 @@ body.dark-mode .no-camera-bg {
    하단 북마크/갤러리 패널 (요구사항 8)
 =================================================== */
 .map-bookmark-panel {
-    margin-top: 10px; display: flex; gap: 8px; flex-shrink: 0;
+    margin-top: 8px; display: flex; gap: 6px; flex-shrink: 0;
 }
 .mb-btn {
-    flex: 1; background-color: transparent;
+    flex: 1 1 0; min-width: 0; min-height: 32px; background-color: transparent;
     border: 1px solid var(--border-color);
-    padding: 8px 4px; border-radius: var(--radius-sm);
+    padding: 5px 6px; border-radius: var(--radius-sm);
     font-size: 11px; font-weight: 600;
     font-family: var(--mono); letter-spacing: 0.3px;
     color: var(--text-muted); cursor: pointer; transition: all 0.2s;
@@ -698,12 +707,18 @@ body.dark-mode .no-camera-bg {
 }
 .mb-btn:hover { background-color: rgba(8, 145, 178, 0.07); border-color: var(--accent); color: var(--accent); }
 
+.mb-btn[data-record-view="patrolModal"] { order: 1; }
+.mb-btn[data-record-view="galleryModal"] { order: 2; }
+.current-situation-record-btn { order: 3; }
+.mb-btn[data-record-view="actionsModal"] { order: 4; }
+.mb-btn[data-record-view="statusModal"] { order: 5; }
+
 .current-situation-record-btn {
-    border-color: rgba(8,145,178,0.3);
-    color: var(--accent);
-    background: rgba(8,145,178,0.05);
+    border-color: var(--border-color);
+    color: var(--text-muted);
+    background: transparent;
 }
-.current-situation-record-btn:hover { background: rgba(8,145,178,0.12); }
+.current-situation-record-btn:hover { background: rgba(8,145,178,0.07); }
 
 /* ===================================================
    우측 패널
@@ -735,7 +750,7 @@ body.dark-mode .no-camera-bg {
 }
 .server-state-field strong.state-danger { color: var(--danger-color); }
 .server-state-field strong.state-success { color: var(--success-color); }
-.alert-card { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.alert-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 .alert-container {
     flex: 1 1 0; min-height: 0;
     background-color: var(--alert-bg);
@@ -764,8 +779,9 @@ body.dark-mode .no-camera-bg {
    컨트롤 그리드
 =================================================== */
 .control-grid {
-    flex: 1; display: grid; gap: 8px; min-height: 0;
-    grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr);
+    flex: 0 0 clamp(176px, 23vh, 200px); display: grid; gap: 8px; min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 42%);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
 }
 .action-btn {
     display: flex; justify-content: center; align-items: center;
@@ -793,11 +809,11 @@ body.dark-mode .no-camera-bg {
 .action-warning:hover { background-color: rgba(217, 119, 6, 0.15); border-color: var(--warning-color); color: var(--warning-color); }
 
 /* 분할 버튼 */
-.split-btn-container { display: flex; gap: 8px; grid-column: 2; grid-row: 1; }
+.split-btn-container { display: flex; gap: 8px; grid-column: 1; grid-row: 2; min-width: 0; }
 .split-btn-container .action-btn { flex: 1; width: 100%; margin: 0; height: 100%; }
 
 /* D-Pad */
-.d-pad-container { grid-column: 2; grid-row: 2 / 4; display: flex; justify-content: center; align-items: center; padding: 10px; }
+.d-pad-container { grid-column: 2; grid-row: 1 / 3; display: flex; justify-content: center; align-items: center; padding: 10px; }
 .d-pad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 5px; width: 100%; height: 100%; }
 .d-btn {
     background-color: var(--card-bg2); border: 1px solid var(--border-color);
@@ -828,7 +844,7 @@ body.dark-mode .no-camera-bg {
 
 /* 모드 토글 */
 .toggle-switch {
-    width: 80px; height: 40px;
+    flex: 0 0 auto; width: 48px; height: 26px;
     background: rgba(8,145,178,0.12);
     border: 1px solid rgba(8,145,178,0.35);
     border-radius: 8px; position: relative; transition: all 0.3s;
@@ -842,23 +858,77 @@ body.dark-mode .no-camera-bg {
     border-color: rgba(100,116,139,0.35);
 }
 .toggle-slider {
-    width: 24px; height: 34px;
+    width: 18px; height: 20px;
     background: var(--accent);
     border-radius: 5px; position: absolute;
     top: 3px; left: 3px; transition: left 0.3s ease;
     box-shadow: 0 2px 8px rgba(8,145,178,0.35);
 }
 .toggle-switch.manual .toggle-slider {
-    left: calc(100% - 27px);
+    left: calc(100% - 21px);
     background: var(--primary-color);
     box-shadow: 0 2px 8px rgba(37,99,235,0.35);
 }
 .toggle-switch.unknown .toggle-slider {
-    left: calc(50% - 12px); background: var(--text-muted); box-shadow: none;
+    left: calc(50% - 9px); background: var(--text-muted); box-shadow: none;
 }
 .mode-text { font-size: 11px; font-weight: 600; font-family: var(--mono); transition: all 0.3s; letter-spacing: 0.3px; }
 .mode-text.active { opacity: 1; font-weight: 700; color: var(--text-dark); }
 .mode-text.inactive { opacity: 0.3; }
+
+.dashboard-mode-controls {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 10px;
+}
+.dashboard-drive-mode-control {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+.mode-control-divider {
+    align-self: stretch;
+    width: 1px;
+    background: var(--border-color);
+}
+.dashboard-navigation-mode-controls {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.navigation-mode-option {
+    min-width: 0;
+    padding: 5px 7px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.navigation-mode-option:hover,
+.navigation-mode-option.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(8, 145, 178, 0.08);
+}
 
 /* ===================================================
    모달

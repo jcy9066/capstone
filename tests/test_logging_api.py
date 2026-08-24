@@ -41,15 +41,27 @@ class FakeDatabase:
 
     def list_system_status(self, **filters):
         self.filters = filters
-        return self.rows["system"]
+        return self._page(self.rows["system"], filters)
 
     def list_events(self, **filters):
         self.filters = filters
-        return self.rows["events"]
+        return self._page(self.rows["events"], filters)
 
     def list_actions(self, **filters):
         self.filters = filters
-        return self.rows["actions"]
+        return self._page(self.rows["actions"], filters)
+
+    @staticmethod
+    def _page(rows, filters):
+        page = filters.get("page", 1)
+        page_size = filters.get("page_size", 50)
+        return {
+            "items": list(rows),
+            "page": page,
+            "page_size": page_size,
+            "total": len(rows),
+            "total_pages": 1 if rows else 0,
+        }
 
     def insert_action(self, **values):
         if self.insert_error is not None:
@@ -236,10 +248,16 @@ def test_read_apis_require_authentication_and_empty_is_200(api):
     login(server, client)
     response = client.get("/api/logs/system-status")
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {
+        "items": [],
+        "page": 1,
+        "page_size": 50,
+        "total": 0,
+        "total_pages": 0,
+    }
 
 
-def test_read_api_filters_latest_rows_with_a_bounded_limit(api):
+def test_read_api_filters_sorts_and_paginates_on_the_server(api):
     server, client, database = api
     login(server, client)
     response = client.get(
@@ -247,15 +265,40 @@ def test_read_api_filters_latest_rows_with_a_bounded_limit(api):
         params={
             "start_at": "2026-08-01T00:00:00Z",
             "end_at": "2026-08-14T23:59:59Z",
-            "limit": "25",
+            "page": "2",
+            "page_size": "50",
+            "sort_by": "confidence",
+            "sort_direction": "asc",
+            "event_type": "INTRUSION",
+            "is_reported": "true",
         },
     )
     assert response.status_code == 200
-    assert response.json()[0]["event_id"] == 7
-    assert database.filters["limit"] == 25
+    assert response.json()["items"][0]["event_id"] == 7
+    assert response.json()["page_size"] == 50
+    assert database.filters["page"] == 2
+    assert database.filters["page_size"] == 50
+    assert database.filters["sort_by"] == "confidence"
+    assert database.filters["sort_direction"] == "asc"
+    assert database.filters["event_type"] == "INTRUSION"
+    assert database.filters["is_reported"] is True
     assert database.filters["start_at"] == datetime(2026, 8, 1)
     assert database.filters["end_at"] == datetime(2026, 8, 14, 23, 59, 59)
-    assert client.get("/api/logs/events?limit=501").status_code == 400
+    assert client.get("/api/logs/events?page_size=25").status_code == 400
+    assert client.get("/api/logs/events?sort_by=event_source").status_code == 400
+
+
+def test_action_log_filters_use_name_partial_search_and_actual_enum(api):
+    server, client, database = api
+    login(server, client)
+    response = client.get(
+        "/api/logs/actions",
+        params={"user_name": "홍길", "action_type": "warning"},
+    )
+    assert response.status_code == 200
+    assert database.filters["user_name"] == "홍길"
+    assert database.filters["action_type"] == "WARNING"
+    assert client.get("/api/logs/actions?action_type=UNKNOWN").status_code == 400
 
 
 def test_database_unavailable_is_clear_503(api):
@@ -896,9 +939,9 @@ def test_existing_log_responses_hide_removed_and_private_path_fields(api):
     ]
     login(server, client)
 
-    status = client.get("/api/logs/system-status").json()[0]
-    event = client.get("/api/logs/events").json()[0]
-    action = client.get("/api/logs/actions").json()[0]
+    status = client.get("/api/logs/system-status").json()["items"][0]
+    event = client.get("/api/logs/events").json()["items"][0]
+    action = client.get("/api/logs/actions").json()["items"][0]
     assert "lidar_z" not in status
     assert "image_path" not in event and "video_path" not in event and "lidar_z" not in event
     assert event["has_image"] is True

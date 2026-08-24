@@ -1,0 +1,299 @@
+(function initializeImageDetail(global) {
+    'use strict';
+
+    const components = global.DabomDashboardComponents = global.DabomDashboardComponents || {};
+    const gallery = components.gallery = components.gallery || {};
+    const ACTION_LABELS = Object.freeze({
+        WARNING: '경고', MANUAL_MOVING: '수동 주행', REPORT: '신고',
+        COMMUNICATION: '직접 통신', NOTE: '상황 기록',
+    });
+    const state = {
+        source: 'all', items: [], selectedIndex: -1, loadState: 'idle', message: '',
+        galleryScrollTop: 0,
+    };
+    let manager = null;
+    let registeredManager = null;
+
+    const escapeHtml = value => components.records?.escapeHtml?.(value) ?? String(value ?? '');
+    const booleanLabel = (value, yes, no) => components.records?.formatBoolean?.(value, yes, no) ?? '-';
+
+    function itemSource(item) {
+        if (item?.source === 'event' || item?.source === 'action') return item.source;
+        if (item?.action_id != null) return 'action';
+        return 'event';
+    }
+
+    function itemId(item) {
+        return itemSource(item) === 'event' ? item?.event_id ?? item?.source_id ?? item?.id : item?.action_id ?? item?.source_id ?? item?.id;
+    }
+
+    function imageUrl(item) {
+        if (item?.image_url) return item.image_url;
+        const id = itemId(item);
+        if (id == null) return '';
+        return itemSource(item) === 'event'
+            ? `/api/media/events/${encodeURIComponent(id)}`
+            : `/api/media/actions/${encodeURIComponent(id)}`;
+    }
+
+    function timestamp(item) {
+        return item?.detected_at || item?.created_at || item?.timestamp || `${item?.date || ''} ${item?.time || ''}`.trim() || '-';
+    }
+
+    function sourceLabel(item) { return itemSource(item) === 'event' ? '순찰 기록' : '관리자 조치'; }
+
+    function itemLabel(item) {
+        return itemSource(item) === 'event'
+            ? item?.event_type || '순찰 기록'
+            : ACTION_LABELS[item?.action_type] || item?.action_type || '관리자 조치';
+    }
+
+    function metadata(item) {
+        if (itemSource(item) === 'event') return [
+            ['유형', item.event_type],
+            ['신뢰도', item.confidence == null ? '-' : `${(Number(item.confidence) * 100).toFixed(1)}%`],
+            ['LiDAR X/Y', `${item.lidar_x ?? '-'} / ${item.lidar_y ?? '-'}`],
+            ['GPS', `${item.gps_lat ?? '-'} / ${item.gps_lng ?? '-'} / ${item.gps_alt ?? '-'}`],
+            ['조치/신고/경고', `${booleanLabel(item.is_resolved, '완료', '미조치')} / ${booleanLabel(item.is_reported, '신고', '미신고')} / ${booleanLabel(item.is_alerted, '경고', '미경고')}`],
+            ['오탐', booleanLabel(item.is_false_alarm, '오탐', '정상')],
+        ];
+        const administrator = item.administrator_name || (item.user_email ? `${item.user_name || item.user_id} (${item.user_email})` : item.user_name || item.user_id);
+        return [
+            ['관리자', administrator],
+            ['조치 유형', ACTION_LABELS[item.action_type] || item.action_type],
+            ['관련 이벤트', item.event_id ?? '-'],
+            ['내용', item.description_content || '-'],
+        ];
+    }
+
+    function gallerySnapshot() {
+        const grid = manager?.body?.querySelector('[data-gallery-grid]');
+        return {
+            source: state.source,
+            items: state.items.map(item => ({ ...item })),
+            loadState: state.loadState,
+            message: state.message,
+            galleryScrollTop: grid?.scrollTop || 0,
+        };
+    }
+
+    function restoreGallery(snapshot) {
+        if (!snapshot) return;
+        state.source = snapshot.source || 'all';
+        state.items = Array.isArray(snapshot.items) ? snapshot.items.map(item => ({ ...item })) : [];
+        state.loadState = snapshot.loadState || 'ready';
+        state.message = snapshot.message || '';
+        state.galleryScrollTop = Math.max(0, Number(snapshot.galleryScrollTop) || 0);
+        state.selectedIndex = -1;
+    }
+
+    function galleryHtml() {
+        return `<section class="gallery-view" data-dashboard-modal-view>
+            <div class="gallery-toolbar" role="group" aria-label="갤러리 분류">
+                <button type="button" class="gallery-filter-btn" data-source="all">전체</button>
+                <button type="button" class="gallery-filter-btn" data-source="event">순찰 기록</button>
+                <button type="button" class="gallery-filter-btn" data-source="action">관리자 조치</button>
+            </div>
+            <div class="gallery-grid" data-gallery-grid></div>
+        </section>`;
+    }
+
+    function restoreGalleryScroll() {
+        const apply = () => {
+            const grid = manager?.body?.querySelector('[data-gallery-grid]');
+            if (grid) grid.scrollTop = state.galleryScrollTop;
+        };
+        apply();
+        if (typeof global.requestAnimationFrame !== 'function') return;
+        global.requestAnimationFrame(() => {
+            apply();
+            global.requestAnimationFrame(apply);
+        });
+    }
+
+    function renderGallery() {
+        const root = manager?.body?.querySelector('.gallery-view');
+        const grid = root?.querySelector('[data-gallery-grid]');
+        if (!grid) return;
+        root.querySelectorAll('[data-source]').forEach(button => button.classList.toggle('active', button.dataset.source === state.source));
+        if (state.loadState === 'loading') {
+            grid.innerHTML = '<div class="gallery-empty is-loading">갤러리를 불러오는 중입니다.</div>';
+            return;
+        }
+        if (state.loadState === 'error' || state.loadState === 'unavailable') {
+            grid.innerHTML = `<div class="gallery-empty is-error">${escapeHtml(state.message || '갤러리를 불러오지 못했습니다.')}</div>`;
+            return;
+        }
+        if (!state.items.length) {
+            grid.innerHTML = '<div class="gallery-empty">저장된 이미지가 없습니다.</div>';
+            return;
+        }
+        grid.innerHTML = state.items.map((item, index) => `<button type="button" class="gallery-card" data-gallery-index="${index}">
+            <img src="${escapeHtml(imageUrl(item))}" alt="${escapeHtml(sourceLabel(item))} 이미지" loading="lazy">
+            <span class="gallery-card-source source-${itemSource(item)}">${escapeHtml(sourceLabel(item))}</span>
+            <strong>${escapeHtml(itemLabel(item))}</strong><time>${escapeHtml(timestamp(item))}</time>
+        </button>`).join('');
+        grid.querySelectorAll('[data-gallery-index]').forEach(button => {
+            button.addEventListener('click', () => openDetail(Number(button.dataset.galleryIndex)));
+        });
+        restoreGalleryScroll();
+    }
+
+    function bindGallery() {
+        const root = manager?.body?.querySelector('.gallery-view');
+        root?.querySelectorAll('[data-source]').forEach(button => {
+            button.addEventListener('click', () => loadGallery(button.dataset.source));
+        });
+        renderGallery();
+    }
+
+    async function loadGallery(source) {
+        state.source = source || 'all';
+        state.loadState = 'loading';
+        state.message = '';
+        state.selectedIndex = -1;
+        state.galleryScrollTop = 0;
+        renderGallery();
+        try {
+            const response = await fetch(`/api/gallery?source=${encodeURIComponent(state.source)}`, { credentials: 'same-origin', cache: 'no-store' });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
+            state.items = Array.isArray(payload) ? payload : (payload.items || payload.rows || payload.records || payload.data || []);
+            state.loadState = 'ready';
+        } catch (error) {
+            state.items = [];
+            state.loadState = 'error';
+            state.message = error.message || '갤러리를 불러오지 못했습니다.';
+        }
+        renderGallery();
+    }
+
+    function detailHtml(context) {
+        const item = context.item;
+        const index = Number(context.index);
+        const listLength = Number(context.listLength) || 1;
+        const allowNavigation = context.origin === 'gallery';
+        return `<section class="gallery-detail" data-dashboard-modal-view aria-label="이미지 상세">
+            <div class="gallery-detail-header"><strong>${escapeHtml(sourceLabel(item))} 이미지 상세</strong><button type="button" class="gallery-detail-close" data-detail-back aria-label="상세 닫기">&times;</button></div>
+            <img class="gallery-detail-image" src="${escapeHtml(imageUrl(item))}" alt="${escapeHtml(sourceLabel(item))} 상세 이미지">
+            <dl class="gallery-metadata"><div><dt>기록 시각</dt><dd>${escapeHtml(timestamp(item))}</dd></div>${metadata(item).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value ?? '-')}</dd></div>`).join('')}</dl>
+            <div class="gallery-detail-actions">
+                ${allowNavigation ? `<button type="button" data-detail-change="-1" ${index <= 0 ? 'disabled' : ''}>← 이전</button>` : '<span></span>'}
+                <button type="button" class="gallery-delete-btn" data-detail-delete>이미지 삭제</button>
+                ${allowNavigation ? `<button type="button" data-detail-change="1" ${index >= listLength - 1 ? 'disabled' : ''}>다음 →</button>` : '<span></span>'}
+            </div>
+        </section>`;
+    }
+
+    function bindDetail(context) {
+        const root = manager?.body?.querySelector('.gallery-detail');
+        root?.querySelector('[data-detail-back]')?.addEventListener('click', () => manager.back());
+        root?.querySelectorAll('[data-detail-change]').forEach(button => {
+            button.addEventListener('click', () => changeDetail(Number(button.dataset.detailChange)));
+        });
+        root?.querySelector('[data-detail-delete]')?.addEventListener('click', event => deleteItem(context, event.currentTarget));
+    }
+
+    async function openDetail(index) {
+        if (index < 0 || index >= state.items.length) return;
+        state.selectedIndex = index;
+        return manager.open('recordImageDetail', { item: state.items[index], index, listLength: state.items.length, origin: 'gallery' });
+    }
+
+    function changeDetail(offset) {
+        const nextIndex = state.selectedIndex + offset;
+        if (nextIndex < 0 || nextIndex >= state.items.length) return;
+        state.selectedIndex = nextIndex;
+        return manager.open('recordImageDetail', {
+            item: state.items[nextIndex], index: nextIndex, listLength: state.items.length, origin: 'gallery',
+        }, { replace: true });
+    }
+
+    async function deleteItem(context, button) {
+        const item = context.item;
+        const source = itemSource(item);
+        const recordId = itemId(item);
+        if (recordId == null || !confirm('이 이미지를 갤러리에서 삭제하시겠습니까?')) return;
+        const previousText = button.textContent;
+        button.disabled = true;
+        button.textContent = '삭제 중...';
+        try {
+            const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+            const csrf = await csrfResponse.json().catch(() => ({}));
+            if (!csrfResponse.ok || !csrf.csrf_token) throw new Error('보안 토큰을 준비하지 못했습니다.');
+            const response = await fetch(`/api/gallery/${source}/${encodeURIComponent(recordId)}`, {
+                method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf.csrf_token },
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
+            const removedIndex = state.items.findIndex(candidate => itemSource(candidate) === source && String(itemId(candidate)) === String(recordId));
+            if (removedIndex >= 0) state.items.splice(removedIndex, 1);
+            const previous = manager.stack[manager.stack.length - 1];
+            if (previous?.name === 'galleryModal' && Array.isArray(previous.state?.items)) {
+                const savedIndex = previous.state.items.findIndex(candidate => itemSource(candidate) === source && String(itemId(candidate)) === String(recordId));
+                if (savedIndex >= 0) previous.state.items.splice(savedIndex, 1);
+            } else if (previous?.state?.rows) {
+                const savedRow = previous.state.rows.find(candidate => {
+                    const candidateId = source === 'event' ? candidate.event_id : candidate.action_id;
+                    return String(candidateId) === String(recordId);
+                });
+                if (savedRow) {
+                    savedRow.has_image = false;
+                    savedRow.image_url = null;
+                }
+            }
+            state.selectedIndex = -1;
+            await manager.back();
+            if (manager.activeView?.name === 'galleryModal') renderGallery();
+        } catch (error) {
+            alert(error.message || '이미지를 삭제하지 못했습니다.');
+            button.disabled = false;
+            button.textContent = previousText;
+        }
+    }
+
+    gallery.registerModalViews = function registerModalViews(modalManager) {
+        manager = modalManager;
+        if (!manager || registeredManager === manager) return;
+        registeredManager = manager;
+        manager.register('galleryModal', {
+            title: '이미지 갤러리',
+            render: (context, snapshot) => { restoreGallery(snapshot); return galleryHtml(); },
+            onOpen: async (context, snapshot) => { bindGallery(); if (!snapshot) await loadGallery(context.source || 'all'); },
+            captureState: gallerySnapshot,
+            restoreState: () => bindGallery(),
+        });
+        manager.register('recordImageDetail', {
+            title: context => context.origin === 'gallery' ? '이미지 갤러리 상세' : '기록 이미지 상세',
+            render: context => detailHtml(context),
+            onOpen: context => bindDetail(context),
+            restoreState: (snapshot, context) => bindDetail(context),
+        });
+    };
+
+    gallery.openGallery = function openGallery(source = 'all') {
+        return manager?.open('galleryModal', { source }, { replace: true });
+    };
+
+    gallery.openRecordDetail = function openRecordDetail(item, recordView) {
+        if (!item?.image_url) return;
+        const source = recordView === 'actionsModal' ? 'action' : 'event';
+        return manager?.open('recordImageDetail', { item: { ...item, source }, index: 0, listLength: 1, origin: recordView });
+    };
+
+    gallery.mountImageDetail = function mountImageDetail(handlers = {}) {
+        const controller = {
+            open(index) { return manager ? openDetail(Number(index)) : handlers.open?.(index); },
+            close() { return manager?.back() ?? handlers.close?.(); },
+            change(offset) { return manager ? changeDetail(Number(offset)) : handlers.change?.(offset); },
+        };
+        gallery.imageDetail = controller;
+        return controller;
+    };
+
+    document.addEventListener('keydown', event => {
+        if (manager?.activeView?.name !== 'recordImageDetail' || state.selectedIndex < 0) return;
+        if (event.key === 'ArrowLeft') changeDetail(-1);
+        if (event.key === 'ArrowRight') changeDetail(1);
+    });
+})(window);

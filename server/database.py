@@ -104,7 +104,6 @@ class Database:
             "cpu_temperature",
             "ram_usage",
             "ping",
-            "battery_level",
             "is_autonomous",
             "speed",
             "gps_lat",
@@ -231,30 +230,41 @@ class Database:
         *,
         start_at: datetime | None = None,
         end_at: datetime | None = None,
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        return self._select_logs(
-            table="system_status",
-            timestamp_column="recorded_at",
-            columns=(
-                "status_id",
-                "cpu_usage",
-                "cpu_temperature",
-                "ram_usage",
-                "ping",
-                "battery_level",
-                "is_autonomous",
-                "speed",
-                "gps_lat",
-                "gps_lng",
-                "gps_alt",
-                "lidar_x",
-                "lidar_y",
-                "recorded_at",
-            ),
-            start_at=start_at,
-            end_at=end_at,
-            limit=limit,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "recorded_at",
+        sort_direction: str = "desc",
+    ) -> dict[str, Any]:
+        conditions, params = self._time_conditions(
+            "recorded_at", start_at=start_at, end_at=end_at
+        )
+        where = self._where_clause(conditions)
+        order_by, direction = self._sort_clause(
+            sort_by,
+            sort_direction,
+            {
+                "recorded_at": "recorded_at",
+                "cpu_usage": "cpu_usage",
+                "cpu_temperature": "cpu_temperature",
+                "ram_usage": "ram_usage",
+                "ping": "ping",
+                "speed": "speed",
+            },
+        )
+        return self._select_page(
+            select_sql=f"""
+                SELECT status_id, cpu_usage, cpu_temperature, ram_usage,
+                       ping, is_autonomous, speed, gps_lat,
+                       gps_lng, gps_alt, lidar_x, lidar_y, recorded_at
+                FROM system_status{where}
+            """,
+            count_sql=f"SELECT COUNT(*) AS total FROM system_status{where}",
+            params=tuple(params),
+            order_by=order_by,
+            tie_breaker="status_id",
+            direction=direction,
+            page=page,
+            page_size=page_size,
         )
 
     def list_events(
@@ -262,34 +272,72 @@ class Database:
         *,
         start_at: datetime | None = None,
         end_at: datetime | None = None,
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        return self._select_logs(
-            table="event_log",
-            timestamp_column="detected_at",
-            columns=(
-                "event_id",
-                "event_source",
-                "event_type",
-                "image_path",
-                "confidence",
-                "gps_lat",
-                "gps_lng",
-                "gps_alt",
-                "lidar_x",
-                "lidar_y",
-                "is_resolved",
-                "is_reported",
-                "reported_at",
-                "is_alerted",
-                "is_mic_used",
-                "is_false_alarm",
-                "detected_at",
-            ),
-            start_at=start_at,
-            end_at=end_at,
-            limit=limit,
-            soft_delete=True,
+        event_type: str | None = None,
+        confidence_min: float | None = None,
+        confidence_max: float | None = None,
+        is_resolved: bool | None = None,
+        is_reported: bool | None = None,
+        is_alerted: bool | None = None,
+        is_false_alarm: bool | None = None,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "recorded_at",
+        sort_direction: str = "desc",
+    ) -> dict[str, Any]:
+        self._validate_confidence_range(confidence_min, confidence_max)
+        conditions, params = self._time_conditions(
+            "e.detected_at", start_at=start_at, end_at=end_at
+        )
+        conditions.insert(0, "e.is_deleted = 0")
+        if event_type is not None:
+            conditions.append("e.event_type = %s")
+            params.append(event_type)
+        if confidence_min is not None:
+            conditions.append("e.confidence >= %s")
+            params.append(confidence_min)
+        if confidence_max is not None:
+            conditions.append("e.confidence <= %s")
+            params.append(confidence_max)
+        for column, value in (
+            ("is_resolved", is_resolved),
+            ("is_reported", is_reported),
+            ("is_alerted", is_alerted),
+            ("is_false_alarm", is_false_alarm),
+        ):
+            if value is not None:
+                conditions.append(f"e.{column} = %s")
+                params.append(int(value))
+        where = self._where_clause(conditions)
+        order_by, direction = self._sort_clause(
+            sort_by,
+            sort_direction,
+            {
+                "recorded_at": "e.detected_at",
+                "detected_at": "e.detected_at",
+                "event_type": "e.event_type",
+                "confidence": "e.confidence",
+                "is_resolved": "e.is_resolved",
+                "is_reported": "e.is_reported",
+                "is_alerted": "e.is_alerted",
+                "is_false_alarm": "e.is_false_alarm",
+            },
+        )
+        return self._select_page(
+            select_sql=f"""
+                SELECT e.event_id, e.event_source, e.event_type, e.image_path,
+                       e.confidence, e.gps_lat, e.gps_lng, e.gps_alt,
+                       e.lidar_x, e.lidar_y, e.is_resolved, e.is_reported,
+                       e.reported_at, e.is_alerted, e.is_mic_used,
+                       e.is_false_alarm, e.detected_at
+                FROM event_log AS e{where}
+            """,
+            count_sql=f"SELECT COUNT(*) AS total FROM event_log AS e{where}",
+            params=tuple(params),
+            order_by=order_by,
+            tie_breaker="e.event_id",
+            direction=direction,
+            page=page,
+            page_size=page_size,
         )
 
     def list_actions(
@@ -297,27 +345,54 @@ class Database:
         *,
         start_at: datetime | None = None,
         end_at: datetime | None = None,
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        conditions = ["a.is_deleted = 0"]
-        params: list[Any] = []
-        if start_at is not None:
-            conditions.append("a.created_at >= %s")
-            params.append(start_at)
-        if end_at is not None:
-            conditions.append("a.created_at <= %s")
-            params.append(end_at)
-        params.append(limit)
-        return self._select(
-            """
-            SELECT a.action_id, a.user_id, u.name AS user_name, a.event_id,
-                   a.action_type, a.description_content, a.image_path, a.created_at
+        user_name: str | None = None,
+        action_type: str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+        sort_by: str = "recorded_at",
+        sort_direction: str = "desc",
+    ) -> dict[str, Any]:
+        conditions, params = self._time_conditions(
+            "a.created_at", start_at=start_at, end_at=end_at
+        )
+        conditions.insert(0, "a.is_deleted = 0")
+        normalized_user_name = (user_name or "").strip()
+        if normalized_user_name:
+            conditions.append("INSTR(u.name, %s) > 0")
+            params.append(normalized_user_name)
+        if action_type is not None:
+            conditions.append("a.action_type = %s")
+            params.append(action_type)
+        where = self._where_clause(conditions)
+        order_by, direction = self._sort_clause(
+            sort_by,
+            sort_direction,
+            {
+                "recorded_at": "a.created_at",
+                "created_at": "a.created_at",
+                "user_name": "u.name",
+                "action_type": "a.action_type",
+                "event_id": "a.event_id",
+            },
+        )
+        joins = """
             FROM action_log AS a
             INNER JOIN users AS u ON u.user_id = a.user_id
-            WHERE """
-            + " AND ".join(conditions)
-            + " ORDER BY a.created_at DESC LIMIT %s",
-            tuple(params),
+        """
+        return self._select_page(
+            select_sql=f"""
+                SELECT a.action_id, a.user_id, u.name AS user_name,
+                       u.email AS user_email, a.event_id, a.action_type,
+                       a.description_content, a.image_path, a.created_at
+                {joins}{where}
+            """,
+            count_sql=f"SELECT COUNT(*) AS total {joins}{where}",
+            params=tuple(params),
+            order_by=order_by,
+            tie_breaker="a.action_id",
+            direction=direction,
+            page=page,
+            page_size=page_size,
         )
 
     def list_gallery(
@@ -416,20 +491,14 @@ class Database:
         except Exception as exc:
             raise DatabaseOperationError("Unable to write to the configured database.") from exc
 
-    def _select_logs(
-        self,
-        *,
-        table: str,
+    @staticmethod
+    def _time_conditions(
         timestamp_column: str,
-        columns: tuple[str, ...],
+        *,
         start_at: datetime | None,
         end_at: datetime | None,
-        limit: int,
-        soft_delete: bool = False,
-    ) -> list[dict[str, Any]]:
-        # Identifiers are selected only by the private callers above. All user
-        # values remain bound parameters.
-        conditions = ["is_deleted = 0"] if soft_delete else []
+    ) -> tuple[list[str], list[Any]]:
+        conditions: list[str] = []
         params: list[Any] = []
         if start_at is not None:
             conditions.append(f"{timestamp_column} >= %s")
@@ -437,13 +506,87 @@ class Database:
         if end_at is not None:
             conditions.append(f"{timestamp_column} <= %s")
             params.append(end_at)
-        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
-        sql = (
-            f"SELECT {', '.join(columns)} FROM {table}{where} "
-            f"ORDER BY {timestamp_column} DESC LIMIT %s"
+        return conditions, params
+
+    @staticmethod
+    def _where_clause(conditions: list[str]) -> str:
+        return f" WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    @staticmethod
+    def _sort_clause(
+        sort_by: str,
+        sort_direction: str,
+        allowed_columns: dict[str, str],
+    ) -> tuple[str, str]:
+        normalized_sort = str(sort_by or "").strip().lower()
+        if normalized_sort not in allowed_columns:
+            raise ValueError(f"Unsupported sort column: {sort_by}")
+        normalized_direction = str(sort_direction or "").strip().lower()
+        if normalized_direction not in {"asc", "desc"}:
+            raise ValueError("sort_direction must be 'asc' or 'desc'.")
+        return allowed_columns[normalized_sort], normalized_direction.upper()
+
+    @staticmethod
+    def _validate_confidence_range(
+        confidence_min: float | None, confidence_max: float | None
+    ) -> None:
+        for name, value in (
+            ("confidence_min", confidence_min),
+            ("confidence_max", confidence_max),
+        ):
+            if value is not None and not 0 <= value <= 1:
+                raise ValueError(f"{name} must be between 0 and 1.")
+        if (
+            confidence_min is not None
+            and confidence_max is not None
+            and confidence_min > confidence_max
+        ):
+            raise ValueError("confidence_min must not exceed confidence_max.")
+
+    def _select_page(
+        self,
+        *,
+        select_sql: str,
+        count_sql: str,
+        params: tuple[Any, ...],
+        order_by: str,
+        tie_breaker: str,
+        direction: str,
+        page: int,
+        page_size: int,
+    ) -> dict[str, Any]:
+        if isinstance(page, bool) or not isinstance(page, int) or page < 1:
+            raise ValueError("page must be a positive integer.")
+        if (
+            isinstance(page_size, bool)
+            or not isinstance(page_size, int)
+            or not 1 <= page_size <= 500
+        ):
+            raise ValueError("page_size must be between 1 and 500.")
+        offset = (page - 1) * page_size
+        paged_sql = (
+            f"{select_sql} ORDER BY {order_by} {direction}, "
+            f"{tie_breaker} {direction} LIMIT %s OFFSET %s"
         )
-        params.append(limit)
-        return self._select(sql, tuple(params))
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(count_sql, params)
+                    count_row = cursor.fetchone() or {}
+                    total = int(count_row.get("total") or 0)
+                    cursor.execute(paged_sql, params + (page_size, offset))
+                    items = list(cursor.fetchall())
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to read from the configured database.") from exc
+        return {
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+        }
 
     def _select(
         self, sql: str, params: tuple[Any, ...]

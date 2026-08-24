@@ -55,7 +55,7 @@ from server.database import (
     DatabaseOperationError,
 )
 from server.env_config import env_bool, env_float, env_int, env_text
-from server.logging_service import ACTION_TYPES, EventLogWorker, SystemStatusWriter
+from server.logging_service import ACTION_TYPES, EVENT_TYPES, EventLogWorker, SystemStatusWriter
 from server.media_service import (
     FrozenFrameCache,
     FrozenFrameTokenError,
@@ -87,7 +87,9 @@ app.add_middleware(
 )
 
 STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
+COMPONENTS_DIR = ROOT_DIR / "frontend" / "components"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/components", StaticFiles(directory=COMPONENTS_DIR), name="components")
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
 _auth_service = None
@@ -398,7 +400,6 @@ robot_status = {
     "robot_id": SERVER_ROBOT_ID,
     "cpu_usage": None,
     "cpu_temp": None,
-    "battery": None,
     "ram_usage": None,
     "internet": "unknown",
     "mode": "manual",
@@ -1734,7 +1735,35 @@ def gallery_dto(row):
     return public
 
 
-def parse_log_filters(request):
+LOG_PAGE_SIZE = 50
+LOG_SORT_FIELDS = {
+    "list_system_status": {
+        "recorded_at",
+        "cpu_usage",
+        "cpu_temperature",
+        "ram_usage",
+        "ping",
+        "speed",
+    },
+    "list_events": {
+        "detected_at",
+        "event_type",
+        "confidence",
+        "is_resolved",
+        "is_reported",
+        "is_alerted",
+        "is_false_alarm",
+    },
+    "list_actions": {"created_at", "user_name", "action_type", "event_id"},
+}
+LOG_DEFAULT_SORT_FIELDS = {
+    "list_system_status": "recorded_at",
+    "list_events": "detected_at",
+    "list_actions": "created_at",
+}
+
+
+def parse_log_filters(request, method_name=None):
     def parse_time(name):
         raw = request.query_params.get(name)
         if not raw:
@@ -1744,17 +1773,113 @@ def parse_log_filters(request):
             parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
 
+    if method_name is None:
+        try:
+            limit = int(request.query_params.get("limit", "100"))
+            start_at = parse_time("start_at")
+            end_at = parse_time("end_at")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid time range or limit.") from exc
+        if not 1 <= limit <= 500:
+            raise ValueError("limit must be between 1 and 500.")
+        if start_at is not None and end_at is not None and start_at > end_at:
+            raise ValueError("start_at must not be after end_at.")
+        return {"start_at": start_at, "end_at": end_at, "limit": limit}
+
+    def parse_bool(name):
+        raw = request.query_params.get(name)
+        if raw is None or raw == "":
+            return None
+        normalized = raw.strip().lower()
+        if normalized in {"1", "true"}:
+            return True
+        if normalized in {"0", "false"}:
+            return False
+        raise ValueError(f"{name} must be true or false.")
+
+    def parse_confidence(name):
+        raw = request.query_params.get(name)
+        if raw is None or raw == "":
+            return None
+        value = float(raw)
+        if not 0 <= value <= 1:
+            raise ValueError(f"{name} must be between 0 and 1.")
+        return value
+
     try:
-        limit = int(request.query_params.get("limit", "100"))
+        page = int(request.query_params.get("page", "1"))
+        page_size = int(request.query_params.get("page_size", str(LOG_PAGE_SIZE)))
         start_at = parse_time("start_at")
         end_at = parse_time("end_at")
     except (TypeError, ValueError) as exc:
-        raise ValueError("Invalid time range or limit.") from exc
-    if not 1 <= limit <= 500:
-        raise ValueError("limit must be between 1 and 500.")
+        raise ValueError("Invalid time range or pagination.") from exc
+    if page < 1:
+        raise ValueError("page must be at least 1.")
+    if page_size != LOG_PAGE_SIZE:
+        raise ValueError(f"page_size must be {LOG_PAGE_SIZE}.")
     if start_at is not None and end_at is not None and start_at > end_at:
         raise ValueError("start_at must not be after end_at.")
-    return {"start_at": start_at, "end_at": end_at, "limit": limit}
+
+    sort_by = (
+        request.query_params.get("sort_by")
+        or LOG_DEFAULT_SORT_FIELDS[method_name]
+    ).strip().lower()
+    sort_direction = request.query_params.get("sort_direction", "desc").strip().lower()
+    if sort_by not in LOG_SORT_FIELDS[method_name]:
+        raise ValueError(f"Unsupported sort field: {sort_by}.")
+    if sort_direction not in {"asc", "desc"}:
+        raise ValueError("sort_direction must be asc or desc.")
+
+    filters = {
+        "start_at": start_at,
+        "end_at": end_at,
+        "page": page,
+        "page_size": page_size,
+        "sort_by": sort_by,
+        "sort_direction": sort_direction,
+    }
+    if method_name == "list_events":
+        event_type = request.query_params.get("event_type")
+        if event_type:
+            event_type = event_type.strip().upper()
+            if event_type not in EVENT_TYPES:
+                raise ValueError("Unsupported event_type.")
+        try:
+            confidence_min = parse_confidence("confidence_min")
+            confidence_max = parse_confidence("confidence_max")
+        except (TypeError, ValueError) as exc:
+            raise ValueError(str(exc) or "Invalid confidence range.") from exc
+        if (
+            confidence_min is not None
+            and confidence_max is not None
+            and confidence_min > confidence_max
+        ):
+            raise ValueError("confidence_min must not exceed confidence_max.")
+        filters.update(
+            {
+                "event_type": event_type,
+                "confidence_min": confidence_min,
+                "confidence_max": confidence_max,
+                "is_resolved": parse_bool("is_resolved"),
+                "is_reported": parse_bool("is_reported"),
+                "is_alerted": parse_bool("is_alerted"),
+                "is_false_alarm": parse_bool("is_false_alarm"),
+            }
+        )
+    elif method_name == "list_actions":
+        action_type = request.query_params.get("action_type")
+        if action_type:
+            action_type = action_type.strip().upper()
+            if action_type not in ACTION_TYPES:
+                raise ValueError("Unsupported action_type.")
+        user_name = request.query_params.get("user_name")
+        filters.update(
+            {
+                "user_name": user_name.strip() if user_name and user_name.strip() else None,
+                "action_type": action_type,
+            }
+        )
+    return filters
 
 
 async def read_persisted_logs(request, method_name):
@@ -1762,13 +1887,31 @@ async def read_persisted_logs(request, method_name):
     if auth_error:
         return auth_error
     try:
-        filters = parse_log_filters(request)
+        filters = parse_log_filters(request, method_name)
     except ValueError as exc:
         return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
     try:
         method = getattr(database, method_name)
-        rows = await asyncio.to_thread(method, **filters)
-        return public_log_rows(rows, method_name)
+        result = await asyncio.to_thread(method, **filters)
+        if isinstance(result, dict):
+            items = public_log_rows(result.get("items", []), method_name)
+            return {
+                "items": items,
+                "page": int(result.get("page", filters["page"])),
+                "page_size": int(result.get("page_size", LOG_PAGE_SIZE)),
+                "total": int(result.get("total", len(items))),
+                "total_pages": int(result.get("total_pages", 0)),
+            }
+        items = public_log_rows(result, method_name)
+        return {
+            "items": items,
+            "page": filters["page"],
+            "page_size": LOG_PAGE_SIZE,
+            "total": len(items),
+            "total_pages": 1 if items else 0,
+        }
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
     except (DatabaseConfigurationError, DatabaseOperationError):
         return JSONResponse(
             {"ok": False, "detail": "Database is unavailable."},
@@ -2264,7 +2407,6 @@ async def update_status(request: Request):
                 "robot_id": data.get("robot_id", robot_status["robot_id"]),
                 "cpu_usage": status_value("cpu_usage", robot_status["cpu_usage"]),
                 "cpu_temp": status_value("cpu_temp", robot_status["cpu_temp"]),
-                "battery": status_value("battery", robot_status["battery"]),
                 "ram_usage": status_value("ram_usage", robot_status["ram_usage"]),
                 "internet": status_value("internet", robot_status["internet"]),
                 "mode": status_value("mode", robot_status.get("mode", "manual")),
@@ -2600,7 +2742,7 @@ async def update_navigation_pose(request: Request):
         store_navigation_mode(navigation_mode, received_at)
         navigation_state["pose"] = received_payload(data, received_at)
         navigation_state["pose_updated_at"] = received_at
-    navigation_control_api.note_navigation_sample("pose", received_at)
+    navigation_control_api.note_navigation_sample("pose", received_at, data)
     return {"ok": True}
 
 
@@ -3517,6 +3659,13 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
             message = await websocket.receive_json()
             if message.get("type") == "status":
                 status_data = message.get("data", {})
+                if not isinstance(status_data, dict):
+                    continue
+                status_data = {
+                    key: value
+                    for key, value in status_data.items()
+                    if key not in {"battery", "battery_level"}
+                }
                 with state_lock:
                     robot_status.update(status_data)
                     robot_status["robot_id"] = robot_id

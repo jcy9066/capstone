@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 import unittest
 
@@ -8,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = ROOT / "frontend" / "templates"
 STATIC_DIR = ROOT / "frontend" / "services" / "static"
+COMPONENT_DIR = ROOT / "frontend" / "components"
 
 
 class DashboardFrontendContractTests(unittest.TestCase):
@@ -27,6 +29,16 @@ class DashboardFrontendContractTests(unittest.TestCase):
             request=SimpleNamespace(session={"user": user}),
             url_for=lambda _name: "/video_feed",
         )
+
+    def run_node_component_test(self, source):
+        completed = subprocess.run(
+            ["node", "-e", source],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
 
     def test_sidebar_renders_authenticated_account_without_duplicating_logout(self):
         rendered = self.render_dashboard({"name": "테스트 관리자", "login_id": "dashboard_test"})
@@ -93,6 +105,263 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertLess(script_position, state_position)
         self.assertLess(system_position, state_position)
         self.assertLess(map_position, state_position)
+
+    def test_dashboard_component_foundation_exposes_stable_mounts_and_assets(self):
+        for mount_id in (
+            "records-toolbar-mount",
+            "dashboard-mode-controls-mount",
+            "dpad-center-action-mount",
+            "current-situation-mount",
+        ):
+            self.assertIn(f'id="{mount_id}"', self.template_source)
+
+        component_assets = (
+            "modal/modal_manager.js",
+            "modal/modal.css",
+            "records/record_modal.js",
+            "records/record_filters.js",
+            "records/record_table.js",
+            "records/pagination.js",
+            "records/records.css",
+            "controls/cycle_filter_button.js",
+            "controls/drive_mode_control.js",
+            "controls/navigation_mode_control.js",
+            "controls/controls.css",
+            "gallery/image_detail.js",
+            "current_situation/current_situation.js",
+        )
+        for relative_path in component_assets:
+            self.assertTrue((COMPONENT_DIR / relative_path).is_file(), relative_path)
+            self.assertIn(f'/components/{relative_path}', self.template_source)
+
+        modal_source = (COMPONENT_DIR / "modal" / "modal_manager.js").read_text(encoding="utf-8")
+        self.assertIn("class ModalManager", modal_source)
+        self.assertIn("components.modal", modal_source)
+        self.assertIn("initializeDashboardComponentFoundation", self.script_source)
+
+        record_entries = (
+            ('actionsModal', "openModal('actionsModal')"),
+            ('currentSituation', "openCurrentSituationModal()"),
+            ('galleryModal', "openModal('galleryModal')"),
+            ('statusModal', "openModal('statusModal')"),
+            ('patrolModal', "openModal('patrolModal')"),
+        )
+        mount_start = self.template_source.index('id="records-toolbar-mount"')
+        mount_end = self.template_source.index("\n            </div>\n        </div>", mount_start)
+        mount_source = self.template_source[mount_start:mount_end]
+        self.assertEqual(self.template_source.count("data-record-view="), len(record_entries))
+        positions = []
+        for view, callback in record_entries:
+            marker = f'data-record-view="{view}"'
+            self.assertIn(marker, mount_source)
+            positions.append(mount_source.index(marker))
+            self.assertIn(callback, mount_source)
+        self.assertEqual(positions, sorted(positions))
+
+    def test_dashboard_mode_group_separates_drive_and_navigation_clicks(self):
+        mount_start = self.template_source.index('id="dashboard-mode-controls-mount"')
+        mount_end = self.template_source.index('id="d-pad-area"', mount_start)
+        mount_source = self.template_source[mount_start:mount_end]
+        outer_open_tag = mount_source[:mount_source.index(">") + 1]
+
+        self.assertNotIn("onclick=", outer_open_tag)
+        self.assertEqual(mount_source.count('onclick="togglePatrolMode()"'), 1)
+        self.assertIn('class="dashboard-drive-mode-control"', mount_source)
+        self.assertIn('id="dashboard-navigation-mode-controls-mount"', mount_source)
+        self.assertLess(
+            mount_source.index("</button>"),
+            mount_source.index('id="dashboard-navigation-mode-controls-mount"'),
+        )
+        for mode in ("MAPPING", "DRIVING"):
+            self.assertIn(
+                f'<button class="navigation-mode-option" type="button" data-navigation-mode="{mode}">',
+                mount_source,
+            )
+        self.assertEqual(self.template_source.count('id="navigation-mode-mapping"'), 1)
+        self.assertEqual(self.template_source.count('id="navigation-mode-driving"'), 1)
+
+    def test_dashboard_layout_contract_is_compact_and_consistent(self):
+        toolbar_order = (
+            ('data-record-view="patrolModal"', "order: 1"),
+            ('data-record-view="galleryModal"', "order: 2"),
+            (".current-situation-record-btn", "order: 3"),
+            ('data-record-view="actionsModal"', "order: 4"),
+            ('data-record-view="statusModal"', "order: 5"),
+        )
+        for selector, order in toolbar_order:
+            selector_position = self.style_source.index(selector)
+            self.assertIn(order, self.style_source[selector_position:selector_position + 100])
+
+        for contract in (
+            "grid-template-rows: repeat(2, minmax(0, 1fr))",
+            "grid-column: 1; grid-row: 2",
+            "grid-column: 2; grid-row: 1 / 3",
+            "min-height: 32px",
+            "--font-family: 'Noto Sans KR', 'Noto Sans', sans-serif",
+        ):
+            self.assertIn(contract, self.style_source)
+        self.assertNotIn("Space Mono", self.style_source + self.template_source)
+        for decorative_emoji in ("⚙️", "🌙", "📋", "📌", "🖼", "🚨", "🤖", "🎮"):
+            self.assertNotIn(decorative_emoji, self.template_source)
+
+    def test_modal_manager_restores_view_state_and_scroll_position(self):
+        self.run_node_component_test(r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+class FakeNode {}
+class FakeElement extends FakeNode {
+    constructor() {
+        super();
+        this.style = {};
+        this.textContent = '';
+        this.innerHTML = '';
+        this.scrollTop = 0;
+        this.children = [];
+    }
+    replaceChildren(...children) {
+        this.children = children;
+        this.innerHTML = '';
+    }
+}
+
+const elements = {
+    '#commonModal': new FakeElement(),
+    '#modalTitle': new FakeElement(),
+    '#modalBody': new FakeElement(),
+};
+const context = {
+    console,
+    Node: FakeNode,
+    document: { querySelector: selector => elements[selector] || null },
+};
+context.window = context;
+vm.createContext(context);
+vm.runInContext(
+    fs.readFileSync('frontend/components/modal/modal_manager.js', 'utf8'),
+    context,
+    { filename: 'modal_manager.js' },
+);
+
+(async () => {
+    let restoredState = null;
+    const manager = context.DabomDashboardComponents.modal.mount();
+    manager.register('records', {
+        title: '기록',
+        render: () => '<table>records</table>',
+        captureState: () => ({ page: 3, sort: 'created_at' }),
+        restoreState: state => { restoredState = state; },
+    });
+    manager.register('detail', {
+        title: '상세',
+        render: () => '<img alt="detail">',
+    });
+
+    await manager.open('records');
+    elements['#modalBody'].scrollTop = 84;
+    await manager.open('detail');
+    assert.strictEqual(manager.stack.length, 1);
+    assert.strictEqual(await manager.back(), true);
+    assert.strictEqual(manager.activeView.name, 'records');
+    assert.strictEqual(restoredState.page, 3);
+    assert.strictEqual(restoredState.sort, 'created_at');
+    assert.strictEqual(elements['#modalBody'].scrollTop, 84);
+    assert.strictEqual(elements['#modalTitle'].textContent, '기록');
+    manager.close();
+    assert.strictEqual(elements['#commonModal'].style.display, 'none');
+    assert.strictEqual(manager.stack.length, 0);
+})().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});
+""")
+
+    def test_component_filter_pagination_and_control_facades(self):
+        self.run_node_component_test(r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+const context = { console };
+context.window = context;
+vm.createContext(context);
+for (const source of [
+    'frontend/components/records/record_filters.js',
+    'frontend/components/records/pagination.js',
+    'frontend/components/records/record_modal.js',
+    'frontend/components/controls/cycle_filter_button.js',
+    'frontend/components/controls/drive_mode_control.js',
+    'frontend/components/controls/navigation_mode_control.js',
+]) {
+    vm.runInContext(fs.readFileSync(source, 'utf8'), context, { filename: source });
+}
+
+const components = context.DabomDashboardComponents;
+const filters = components.records.createFilterState({ type: 'all', reported: null });
+assert.strictEqual(filters.update({ type: 'danger' }).type, 'danger');
+assert.strictEqual(filters.values.reported, null);
+assert.strictEqual(filters.reset().type, 'all');
+
+const pagination = components.records.createPaginationState({ total: 101 });
+assert.strictEqual(pagination.pageSize, 50);
+assert.strictEqual(pagination.totalPages, 3);
+assert.strictEqual(pagination.setPage(99), 3);
+pagination.setTotal(1);
+assert.strictEqual(pagination.page, 1);
+pagination.setPage(1);
+pagination.reset();
+assert.strictEqual(pagination.page, 1);
+
+let opened = null;
+const recordsRoot = { dataset: {} };
+const records = components.records.mount(recordsRoot, { open: view => { opened = view; } });
+records.open('patrolModal');
+assert.strictEqual(opened, 'patrolModal');
+assert.strictEqual(recordsRoot.dataset.dashboardComponent, 'records-toolbar');
+
+let requestedDriveMode = null;
+const driveRoot = { dataset: {} };
+const drive = components.controls.mountDriveMode(driveRoot, {
+    request: mode => { requestedDriveMode = mode; },
+});
+drive.request('AUTO');
+drive.sync('MANUAL');
+assert.strictEqual(requestedDriveMode, 'AUTO');
+assert.strictEqual(driveRoot.dataset.driveMode, 'MANUAL');
+
+let requestedNavigationMode = null;
+const navigationRoot = { dataset: {} };
+const navigation = components.controls.mountNavigationMode(navigationRoot, {
+    request: mode => { requestedNavigationMode = mode; },
+});
+navigation.request('DRIVING');
+navigation.sync('MAPPING');
+assert.strictEqual(requestedNavigationMode, 'DRIVING');
+assert.strictEqual(navigationRoot.dataset.navigationMode, 'MAPPING');
+
+const listeners = {};
+const cycleButton = {
+    dataset: {},
+    textContent: '',
+    addEventListener: (name, handler) => { listeners[name] = handler; },
+    removeEventListener: name => { delete listeners[name]; },
+};
+const cycle = new components.controls.CycleFilterButton(cycleButton, {
+    options: [
+        { label: '전체', value: '' },
+        { label: '경고', value: 'WARNING' },
+    ],
+});
+assert.strictEqual(cycleButton.textContent, '전체');
+listeners.click();
+assert.strictEqual(cycle.value, 'WARNING');
+assert.strictEqual(cycleButton.textContent, '경고');
+cycle.reset();
+assert.strictEqual(cycle.value, '');
+cycle.destroy();
+assert.strictEqual(listeners.click, undefined);
+""")
 
     def test_current_situation_frontend_matches_authenticated_json_api(self):
         for contract in (

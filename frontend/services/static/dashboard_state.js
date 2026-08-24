@@ -279,7 +279,6 @@
             cpu_temperature: firstValue(row.cpu_temperature, '-'),
             ram_usage: firstValue(row.ram_usage, '-'),
             ping: firstValue(row.ping, '-'),
-            battery_level: firstValue(row.battery_level, '-'),
             is_autonomous: row.is_autonomous,
             speed: firstValue(row.speed, '-'),
             gps_lat: firstValue(row.gps_lat, '-'),
@@ -307,21 +306,29 @@
             is_reported: row.is_reported,
             is_alerted: row.is_alerted,
             is_false_alarm: row.is_false_alarm === true || row.is_false_alarm === 1 || row.is_false_alarm === '1',
-            has_image: Boolean(row.has_image || row.image_path)
+            has_image: Boolean(row.has_image || row.image_url || row.image_path),
+            image_url: firstValue(row.image_url, row.has_image ? `/api/media/events/${encodeURIComponent(row.event_id)}` : null),
         };
     }
 
     function normalizeActionRow(value) {
         const row = asObject(value);
+        const administratorName = firstValue(row.user_name, row.administrator_name, row.name, row.user_id, '-');
+        const administratorEmail = firstValue(row.user_email, row.email);
         return {
             ...splitTimestamp(row),
             action_id: row.action_id,
             user_id: row.user_id,
-            administrator_name: firstValue(row.administrator_name, row.user_name, row.name, row.user_id, '-'),
+            user_name: administratorName,
+            user_email: administratorEmail || '',
+            administrator_name: administratorEmail
+                ? `${administratorName} (${administratorEmail})`
+                : String(administratorName),
             event_id: row.event_id,
             action_type: firstValue(row.action_type, '-'),
             description_content: firstValue(row.description_content, '-'),
-            has_image: Boolean(row.has_image || row.image_path)
+            has_image: Boolean(row.has_image || row.image_url || row.image_path),
+            image_url: firstValue(row.image_url, row.has_image ? `/api/media/actions/${encodeURIComponent(row.action_id)}` : null),
         };
     }
 
@@ -341,6 +348,26 @@
         const query = new URLSearchParams();
         if (filters.startAt) query.set('start_at', filters.startAt);
         if (filters.endAt) query.set('end_at', filters.endAt);
+        query.set('page', String(Math.max(1, Number(filters.page) || 1)));
+        query.set('page_size', String(50));
+        if (filters.sortBy) query.set('sort_by', filters.sortBy);
+        if (filters.sortDirection) query.set('sort_direction', filters.sortDirection);
+        if (type === 'patrolModal') {
+            if (filters.eventType) query.set('event_type', filters.eventType);
+            if (filters.confidenceMin !== '' && filters.confidenceMin != null) {
+                query.set('confidence_min', String(filters.confidenceMin));
+            }
+            if (filters.confidenceMax !== '' && filters.confidenceMax != null) {
+                query.set('confidence_max', String(filters.confidenceMax));
+            }
+            if (filters.isResolved !== '' && filters.isResolved != null) query.set('is_resolved', String(filters.isResolved));
+            if (filters.isReported !== '' && filters.isReported != null) query.set('is_reported', String(filters.isReported));
+            if (filters.isAlerted !== '' && filters.isAlerted != null) query.set('is_alerted', String(filters.isAlerted));
+            if (filters.isFalseAlarm !== '' && filters.isFalseAlarm != null) query.set('is_false_alarm', String(filters.isFalseAlarm));
+        } else if (type === 'actionsModal') {
+            if (filters.userName) query.set('user_name', filters.userName);
+            if (filters.actionType) query.set('action_type', filters.actionType);
+        }
         const queryString = query.toString();
         const requestEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
         const result = await requestJson(requestEndpoint);
@@ -364,6 +391,10 @@
                         ? normalizePatrolRow
                         : normalizeActionRow
             ),
+            page: Math.max(1, Number(result.payload?.page) || 1),
+            page_size: Math.max(1, Number(result.payload?.page_size) || 50),
+            total: Math.max(0, Number(result.payload?.total) || 0),
+            total_pages: Math.max(0, Number(result.payload?.total_pages) || 0),
             message: ''
         };
     }

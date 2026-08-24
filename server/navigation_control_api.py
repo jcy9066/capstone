@@ -66,6 +66,8 @@ class NavigationControlApi:
         send_robot_command: Callable[[str, dict[str, Any]], Awaitable[bool]],
         watchdog: NavigationWatchdogConfig | None = None,
         motor_output_enabled: bool = False,
+        estop_cooldown_sec: float | None = None,
+        goal_reached_tolerance_m: float | None = None,
     ) -> None:
         self._app = app
         self._map_api = map_api
@@ -81,6 +83,23 @@ class NavigationControlApi:
         self._driving_ready_timeout_sec = env_float(
             "NAV_DRIVING_READY_TIMEOUT_SEC", minimum=1.0
         )
+        self._estop_cooldown_sec = (
+            env_float("DASHBOARD_ESTOP_COOLDOWN_SEC", minimum=0.0)
+            if estop_cooldown_sec is None
+            else float(estop_cooldown_sec)
+        )
+        self._goal_reached_tolerance_m = (
+            env_float("DASHBOARD_GOAL_REACHED_TOLERANCE_M", minimum=0.0)
+            if goal_reached_tolerance_m is None
+            else float(goal_reached_tolerance_m)
+        )
+        if not math.isfinite(self._estop_cooldown_sec) or self._estop_cooldown_sec < 0:
+            raise ValueError("estop_cooldown_sec must be a non-negative finite number.")
+        if (
+            not math.isfinite(self._goal_reached_tolerance_m)
+            or self._goal_reached_tolerance_m < 0
+        ):
+            raise ValueError("goal_reached_tolerance_m must be a non-negative finite number.")
         self._lock = threading.RLock()
         self._operation_lock = asyncio.Lock()
         self._task: asyncio.Task | None = None
@@ -157,13 +176,19 @@ class NavigationControlApi:
                     self._state["emergency_stop"] = False
             self._touch_locked(received_at)
 
-    def note_navigation_sample(self, sample: str, now: float | None = None) -> None:
+    def note_navigation_sample(
+        self,
+        sample: str,
+        now: float | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
         received_at = now or time.time()
         with self._lock:
             if sample == "scan":
                 self._last_scan_at = received_at
             elif sample == "pose":
                 self._last_pose_at = received_at
+                self._complete_manual_goal_locked(payload)
 
     def note_active_map(self, active_map: dict[str, Any]) -> None:
         if not isinstance(active_map, dict):
@@ -203,6 +228,9 @@ class NavigationControlApi:
                 terminal = str(ros_nav.get("state", "")).upper()
                 if terminal in {"SUCCEEDED", "FAILED", "CANCELED"}:
                     self._state["navigation_state"] = terminal
+                    if terminal in {"SUCCEEDED", "CANCELED"}:
+                        self._state["active_goal"] = None
+                        self._state["planned_path"] = []
                     self._touch_locked(current)
             payload = {
                 "ok": True,
@@ -215,6 +243,10 @@ class NavigationControlApi:
                 **self._copy_state_locked(),
                 "ros_navigation": ros_nav,
                 "watchdog": self._watchdog_snapshot_locked(current),
+                "dashboard_config": {
+                    "estop_cooldown_sec": self._estop_cooldown_sec,
+                    "goal_reached_tolerance_m": self._goal_reached_tolerance_m,
+                },
             }
         return payload
 
@@ -224,7 +256,21 @@ class NavigationControlApi:
             raise NavigationControlError("INVALID_MODE", "mode must be MAPPING or DRIVING.", 400)
 
         if mode == "MAPPING":
-            await asyncio.to_thread(self._ros.cancel_navigation)
+            with self._lock:
+                navigation_in_progress = self._state["navigation_state"] in {
+                    "NAVIGATING",
+                    "RESUMING",
+                }
+            if navigation_in_progress and payload.get("confirm_stop") is not True:
+                raise NavigationControlError(
+                    "NAVIGATION_STOP_CONFIRMATION_REQUIRED",
+                    "Confirm emergency stop before switching to MAPPING mode.",
+                    409,
+                )
+            if navigation_in_progress:
+                await self.emergency_stop("MAPPING_MODE_TRANSITION")
+            else:
+                await asyncio.to_thread(self._ros.cancel_navigation)
             try:
                 await asyncio.to_thread(self._process.transition, "MAPPING", None)
             except Exception as exc:
@@ -403,6 +449,46 @@ class NavigationControlApi:
             raise cancel_error
         return {**self.state_response(), "cancel": cancel, "stop_delivered": delivered}
 
+    async def pause_for_manual(self) -> dict[str, Any]:
+        """Stop the active ROS action while retaining the goal for manual arrival."""
+        with self._lock:
+            previous_navigation_state = self._state["navigation_state"]
+            self._state["navigation_state"] = "PAUSING_FOR_MANUAL"
+            self._touch_locked()
+        cancel = None
+        cancel_error = None
+        try:
+            cancel = await asyncio.to_thread(self._ros.cancel_navigation)
+        except Exception as exc:
+            cancel_error = exc
+        delivered = await self._send_robot_command(
+            self._robot_id,
+            {"type": "stop", "reason": "manual_drive_takeover"},
+        )
+        with self._lock:
+            self._stop_commanded_at = time.time()
+            self._stop_encoder_ticks = self._encoder_ticks
+            if cancel_error is None:
+                if self._state["emergency_stop"]:
+                    self._state["navigation_state"] = "EMERGENCY_STOPPED"
+                elif self._state["navigation_mode"] == "MAPPING":
+                    self._state["navigation_state"] = "IDLE"
+                else:
+                    self._state["navigation_state"] = "READY"
+                self._state["last_error"] = None
+            else:
+                self._state["navigation_state"] = previous_navigation_state
+                self._state["last_error"] = str(cancel_error)
+            self._touch_locked()
+        if cancel_error is not None:
+            raise cancel_error
+        return {
+            **self.state_response(),
+            "cancel": cancel,
+            "stop_delivered": delivered,
+            "goal_retained": self._state["active_goal"] is not None,
+        }
+
     async def emergency_stop(self, reason: str, automatic: bool = False) -> dict[str, Any]:
         normalized_reason = (str(reason).strip() or "dashboard_emergency_stop")[:96]
         with self._lock:
@@ -427,13 +513,34 @@ class NavigationControlApi:
         with self._lock:
             goal = dict(self._state["active_goal"] or {})
             estop_generation = self._estop_generation
-            self._assert_resume_safety_locked(require_estop=True)
-            if not goal:
-                raise NavigationControlError("GOAL_REQUIRED", "No retained goal is available to resume.")
-        self._assert_watchdogs_healthy(ignore_estop=True)
-        path = self._normalized_path(await asyncio.to_thread(self._ros.compute_path, goal))
-        if len(path) < 2:
-            raise NavigationControlError("PATH_NOT_FOUND", "A safe resume path could not be calculated.", 422)
+            if not self._state["emergency_stop"]:
+                raise NavigationControlError(
+                    "EMERGENCY_STOP_NOT_ACTIVE",
+                    "Navigation is not emergency-stopped.",
+                )
+            if not self._connected:
+                raise NavigationControlError(
+                    "PI_OFFLINE",
+                    "The Pi must be connected before releasing emergency stop.",
+                )
+            restart_navigation = bool(
+                goal
+                and self._state["navigation_mode"] == "DRIVING"
+                and self._state["localization_ready"]
+                and self._state["nav2_ready"]
+                and self._robot_mode == "auto"
+                and self._pi_navigation_mode == "DRIVING"
+            )
+        path: list[dict[str, float]] = []
+        if restart_navigation:
+            self._assert_watchdogs_healthy(ignore_estop=True)
+            path = self._normalized_path(await asyncio.to_thread(self._ros.compute_path, goal))
+            if len(path) < 2:
+                raise NavigationControlError(
+                    "PATH_NOT_FOUND",
+                    "A safe resume path could not be calculated.",
+                    422,
+                )
         delivered = await self._send_robot_command(self._robot_id, {"type": "resume_navigation"})
         if not delivered:
             raise NavigationControlError("PI_RESUME_FAILED", "The Pi did not accept the resume command.", 409)
@@ -442,16 +549,23 @@ class NavigationControlApi:
                 retry_stop = True
             else:
                 retry_stop = False
-                self._state["planned_path"] = path
+                if restart_navigation:
+                    self._state["planned_path"] = path
                 self._state["emergency_stop"] = False
                 self._state["emergency_reason"] = None
-                self._state["navigation_state"] = "RESUMING"
+                self._state["navigation_state"] = (
+                    "RESUMING"
+                    if restart_navigation
+                    else ("READY" if self._state["navigation_mode"] == "DRIVING" else "IDLE")
+                )
                 self._stop_commanded_at = None
                 self._stop_encoder_ticks = None
                 self._touch_locked()
         if retry_stop:
             await self.emergency_stop("RESUME_INTERRUPTED", automatic=True)
             raise NavigationControlError("RESUME_INTERRUPTED", "A newer emergency stop interrupted resume.", 409)
+        if not restart_navigation:
+            return {**self.state_response(), "replanned": False}
         try:
             navigation = await asyncio.to_thread(self._ros.navigate_to_pose, goal)
         except Exception:
@@ -675,6 +789,33 @@ class NavigationControlApi:
             "active_map": dict(self._state["active_map"]) if self._state["active_map"] else None,
         }
 
+    def _complete_manual_goal_locked(self, payload: dict[str, Any] | None) -> None:
+        goal = self._state.get("active_goal")
+        if (
+            self._robot_mode != "manual"
+            or self._state.get("navigation_mode") != "DRIVING"
+            or self._state.get("emergency_stop")
+            or not isinstance(goal, dict)
+            or not isinstance(payload, dict)
+        ):
+            return
+        try:
+            robot_x = float(payload["x"])
+            robot_y = float(payload["y"])
+            goal_x = float(goal["x"])
+            goal_y = float(goal["y"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return
+        if not all(math.isfinite(value) for value in (robot_x, robot_y, goal_x, goal_y)):
+            return
+        if math.hypot(robot_x - goal_x, robot_y - goal_y) > self._goal_reached_tolerance_m:
+            return
+        self._state["active_goal"] = None
+        self._state["planned_path"] = []
+        self._state["navigation_state"] = "SUCCEEDED"
+        self._state["last_error"] = None
+        self._touch_locked()
+
     def _touch_locked(self, value: float | None = None) -> None:
         self._state["updated_at"] = value or time.time()
 
@@ -725,6 +866,10 @@ class NavigationControlApi:
         @self._app.post("/api/navigation/control/cancel")
         async def cancel_navigation(request: Request):
             return await self._mutation(request, lambda _: self.cancel_goal())
+
+        @self._app.post("/api/navigation/control/pause-for-manual")
+        async def pause_navigation_for_manual(request: Request):
+            return await self._mutation(request, lambda _: self.pause_for_manual())
 
         @self._app.post("/api/navigation/control/emergency-stop")
         async def stop_navigation(request: Request):

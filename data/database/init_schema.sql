@@ -57,7 +57,6 @@ CREATE TABLE `system_status` (
     `cpu_temperature` float DEFAULT NULL COMMENT 'Celsius',
     `ram_usage` float DEFAULT NULL COMMENT '% 단위',
     `ping` smallint DEFAULT NULL COMMENT 'ms 단위 (네트워크 지연)',
-    `battery_level` tinyint DEFAULT NULL COMMENT '0~100 (INT보다 효율적)',
     `is_autonomous` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1: 자율주행, 0: 수동제어',
     `speed` tinyint DEFAULT 0 COMMENT 'RC카 속도',
     `gps_lat` double DEFAULT NULL COMMENT '상태 수집 시점 위도',

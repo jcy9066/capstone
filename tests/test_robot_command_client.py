@@ -125,6 +125,11 @@ class RobotCommandClientTests(unittest.IsolatedAsyncioTestCase):
             source,
         )
 
+    def test_status_payload_has_no_battery_field(self):
+        payload = self.configured_client().status_payload()
+        self.assertNotIn("battery", payload)
+        self.assertNotIn("battery_level", payload)
+
     def test_status_request_uses_robot_control_token_header(self):
         client = self.configured_client()
 

@@ -80,11 +80,11 @@ def attach_system_control_routes(app, navigation_process_control=None) -> None:
 
     def gpu_status(component_id: str) -> dict:
         labels = {
-            "lidar_ros_bridge": ("LiDAR ROS Bridge", "Publishes Pi LiDAR data to GPU ROS2 /scan."),
-            "encoder_ros_bridge": ("Encoder ROS Bridge", "Publishes Pi encoder data to GPU ROS2 /wheel_ticks."),
-            "wheel_odometry": ("Wheel Odometry", "Publishes /odom and odom-to-base_link TF."),
-            "slam_mapping": ("SLAM Mapping", "Runs SLAM Mapping and starts its Map Bridge."),
-            "map_bridge": ("Map Bridge", "Publishes ROS map, pose, and scan data to the dashboard."),
+            "lidar_ros_bridge": ("LiDAR ROS Bridge", "Pi의 LiDAR 데이터를 ROS 2 /scan으로 전달"),
+            "encoder_ros_bridge": ("Encoder ROS Bridge", "Pi의 엔코더 데이터를 ROS 2 /wheel_ticks로 전달"),
+            "wheel_odometry": ("Wheel Odometry", "엔코더 기반 로봇 위치 변화와 odom TF 계산"),
+            "slam_mapping": ("SLAM Mapping", "LiDAR 기반 지도 작성과 Map Bridge 함께 실행"),
+            "map_bridge": ("Map Bridge", "단독 실행 시 지도·위치·LiDAR 데이터를 대시보드로 전달"),
         }
         module = server_module()
         label, description = labels[component_id]
@@ -103,7 +103,7 @@ def attach_system_control_routes(app, navigation_process_control=None) -> None:
             "id": component_id, "label": label, "description": description,
             "state": "off" if count == 0 else "duplicate" if count > 1 else "on",
             "instance_count": count, "duplicate": count > 1, "pids": pids,
-            "message": "Duplicate instances detected." if count > 1 else None,
+            "message": "중복 실행 감지" if count > 1 else None,
         }
 
     def ros_command(command: list[str]) -> list[str]:
@@ -235,10 +235,10 @@ def attach_system_control_routes(app, navigation_process_control=None) -> None:
             "ok": True, "updated_at": datetime.now(timezone.utc).isoformat(),
             "gpu": [gpu_status(component_id) for component_id in component_ids],
             "pi": [{
-                "id": "lidar_ros", "label": "LiDAR ROS Service", "description": "Pi LiDAR driver service.",
+                "id": "lidar_ros", "label": "LiDAR ROS Service", "description": "Pi에서 LiDAR 스캔 데이터를 수집",
                 "state": "unreachable", "instance_count": None, "duplicate": False,
                 "reachable": pi_connected, "control_available": False,
-                "message": "Pi control agent lacks systemd service control." if pi_connected else "Pi connection lost: status unavailable.",
+                "message": "현재 Pi 원격 서비스 제어를 지원하지 않음" if pi_connected else "Pi 연결 끊김: 상태 확인 불가",
             }],
         }
 

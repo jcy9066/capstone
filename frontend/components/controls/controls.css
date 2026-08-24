@@ -1,0 +1,93 @@
+.dashboard-component-mount {
+    display: contents;
+}
+
+#dashboard-mode-controls-mount.dashboard-mode-controls-upgraded {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: default !important;
+}
+
+.dashboard-drive-mode-group,
+.dashboard-navigation-mode-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dashboard-drive-mode-group {
+    padding-right: 8px;
+    border-right: 1px solid var(--border-color);
+}
+
+.dashboard-mode-button {
+    min-height: 30px;
+    padding: 5px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--card-bg2);
+    color: var(--text-muted);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dashboard-mode-button:hover,
+.dashboard-mode-button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dashboard-mode-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.d-pad-container.disabled {
+    pointer-events: auto;
+    opacity: 1;
+    filter: none;
+}
+
+.d-pad-container.disabled .d-btn {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
+#dpad-center-action-mount {
+    pointer-events: auto;
+}
+
+#dpad-center-action-mount:empty {
+    pointer-events: none;
+}
+
+.dpad-estop-button {
+    width: 100%;
+    min-width: 0;
+    padding: 4px;
+    border: 1px solid rgba(244, 63, 94, 0.7);
+    border-radius: 6px;
+    background: rgba(190, 18, 60, 0.15);
+    color: #be123c;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.dpad-estop-button.active {
+    border-color: rgba(34, 197, 94, 0.75);
+    background: rgba(22, 163, 74, 0.16);
+    color: #15803d;
+}
+
+.dpad-estop-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

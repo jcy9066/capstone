@@ -954,7 +954,6 @@ function renderTable(type) {
         if (type === 'statusModal') {
             const cpuClass  = row.cpu_usage > 80 ? 'danger' : row.cpu_usage > 60 ? 'warn' : 'accent';
             const tempClass = row.cpu_temperature > 80 ? 'danger' : row.cpu_temperature > 65 ? 'warn' : '';
-            const batClass  = row.battery_level < 20 ? 'danger' : row.battery_level < 40 ? 'warn' : 'success';
             const pingClass = row.ping > 150 ? 'danger' : row.ping > 100 ? 'warn' : '';
             return `<tr>
                 <td class="muted">${escapeHtml(row.date)}</td>
@@ -963,7 +962,6 @@ function renderTable(type) {
                 <td class="${tempClass}">${formatLogValue(row.cpu_temperature, '°C')}</td>
                 <td class="${row.ram_usage>80?'warn':''}">${formatLogValue(row.ram_usage, '%')}</td>
                 <td class="${pingClass}">${formatLogValue(row.ping, 'ms')}</td>
-                <td class="${batClass}">${formatLogValue(row.battery_level, '%')}</td>
                 <td>${formatBooleanState(row.is_autonomous, '자동', '수동')}</td>
                 <td>${formatLogValue(row.speed)}</td>
                 <td class="muted">${formatLogValue(row.gps_lat)} / ${formatLogValue(row.gps_lng)} / ${formatLogValue(row.gps_alt)}</td>
@@ -1031,7 +1029,7 @@ function buildModalHTML(type) {
     if (type === 'statusModal') {
         tableHead = `<tr>
             <th>날짜</th><th>시각</th><th>CPU Usage</th><th>CPU Temp</th>
-            <th>RAM Usage</th><th>Ping</th><th>Battery</th><th>주행</th><th>속도</th>
+            <th>RAM Usage</th><th>Ping</th><th>주행</th><th>속도</th>
             <th>GPS (위도/경도/고도)</th><th>LiDAR (X/Y)</th>
         </tr>`;
     } else if (type === 'patrolModal') {
@@ -1512,7 +1510,7 @@ async function reportDanger(isAuto = false) {
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    if (!isAuto) alert("🚨 긴급 알림이 전송되었습니다.");
+                    if (!isAuto) alert("긴급 알림이 전송되었습니다.");
                     console.log("텔레그램 알림 전송 완료");
                 } else {
                     if (!isAuto) alert("알림 전송에 실패했습니다.");
@@ -2216,12 +2214,46 @@ function toggleDarkMode() {
 
 // 저장된 다크모드 설정 복원
 window.addEventListener('DOMContentLoaded', () => {
+    initializeDashboardComponentFoundation();
+
     const saved = localStorage.getItem('darkMode');
     if (saved === '1') toggleDarkMode();
 
     // Pi가 보고한 실제 모드로 초기 UI 동기화
     fetchRobotStatus();
 });
+
+function initializeDashboardComponentFoundation() {
+    const components = window.DabomDashboardComponents;
+    if (!components) return;
+
+    components.mounts = components.mounts || {};
+    components.mounts.recordsToolbar = document.getElementById('records-toolbar-mount');
+    components.mounts.dashboardModeControls = document.getElementById('dashboard-mode-controls-mount');
+    components.mounts.dpadCenterAction = document.getElementById('dpad-center-action-mount');
+    components.mounts.currentSituation = document.getElementById('current-situation-mount');
+
+    components.modal?.mount({
+        root: '#commonModal',
+        title: '#modalTitle',
+        body: '#modalBody',
+    });
+    components.records?.mount(components.mounts.recordsToolbar, {
+        open: openModal,
+        close: closeModal,
+    });
+    components.controls?.mountDriveMode(components.mounts.dashboardModeControls);
+    components.controls?.mountNavigationMode(document.getElementById('navigation-control-panel'));
+    components.gallery?.mountImageDetail({
+        open: openGalleryDetail,
+        close: closeGalleryDetail,
+        change: changeGalleryDetail,
+    });
+    components.currentSituation?.mount(components.mounts.currentSituation, {
+        open: openCurrentSituationModal,
+        close: closeModal,
+    });
+}
 
 // ===================================================
 // Session logout

@@ -31,6 +31,15 @@ class FakeCursor:
         return self.rows[0] if self.rows else None
 
 
+class PageCursor(FakeCursor):
+    def __init__(self, *, total, rows=None):
+        super().__init__(rows)
+        self.total = total
+
+    def fetchone(self):
+        return {"total": self.total}
+
+
 class FakeConnection:
     def __init__(self, cursor):
         self._cursor = cursor
@@ -58,7 +67,6 @@ def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
             "cpu_temperature": None,
             "ram_usage": 33.0,
             "ping": None,
-            "battery_level": 80,
             "is_autonomous": 1,
             "speed": None,
             "gps_lat": None,
@@ -76,6 +84,7 @@ def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
     assert params[1] is None
     assert params[3] is None
     assert params[6] is None
+    assert "battery" not in sql.lower()
     assert "lidar_z" not in sql
 
 
@@ -153,39 +162,120 @@ def test_database_rejects_absolute_or_escaping_image_paths():
     assert cursor.executions == []
 
 
-def test_database_reads_latest_first_with_time_and_limit_binding():
+def test_database_filters_counts_sorts_and_pages_events():
     expected = [{"event_id": 2}, {"event_id": 1}]
-    cursor = FakeCursor(expected)
+    cursor = PageCursor(total=52, rows=expected)
     database = DatabaseHarness(cursor)
     start = datetime(2026, 8, 1)
     end = datetime(2026, 8, 14)
-    assert database.list_events(start_at=start, end_at=end, limit=25) == expected
-    sql, params = cursor.executions[0]
-    assert "is_deleted = 0" in sql
-    assert "ORDER BY detected_at DESC LIMIT %s" in sql
-    assert "image_path" in sql
-    assert "video_path" not in sql
-    assert "lidar_z" not in sql
-    assert params == (start, end, 25)
+    result = database.list_events(
+        start_at=start,
+        end_at=end,
+        event_type="ASSAULT",
+        confidence_min=0.5,
+        confidence_max=0.9,
+        is_resolved=True,
+        is_reported=False,
+        is_alerted=True,
+        is_false_alarm=False,
+        page=2,
+        page_size=25,
+        sort_by="confidence",
+        sort_direction="asc",
+    )
+
+    assert result == {
+        "items": expected,
+        "page": 2,
+        "page_size": 25,
+        "total": 52,
+        "total_pages": 3,
+    }
+    count_sql, count_params = cursor.executions[0]
+    select_sql, select_params = cursor.executions[1]
+    for sql in (count_sql, select_sql):
+        assert "e.is_deleted = 0" in sql
+        assert "e.detected_at >= %s" in sql
+        assert "e.detected_at <= %s" in sql
+        assert "e.event_type = %s" in sql
+        assert "e.confidence >= %s" in sql
+        assert "e.confidence <= %s" in sql
+        assert "e.is_resolved = %s" in sql
+        assert "e.is_reported = %s" in sql
+        assert "e.is_alerted = %s" in sql
+        assert "e.is_false_alarm = %s" in sql
+    assert "COUNT(*) AS total" in count_sql
+    assert "ORDER BY e.confidence ASC, e.event_id ASC LIMIT %s OFFSET %s" in select_sql
+    assert "image_path" in select_sql
+    assert "video_path" not in select_sql
+    assert "lidar_z" not in select_sql
+    filter_params = (start, end, "ASSAULT", 0.5, 0.9, 1, 0, 1, 0)
+    assert count_params == filter_params
+    assert select_params == filter_params + (25, 25)
 
 
 def test_database_lists_system_status_and_actions_with_dashboard_fields():
-    cursor = FakeCursor([])
-    database = DatabaseHarness(cursor)
-
-    database.list_system_status(limit=10)
-    status_sql, status_params = cursor.executions[0]
+    status_cursor = PageCursor(total=51)
+    status_database = DatabaseHarness(status_cursor)
+    status_page = status_database.list_system_status()
+    status_count_sql, status_count_params = status_cursor.executions[0]
+    status_sql, status_params = status_cursor.executions[1]
+    assert status_page["total_pages"] == 2
+    assert "COUNT(*) AS total" in status_count_sql
+    assert status_count_params == ()
     assert "lidar_x" in status_sql and "lidar_y" in status_sql
+    assert "battery" not in status_sql.lower()
     assert "lidar_z" not in status_sql
-    assert status_params == (10,)
+    assert "ORDER BY recorded_at DESC, status_id DESC LIMIT %s OFFSET %s" in status_sql
+    assert status_params == (50, 0)
 
-    database.list_actions(limit=15)
-    action_sql, action_params = cursor.executions[1]
+    action_cursor = PageCursor(total=16)
+    action_database = DatabaseHarness(action_cursor)
+    start = datetime(2026, 8, 1)
+    end = datetime(2026, 8, 14)
+    action_page = action_database.list_actions(
+        start_at=start,
+        end_at=end,
+        user_name="길동",
+        action_type="WARNING",
+        page=2,
+        page_size=15,
+        sort_by="user_name",
+    )
+    action_count_sql, action_count_params = action_cursor.executions[0]
+    action_sql, action_params = action_cursor.executions[1]
+    assert action_page["total_pages"] == 2
+    assert "COUNT(*) AS total" in action_count_sql
     assert "u.name AS user_name" in action_sql
+    assert "u.email AS user_email" in action_sql
     assert "a.image_path" in action_sql
     assert "a.is_deleted = 0" in action_sql
-    assert "ORDER BY a.created_at DESC LIMIT %s" in action_sql
-    assert action_params == (15,)
+    assert "INSTR(u.name, %s) > 0" in action_sql
+    assert "a.action_type = %s" in action_sql
+    assert "ORDER BY u.name DESC, a.action_id DESC LIMIT %s OFFSET %s" in action_sql
+    assert action_count_params == (start, end, "길동", "WARNING")
+    assert action_params == (start, end, "길동", "WARNING", 15, 15)
+
+
+def test_database_rejects_invalid_record_page_sort_and_confidence_values():
+    database = DatabaseHarness(PageCursor(total=0))
+
+    invalid_calls = (
+        lambda: database.list_events(page=0),
+        lambda: database.list_events(page_size=0),
+        lambda: database.list_events(sort_by="event_source"),
+        lambda: database.list_events(sort_direction="sideways"),
+        lambda: database.list_events(confidence_min=-0.1),
+        lambda: database.list_events(confidence_max=1.1),
+        lambda: database.list_events(confidence_min=0.8, confidence_max=0.2),
+    )
+    for call in invalid_calls:
+        try:
+            call()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid record query value was accepted")
 
 
 def test_database_lists_gallery_images_from_events_and_actions():
@@ -328,6 +418,7 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
     assert schema.count("`image_path` varchar(255) DEFAULT NULL") == 2
     assert schema.count("`image_deleted_at` datetime DEFAULT NULL") == 2
     assert "`is_false_alarm`" in schema
+    assert "battery" not in schema.lower()
     assert "`video_path`" not in schema
     assert "`lidar_z`" not in schema
     assert "CHANGE COLUMN `video_path` `image_path`" in migration
@@ -340,6 +431,19 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
     assert followup_migration.count("IF NOT EXISTS") == 2
     assert "DROP TABLE" not in followup_migration
     assert "TRUNCATE" not in followup_migration
+
+
+def test_battery_status_forward_migration_is_rerun_safe():
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "data/database/migrations/20260824_remove_battery_status.sql"
+    ).read_text(encoding="utf-8")
+    assert "TABLE_NAME = 'system_status'" in migration
+    assert "COLUMN_NAME = 'battery_level'" in migration
+    assert "IF EXISTS" in migration
+    assert migration.count("DROP COLUMN `battery_level`") == 1
+    assert "DROP TABLE" not in migration
+    assert "TRUNCATE" not in migration
 
 
 def test_database_checks_reportable_event_with_bound_id():
@@ -506,7 +610,6 @@ def test_status_writer_skips_unreceived_status_and_preserves_missing_values_as_n
             "cpu_usage": "12.5",
             "cpu_temp": None,
             "ram_usage": "bad",
-            "battery": "76",
             "mode": "manual",
         }
     )
@@ -516,7 +619,6 @@ def test_status_writer_skips_unreceived_status_and_preserves_missing_values_as_n
     assert saved["cpu_temperature"] is None
     assert saved["ram_usage"] is None
     assert saved["ping"] is None
-    assert saved["battery_level"] == 76
     assert saved["is_autonomous"] == 0
 
 

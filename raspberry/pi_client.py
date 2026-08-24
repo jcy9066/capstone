@@ -32,7 +32,6 @@ def collect_status(robot_id):
         "cpu_usage": "0.0",
         "cpu_temp": "0.0",
         "ram_usage": "0.0",
-        "battery": "100",
         "internet": "ok",
     }
 

@@ -22,6 +22,7 @@
         renamePrompt: '\uc0c8 \uc9c0\ub3c4 \uc774\ub984\uc744 \uc785\ub825\ud558\uc138\uc694.',
         renaming: '\uc9c0\ub3c4 \uc774\ub984 \ubcc0\uacbd \uc911...',
         renameSuccess: '\uc9c0\ub3c4 \uc774\ub984\uc744 \ubcc0\uacbd\ud588\uc2b5\ub2c8\ub2e4.',
+        selectRequired: '\uc800\uc7a5 \uc9c0\ub3c4\ub97c \uc9c1\uc811 \uc120\ud0dd\ud558\uc138\uc694.',
         mapPrefix: '\u004d\u0041\u0050: '
     };
     const state = { maps: [], active: null, activeApiAvailable: true, busy: false };
@@ -130,6 +131,7 @@
 
     async function renameSavedMap(map, container, progress) {
         if (state.busy) return;
+        const selectedBeforeRename = selectedMapName(container);
         const requestedName = window.prompt(labels.renamePrompt, map.map_name);
         if (requestedName === null) return;
         const newMapName = requestedName.trim();
@@ -152,6 +154,10 @@
                 refreshActiveMap(),
                 requestJson('/api/navigation/maps')
             ]);
+            if (selectedBeforeRename === map.map_name) {
+                const selectedInput = container.querySelector('input[name="saved-navigation-map"]:checked');
+                if (selectedInput) selectedInput.value = payload.map.map_name;
+            }
             state.maps = maps.maps || [];
             buildModal(
                 state.maps,
@@ -168,7 +174,11 @@
 
     async function loadSelectedMap(container, progress) {
         const mapName = selectedMapName(container);
-        if (!mapName || state.busy) return;
+        if (state.busy) return;
+        if (!mapName) {
+            showMessage(progress, labels.selectRequired, true);
+            return;
+        }
         if (!window.confirm(`${mapName}${labels.confirmSuffix}`)) return;
 
         const x = Number(container.querySelector('#saved-map-pose-x').value);
@@ -196,6 +206,7 @@
                     initial_pose: { x, y, yaw_degrees: yawDegrees }
                 })
             });
+            window.navigationControl?.applyState?.(payload);
             showMessage(progress, `${payload.active_map.map_name} ${labels.success}`);
             await refreshActiveMap();
             window.setTimeout(closeMapModal, 700);
@@ -214,12 +225,16 @@
         const title = document.getElementById('modalTitle');
         const body = document.getElementById('modalBody');
         if (!modal || !title || !body) return;
+        const retainedSelection = body.querySelector('input[name="saved-navigation-map"]:checked')?.value || null;
         title.textContent = labels.title;
         body.replaceChildren();
         const container = create('div', 'saved-map-modal');
-        container.append(create('p', 'saved-map-description', `${labels.description} ${labels.renameHint}`));
+        container.append(create('p', 'saved-map-description', `${labels.description} ${labels.selectRequired} ${labels.renameHint}`));
         const list = create('div', 'saved-map-list');
-        const activeName = activeResponse?.active_map?.map_name;
+        const activeName = activeResponse?.active_map?.map_name
+            || maps.find(map => map.active === true)?.map_name
+            || null;
+        const selectedName = retainedSelection || activeName;
         for (const map of maps) {
             const option = create('label', 'saved-map-option');
             option.title = labels.renameHint;
@@ -227,7 +242,7 @@
             radio.type = 'radio';
             radio.name = 'saved-navigation-map';
             radio.value = map.map_name;
-            radio.checked = map.map_name === activeName || (!activeName && map === maps[0]);
+            radio.checked = map.map_name === selectedName;
             const details = create('div');
             const heading = create('div', 'saved-map-name-row');
             heading.append(create('span', 'saved-map-name', map.map_name));
@@ -269,8 +284,13 @@
         cancel.addEventListener('click', closeMapModal);
         const load = create('button', 'saved-map-load', labels.load);
         load.type = 'button';
-        load.disabled = !maps.length;
+        load.disabled = !selectedMapName(container);
         load.addEventListener('click', () => loadSelectedMap(container, progress));
+        container.addEventListener('change', event => {
+            if (event.target?.name !== 'saved-navigation-map') return;
+            load.disabled = !selectedMapName(container);
+            showMessage(progress, '');
+        });
         actions.append(cancel, load);
         container.append(actions);
         body.append(container);
