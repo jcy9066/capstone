@@ -104,7 +104,6 @@ class Database:
             "cpu_temperature",
             "ram_usage",
             "ping",
-            "battery_level",
             "is_autonomous",
             "speed",
             "gps_lat",
@@ -255,7 +254,7 @@ class Database:
         return self._select_page(
             select_sql=f"""
                 SELECT status_id, cpu_usage, cpu_temperature, ram_usage,
-                       ping, battery_level, is_autonomous, speed, gps_lat,
+                       ping, is_autonomous, speed, gps_lat,
                        gps_lng, gps_alt, lidar_x, lidar_y, recorded_at
                 FROM system_status{where}
             """,

@@ -9,6 +9,17 @@ COMPONENTS = ROOT / "frontend" / "components"
 
 
 class DashboardRecordsFrontendTests(unittest.TestCase):
+    def test_battery_status_is_absent_from_dashboard_frontend(self):
+        sources = (
+            ROOT / "frontend" / "templates" / "index.html",
+            ROOT / "frontend" / "services" / "static" / "script.js",
+            ROOT / "frontend" / "services" / "static" / "dashboard_state.js",
+            COMPONENTS / "records" / "record_modal.js",
+        )
+        for source in sources:
+            content = source.read_text(encoding="utf-8").lower()
+            self.assertNotIn("battery", content, source)
+
     def test_records_component_owns_server_side_filter_sort_and_pagination(self):
         modal = (COMPONENTS / "records" / "record_modal.js").read_text(encoding="utf-8")
         state = (ROOT / "frontend" / "services" / "static" / "dashboard_state.js").read_text(encoding="utf-8")

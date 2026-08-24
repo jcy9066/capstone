@@ -954,7 +954,6 @@ function renderTable(type) {
         if (type === 'statusModal') {
             const cpuClass  = row.cpu_usage > 80 ? 'danger' : row.cpu_usage > 60 ? 'warn' : 'accent';
             const tempClass = row.cpu_temperature > 80 ? 'danger' : row.cpu_temperature > 65 ? 'warn' : '';
-            const batClass  = row.battery_level < 20 ? 'danger' : row.battery_level < 40 ? 'warn' : 'success';
             const pingClass = row.ping > 150 ? 'danger' : row.ping > 100 ? 'warn' : '';
             return `<tr>
                 <td class="muted">${escapeHtml(row.date)}</td>
@@ -963,7 +962,6 @@ function renderTable(type) {
                 <td class="${tempClass}">${formatLogValue(row.cpu_temperature, '°C')}</td>
                 <td class="${row.ram_usage>80?'warn':''}">${formatLogValue(row.ram_usage, '%')}</td>
                 <td class="${pingClass}">${formatLogValue(row.ping, 'ms')}</td>
-                <td class="${batClass}">${formatLogValue(row.battery_level, '%')}</td>
                 <td>${formatBooleanState(row.is_autonomous, '자동', '수동')}</td>
                 <td>${formatLogValue(row.speed)}</td>
                 <td class="muted">${formatLogValue(row.gps_lat)} / ${formatLogValue(row.gps_lng)} / ${formatLogValue(row.gps_alt)}</td>
@@ -1031,7 +1029,7 @@ function buildModalHTML(type) {
     if (type === 'statusModal') {
         tableHead = `<tr>
             <th>날짜</th><th>시각</th><th>CPU Usage</th><th>CPU Temp</th>
-            <th>RAM Usage</th><th>Ping</th><th>Battery</th><th>주행</th><th>속도</th>
+            <th>RAM Usage</th><th>Ping</th><th>주행</th><th>속도</th>
             <th>GPS (위도/경도/고도)</th><th>LiDAR (X/Y)</th>
         </tr>`;
     } else if (type === 'patrolModal') {

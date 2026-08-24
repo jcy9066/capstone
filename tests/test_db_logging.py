@@ -67,7 +67,6 @@ def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
             "cpu_temperature": None,
             "ram_usage": 33.0,
             "ping": None,
-            "battery_level": 80,
             "is_autonomous": 1,
             "speed": None,
             "gps_lat": None,
@@ -85,6 +84,7 @@ def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
     assert params[1] is None
     assert params[3] is None
     assert params[6] is None
+    assert "battery" not in sql.lower()
     assert "lidar_z" not in sql
 
 
@@ -224,6 +224,7 @@ def test_database_lists_system_status_and_actions_with_dashboard_fields():
     assert "COUNT(*) AS total" in status_count_sql
     assert status_count_params == ()
     assert "lidar_x" in status_sql and "lidar_y" in status_sql
+    assert "battery" not in status_sql.lower()
     assert "lidar_z" not in status_sql
     assert "ORDER BY recorded_at DESC, status_id DESC LIMIT %s OFFSET %s" in status_sql
     assert status_params == (50, 0)
@@ -417,6 +418,7 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
     assert schema.count("`image_path` varchar(255) DEFAULT NULL") == 2
     assert schema.count("`image_deleted_at` datetime DEFAULT NULL") == 2
     assert "`is_false_alarm`" in schema
+    assert "battery" not in schema.lower()
     assert "`video_path`" not in schema
     assert "`lidar_z`" not in schema
     assert "CHANGE COLUMN `video_path` `image_path`" in migration
@@ -429,6 +431,19 @@ def test_dashboard_records_schema_and_forward_migration_match_contract():
     assert followup_migration.count("IF NOT EXISTS") == 2
     assert "DROP TABLE" not in followup_migration
     assert "TRUNCATE" not in followup_migration
+
+
+def test_battery_status_forward_migration_is_rerun_safe():
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "data/database/migrations/20260824_remove_battery_status.sql"
+    ).read_text(encoding="utf-8")
+    assert "TABLE_NAME = 'system_status'" in migration
+    assert "COLUMN_NAME = 'battery_level'" in migration
+    assert "IF EXISTS" in migration
+    assert migration.count("DROP COLUMN `battery_level`") == 1
+    assert "DROP TABLE" not in migration
+    assert "TRUNCATE" not in migration
 
 
 def test_database_checks_reportable_event_with_bound_id():
@@ -595,7 +610,6 @@ def test_status_writer_skips_unreceived_status_and_preserves_missing_values_as_n
             "cpu_usage": "12.5",
             "cpu_temp": None,
             "ram_usage": "bad",
-            "battery": "76",
             "mode": "manual",
         }
     )
@@ -605,7 +619,6 @@ def test_status_writer_skips_unreceived_status_and_preserves_missing_values_as_n
     assert saved["cpu_temperature"] is None
     assert saved["ram_usage"] is None
     assert saved["ping"] is None
-    assert saved["battery_level"] == 76
     assert saved["is_autonomous"] == 0
 
 

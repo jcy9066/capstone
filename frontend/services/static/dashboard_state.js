@@ -279,7 +279,6 @@
             cpu_temperature: firstValue(row.cpu_temperature, '-'),
             ram_usage: firstValue(row.ram_usage, '-'),
             ping: firstValue(row.ping, '-'),
-            battery_level: firstValue(row.battery_level, '-'),
             is_autonomous: row.is_autonomous,
             speed: firstValue(row.speed, '-'),
             gps_lat: firstValue(row.gps_lat, '-'),

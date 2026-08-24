@@ -400,7 +400,6 @@ robot_status = {
     "robot_id": SERVER_ROBOT_ID,
     "cpu_usage": None,
     "cpu_temp": None,
-    "battery": None,
     "ram_usage": None,
     "internet": "unknown",
     "mode": "manual",
@@ -2408,7 +2407,6 @@ async def update_status(request: Request):
                 "robot_id": data.get("robot_id", robot_status["robot_id"]),
                 "cpu_usage": status_value("cpu_usage", robot_status["cpu_usage"]),
                 "cpu_temp": status_value("cpu_temp", robot_status["cpu_temp"]),
-                "battery": status_value("battery", robot_status["battery"]),
                 "ram_usage": status_value("ram_usage", robot_status["ram_usage"]),
                 "internet": status_value("internet", robot_status["internet"]),
                 "mode": status_value("mode", robot_status.get("mode", "manual")),
@@ -3661,6 +3659,13 @@ async def robot_websocket(websocket: WebSocket, robot_id: str):
             message = await websocket.receive_json()
             if message.get("type") == "status":
                 status_data = message.get("data", {})
+                if not isinstance(status_data, dict):
+                    continue
+                status_data = {
+                    key: value
+                    for key, value in status_data.items()
+                    if key not in {"battery", "battery_level"}
+                }
                 with state_lock:
                     robot_status.update(status_data)
                     robot_status["robot_id"] = robot_id

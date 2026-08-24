@@ -55,7 +55,6 @@
             { label: 'CPU 온도', sort: 'cpu_temperature' },
             { label: 'RAM 사용률', sort: 'ram_usage' },
             { label: 'Ping', sort: 'ping' },
-            { label: 'Battery' },
             { label: '주행' },
             { label: '속도', sort: 'speed' },
             { label: 'GPS (위도/경도/고도)' },
@@ -313,7 +312,6 @@
                 <td class="${valueClass(row.cpu_temperature, 65, 80)}">${records.formatValue(row.cpu_temperature, '°C')}</td>
                 <td class="${valueClass(row.ram_usage, 60, 80)}">${records.formatValue(row.ram_usage, '%')}</td>
                 <td class="${valueClass(row.ping, 100, 150)}">${records.formatValue(row.ping, 'ms')}</td>
-                <td>${records.formatValue(row.battery_level, '%')}</td>
                 <td>${records.formatBoolean(row.is_autonomous, '자동', '수동')}</td>
                 <td>${records.formatValue(row.speed)}</td>
                 <td class="muted">${records.formatValue(row.gps_lat)} / ${records.formatValue(row.gps_lng)} / ${records.formatValue(row.gps_alt)}</td>

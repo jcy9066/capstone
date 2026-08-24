@@ -12,6 +12,8 @@ from server.app import app
 client = TestClient(app)
 STATUS_PAYLOAD = {
     "robot_id": "pi-01",
+    "battery": "88",
+    "battery_level": 87,
     "mode": "manual",
     "navigation_mode": "mapping",
 }
@@ -35,6 +37,9 @@ def test_status_ingest_requires_robot_control_header():
     )
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+    exposed = client.get("/get_status").json()
+    assert "battery" not in exposed
+    assert "battery_level" not in exposed
 
 
 def test_robot_websocket_requires_matching_header_token():
@@ -48,6 +53,9 @@ def test_robot_websocket_requires_matching_header_token():
         headers={"X-Robot-Control-Token": "test-robot-token"},
     ) as websocket:
         websocket.send_json({"type": "status", "data": STATUS_PAYLOAD})
+    exposed = client.get("/get_status").json()
+    assert "battery" not in exposed
+    assert "battery_level" not in exposed
 
 
 def test_robot_command_requires_robot_header_or_user_csrf():

@@ -103,7 +103,6 @@ class RobotCommandClient:
             "cpu_usage": "0.0",
             "cpu_temp": "0.0",
             "ram_usage": "0.0",
-            "battery": "100",
             "internet": "ok",
             "mode": self.current_mode,
             "navigation_mode": self.navigation_mode,
