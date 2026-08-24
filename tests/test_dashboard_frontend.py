@@ -158,6 +158,52 @@ class DashboardFrontendContractTests(unittest.TestCase):
             self.assertIn(callback, mount_source)
         self.assertEqual(positions, sorted(positions))
 
+    def test_dashboard_mode_group_separates_drive_and_navigation_clicks(self):
+        mount_start = self.template_source.index('id="dashboard-mode-controls-mount"')
+        mount_end = self.template_source.index('id="d-pad-area"', mount_start)
+        mount_source = self.template_source[mount_start:mount_end]
+        outer_open_tag = mount_source[:mount_source.index(">") + 1]
+
+        self.assertNotIn("onclick=", outer_open_tag)
+        self.assertEqual(mount_source.count('onclick="togglePatrolMode()"'), 1)
+        self.assertIn('class="dashboard-drive-mode-control"', mount_source)
+        self.assertIn('id="dashboard-navigation-mode-controls-mount"', mount_source)
+        self.assertLess(
+            mount_source.index("</button>"),
+            mount_source.index('id="dashboard-navigation-mode-controls-mount"'),
+        )
+        for mode in ("MAPPING", "DRIVING"):
+            self.assertIn(
+                f'<button class="navigation-mode-option" type="button" data-navigation-mode="{mode}">',
+                mount_source,
+            )
+        self.assertEqual(self.template_source.count('id="navigation-mode-mapping"'), 1)
+        self.assertEqual(self.template_source.count('id="navigation-mode-driving"'), 1)
+
+    def test_dashboard_layout_contract_is_compact_and_consistent(self):
+        toolbar_order = (
+            ('data-record-view="patrolModal"', "order: 1"),
+            ('data-record-view="galleryModal"', "order: 2"),
+            (".current-situation-record-btn", "order: 3"),
+            ('data-record-view="actionsModal"', "order: 4"),
+            ('data-record-view="statusModal"', "order: 5"),
+        )
+        for selector, order in toolbar_order:
+            selector_position = self.style_source.index(selector)
+            self.assertIn(order, self.style_source[selector_position:selector_position + 100])
+
+        for contract in (
+            "grid-template-rows: repeat(2, minmax(0, 1fr))",
+            "grid-column: 1; grid-row: 2",
+            "grid-column: 2; grid-row: 1 / 3",
+            "min-height: 32px",
+            "--font-family: 'Noto Sans KR', 'Noto Sans', sans-serif",
+        ):
+            self.assertIn(contract, self.style_source)
+        self.assertNotIn("Space Mono", self.style_source + self.template_source)
+        for decorative_emoji in ("⚙️", "🌙", "📋", "📌", "🖼", "🚨", "🤖", "🎮"):
+            self.assertNotIn(decorative_emoji, self.template_source)
+
     def test_modal_manager_restores_view_state_and_scroll_position(self):
         self.run_node_component_test(r"""
 const fs = require('fs');

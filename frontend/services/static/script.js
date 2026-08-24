@@ -1510,7 +1510,7 @@ async function reportDanger(isAuto = false) {
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    if (!isAuto) alert("🚨 긴급 알림이 전송되었습니다.");
+                    if (!isAuto) alert("긴급 알림이 전송되었습니다.");
                     console.log("텔레그램 알림 전송 완료");
                 } else {
                     if (!isAuto) alert("알림 전송에 실패했습니다.");
