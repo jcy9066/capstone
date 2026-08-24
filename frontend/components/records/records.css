@@ -1,0 +1,7 @@
+#records-toolbar-mount {
+    min-width: 0;
+}
+
+.records-pagination[hidden] {
+    display: none;
+}

@@ -87,7 +87,9 @@ app.add_middleware(
 )
 
 STATIC_DIR = ROOT_DIR / "frontend" / "services" / "static"
+COMPONENTS_DIR = ROOT_DIR / "frontend" / "components"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/components", StaticFiles(directory=COMPONENTS_DIR), name="components")
 templates = Jinja2Templates(directory=ROOT_DIR / "frontend" / "templates")
 
 _auth_service = None

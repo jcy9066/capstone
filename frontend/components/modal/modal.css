@@ -1,0 +1,7 @@
+[data-dashboard-modal-view] {
+    min-width: 0;
+}
+
+[data-dashboard-modal-view][hidden] {
+    display: none;
+}

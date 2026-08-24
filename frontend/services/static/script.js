@@ -2216,12 +2216,46 @@ function toggleDarkMode() {
 
 // 저장된 다크모드 설정 복원
 window.addEventListener('DOMContentLoaded', () => {
+    initializeDashboardComponentFoundation();
+
     const saved = localStorage.getItem('darkMode');
     if (saved === '1') toggleDarkMode();
 
     // Pi가 보고한 실제 모드로 초기 UI 동기화
     fetchRobotStatus();
 });
+
+function initializeDashboardComponentFoundation() {
+    const components = window.DabomDashboardComponents;
+    if (!components) return;
+
+    components.mounts = components.mounts || {};
+    components.mounts.recordsToolbar = document.getElementById('records-toolbar-mount');
+    components.mounts.dashboardModeControls = document.getElementById('dashboard-mode-controls-mount');
+    components.mounts.dpadCenterAction = document.getElementById('dpad-center-action-mount');
+    components.mounts.currentSituation = document.getElementById('current-situation-mount');
+
+    components.modal?.mount({
+        root: '#commonModal',
+        title: '#modalTitle',
+        body: '#modalBody',
+    });
+    components.records?.mount(components.mounts.recordsToolbar, {
+        open: openModal,
+        close: closeModal,
+    });
+    components.controls?.mountDriveMode(components.mounts.dashboardModeControls);
+    components.controls?.mountNavigationMode(document.getElementById('navigation-control-panel'));
+    components.gallery?.mountImageDetail({
+        open: openGalleryDetail,
+        close: closeGalleryDetail,
+        change: changeGalleryDetail,
+    });
+    components.currentSituation?.mount(components.mounts.currentSituation, {
+        open: openCurrentSituationModal,
+        close: closeModal,
+    });
+}
 
 // ===================================================
 // Session logout

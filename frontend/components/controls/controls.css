@@ -1,0 +1,7 @@
+.dashboard-component-mount {
+    display: contents;
+}
+
+#dpad-center-action-mount:empty {
+    pointer-events: none;
+}

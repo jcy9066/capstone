@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="static/system_control.css?v=20260823-records-followup">
     <link rel="stylesheet" href="static/navigation_map_control.css?v=20260823-records-followup">
     <link rel="stylesheet" href="static/navigation_control.css?v=20260823-records-followup">
+    <link rel="stylesheet" href="/components/modal/modal.css">
+    <link rel="stylesheet" href="/components/records/records.css">
+    <link rel="stylesheet" href="/components/controls/controls.css">
 </head>
 <body>
 
@@ -258,26 +261,47 @@
                 </div>
             </div>
 
-            <div class="map-bookmark-panel">
+            <div class="map-bookmark-panel" id="records-toolbar-mount" data-dashboard-mount="records-toolbar">
                 <button
                     class="mb-btn"
+                    data-record-view="actionsModal"
                     onclick="openModal('actionsModal')"
                 >
                     📋 관리자 조치 기록
                 </button>
 
+                <span id="current-situation-mount" class="dashboard-component-mount" data-dashboard-mount="current-situation">
+                    <button
+                        class="mb-btn current-situation-record-btn"
+                        data-record-view="currentSituation"
+                        onclick="openCurrentSituationModal()"
+                    >
+                        📌 현재 상황 기록
+                    </button>
+                </span>
+
                 <button
-                    class="mb-btn current-situation-record-btn"
-                    onclick="openCurrentSituationModal()"
+                    class="mb-btn"
+                    data-record-view="galleryModal"
+                    onclick="openModal('galleryModal')"
                 >
-                    📌 현재 상황 기록
+                    🖼 갤러리
                 </button>
 
                 <button
                     class="mb-btn"
-                    onclick="openModal('galleryModal')"
+                    data-record-view="statusModal"
+                    onclick="openModal('statusModal')"
                 >
-                    🖼 갤러리
+                    기기 상태 로그
+                </button>
+
+                <button
+                    class="mb-btn"
+                    data-record-view="patrolModal"
+                    onclick="openModal('patrolModal')"
+                >
+                    순찰 기록
                 </button>
             </div>
         </div>
@@ -348,13 +372,6 @@
             </div>
 
             <div class="control-grid">
-                <button
-                    class="card action-btn"
-                    onclick="openModal('statusModal')"
-                >
-                    기기 상태 로그
-                </button>
-
                 <div class="split-btn-container">
                     <button
                         class="card action-btn action-report"
@@ -371,15 +388,10 @@
                     </button>
                 </div>
 
-                <button
-                    class="card action-btn"
-                    onclick="openModal('patrolModal')"
-                >
-                    순찰 기록
-                </button>
-
                 <div
                     class="card action-btn"
+                    id="dashboard-mode-controls-mount"
+                    data-dashboard-mount="drive-mode-controls"
                     onclick="togglePatrolMode()"
                     style="
                         flex-direction: row;
@@ -449,7 +461,9 @@
                         <!-- 중앙 정지 및 회전 버튼 제거 -->
                         <!-- 3×3 D-Pad 배치를 유지하기 위한 빈 칸 -->
                         <div
+                            id="dpad-center-action-mount"
                             class="d-center-split"
+                            data-dashboard-mount="dpad-center-action"
                             aria-hidden="true"
                         ></div>
 
@@ -517,6 +531,16 @@
         </div>
     </div>
 
+    <script src="/components/modal/modal_manager.js"></script>
+    <script src="/components/records/record_filters.js"></script>
+    <script src="/components/records/record_table.js"></script>
+    <script src="/components/records/pagination.js"></script>
+    <script src="/components/records/record_modal.js"></script>
+    <script src="/components/controls/cycle_filter_button.js"></script>
+    <script src="/components/controls/drive_mode_control.js"></script>
+    <script src="/components/controls/navigation_mode_control.js"></script>
+    <script src="/components/gallery/image_detail.js"></script>
+    <script src="/components/current_situation/current_situation.js"></script>
     <script src="static/script.js?v=20260823-records-followup"></script>
     <script src="static/system_control.js?v=20260823-records-followup"></script>
     <script src="static/navigation_map_control.js?v=20260823-records-followup"></script>
