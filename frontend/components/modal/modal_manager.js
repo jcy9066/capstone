@@ -58,6 +58,7 @@
             const previous = this.snapshot();
             if (previous && options.replace !== true) this.stack.push(previous);
             this.activeView = { name, context, state: options.state || null };
+            if (this.root?.dataset) this.root.dataset.modalView = name;
             this.setTitle(typeof descriptor.title === 'function' ? descriptor.title(context) : descriptor.title || name);
             if (descriptor.render) this.setBody(await descriptor.render(context, options.state || null));
             this.show();
@@ -71,6 +72,7 @@
             if (!previous) return false;
             const descriptor = this.views.get(previous.name);
             this.activeView = previous;
+            if (this.root?.dataset) this.root.dataset.modalView = previous.name;
             this.setTitle(typeof descriptor?.title === 'function'
                 ? descriptor.title(previous.context)
                 : descriptor?.title || previous.name);
@@ -86,6 +88,7 @@
             descriptor?.onClose?.(this.activeView?.context);
             this.activeView = null;
             this.stack.length = 0;
+            if (this.root?.dataset) delete this.root.dataset.modalView;
             this.hide();
         }
     }
