@@ -190,6 +190,24 @@ class Database:
         except Exception as exc:
             raise DatabaseOperationError("Unable to update the event log.") from exc
 
+    def set_event_false_alarm(self, event_id: int, is_false_alarm: bool) -> bool:
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE event_log
+                        SET is_false_alarm = %s
+                        WHERE event_id = %s AND is_deleted = 0
+                        """,
+                        (int(is_false_alarm), event_id),
+                    )
+                    return cursor.rowcount == 1
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to update the event log.") from exc
+
     def event_exists(self, event_id: int) -> bool:
         try:
             with self.transaction() as connection:
@@ -317,7 +335,11 @@ class Database:
         selects: list[str] = []
         params: list[Any] = []
         if normalized_source in {"all", "event"}:
-            conditions = ["e.is_deleted = 0", "e.image_path IS NOT NULL"]
+            conditions = [
+                "e.is_deleted = 0",
+                "e.image_path IS NOT NULL",
+                "e.image_deleted_at IS NULL",
+            ]
             if start_at is not None:
                 conditions.append("e.detected_at >= %s")
                 params.append(start_at)
@@ -338,7 +360,11 @@ class Database:
                 + " AND ".join(conditions)
             )
         if normalized_source in {"all", "action"}:
-            conditions = ["a.is_deleted = 0", "a.image_path IS NOT NULL"]
+            conditions = [
+                "a.is_deleted = 0",
+                "a.image_path IS NOT NULL",
+                "a.image_deleted_at IS NULL",
+            ]
             if start_at is not None:
                 conditions.append("a.created_at >= %s")
                 params.append(start_at)
@@ -372,6 +398,12 @@ class Database:
 
     def get_action_image_path(self, action_id: int) -> str | None:
         return self._get_image_path("action_log", "action_id", action_id)
+
+    def soft_delete_event_image(self, event_id: int) -> bool:
+        return self._soft_delete_image("event_log", "event_id", event_id)
+
+    def soft_delete_action_image(self, action_id: int) -> bool:
+        return self._soft_delete_image("action_log", "action_id", action_id)
 
     def _insert(self, sql: str, params: tuple[Any, ...]) -> int:
         try:
@@ -433,7 +465,9 @@ class Database:
         rows = self._select(
             f"""
             SELECT image_path FROM {table}
-            WHERE {id_column} = %s AND is_deleted = 0
+            WHERE {id_column} = %s
+              AND is_deleted = 0
+              AND image_deleted_at IS NULL
             LIMIT 1
             """,
             (record_id,),
@@ -441,6 +475,31 @@ class Database:
         if not rows or rows[0].get("image_path") is None:
             return None
         return str(rows[0]["image_path"])
+
+    def _soft_delete_image(
+        self, table: str, id_column: str, record_id: int
+    ) -> bool:
+        # Identifiers are fixed by the two public callers above. Soft deletion
+        # intentionally preserves the log row, image_path, and JPEG file.
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"""
+                        UPDATE {table}
+                        SET image_deleted_at = CURRENT_TIMESTAMP
+                        WHERE {id_column} = %s
+                          AND is_deleted = 0
+                          AND image_path IS NOT NULL
+                          AND image_deleted_at IS NULL
+                        """,
+                        (record_id,),
+                    )
+                    return cursor.rowcount == 1
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            raise DatabaseOperationError("Unable to soft-delete the image.") from exc
 
     @staticmethod
     def _relative_image_path(image_path: str | None) -> str | None:

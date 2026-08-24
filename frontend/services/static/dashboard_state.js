@@ -260,7 +260,7 @@
     function splitTimestamp(row) {
         const source = asObject(row);
         if (source.date && source.time) return { date: source.date, time: source.time };
-        const value = firstValue(source.timestamp, source.created_at, source.recorded_at, source.updated_at);
+        const value = firstValue(source.detected_at, source.timestamp, source.created_at, source.recorded_at, source.updated_at);
         const parsed = parseDate(value);
         if (!parsed) return { date: source.date || '-', time: source.time || '-' };
         return {
@@ -306,6 +306,7 @@
             is_resolved: row.is_resolved,
             is_reported: row.is_reported,
             is_alerted: row.is_alerted,
+            is_false_alarm: row.is_false_alarm === true || row.is_false_alarm === 1 || row.is_false_alarm === '1',
             has_image: Boolean(row.has_image || row.image_path)
         };
     }
@@ -324,7 +325,7 @@
         };
     }
 
-    async function fetchLogRows(type) {
+    async function fetchLogRows(type, filters = {}) {
         const endpoint = type === 'statusModal'
             ? endpoints.deviceLogs
             : type === 'patrolModal'
@@ -337,7 +338,12 @@
                 message: '조회 API가 아직 연결되지 않았습니다.'
             };
         }
-        const result = await requestJson(endpoint);
+        const query = new URLSearchParams();
+        if (filters.startAt) query.set('start_at', filters.startAt);
+        if (filters.endAt) query.set('end_at', filters.endAt);
+        const queryString = query.toString();
+        const requestEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+        const result = await requestJson(requestEndpoint);
         if (result.state !== 'ready') {
             return {
                 state: result.state,

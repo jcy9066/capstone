@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pytest
 
-from server.database import DatabaseConfigurationError
+from server.database import DatabaseConfigurationError, DatabaseOperationError
 from server.media_service import FrozenFrameCache, FrozenFrameTokenError, UnsafeMediaPathError
 
 
@@ -28,6 +28,11 @@ class FakeDatabase:
         self.gallery_rows = []
         self.event_images = {}
         self.action_images = {}
+        self.deleted_event_images = set()
+        self.deleted_action_images = set()
+        self.soft_delete_error = None
+        self.false_alarm_error = None
+        self.false_alarm_events = {7: False}
         self.rows = {
             "system": [],
             "events": [{"event_id": 7, "detected_at": datetime(2026, 8, 14, 9)}],
@@ -55,22 +60,66 @@ class FakeDatabase:
     def list_gallery(self, **filters):
         self.gallery_filters = filters
         source = filters["source"]
+        rows = [
+            row
+            for row in self.gallery_rows
+            if not (
+                row["source"] == "event"
+                and row["record_id"] in self.deleted_event_images
+            )
+            and not (
+                row["source"] == "action"
+                and row["record_id"] in self.deleted_action_images
+            )
+        ]
         if source == "all":
-            return list(self.gallery_rows)
-        return [row for row in self.gallery_rows if row["source"] == source]
+            return rows
+        return [row for row in rows if row["source"] == source]
 
     def get_event_image_path(self, event_id):
+        if event_id in self.deleted_event_images:
+            return None
         return self.event_images.get(event_id)
 
     def get_action_image_path(self, action_id):
+        if action_id in self.deleted_action_images:
+            return None
         return self.action_images.get(action_id)
+
+    def soft_delete_event_image(self, event_id):
+        if self.soft_delete_error is not None:
+            raise self.soft_delete_error
+        if not self.get_event_image_path(event_id):
+            return False
+        self.deleted_event_images.add(event_id)
+        return True
+
+    def soft_delete_action_image(self, action_id):
+        if self.soft_delete_error is not None:
+            raise self.soft_delete_error
+        if not self.get_action_image_path(action_id):
+            return False
+        self.deleted_action_images.add(action_id)
+        return True
+
+    def set_event_false_alarm(self, event_id, value):
+        if self.false_alarm_error is not None:
+            raise self.false_alarm_error
+        if event_id not in self.false_alarm_events:
+            return False
+        if self.false_alarm_events[event_id] is value:
+            return False
+        self.false_alarm_events[event_id] = value
+        return True
 
     def mark_event_reported(self, event_id):
         self.reported.append(event_id)
         return True
 
     def event_exists(self, event_id):
-        return event_id == 7
+        if self.false_alarm_error is not None:
+            raise self.false_alarm_error
+        return event_id in self.false_alarm_events
 
 
 class PassthroughPrivacyProcessor:
@@ -583,6 +632,249 @@ def test_authenticated_media_rejects_missing_and_unsafe_paths(api):
     assert client.get("/api/media/events/2").status_code == 404
     assert client.get("/api/media/events/3").status_code == 404
     assert client.get("/api/media/actions/4").status_code == 404
+
+
+def test_gallery_delete_requires_authentication(api):
+    _server, client, _database = api
+    assert client.delete("/api/gallery/event/7").status_code == 401
+
+
+@pytest.mark.parametrize("csrf_header", [None, "invalid"])
+def test_gallery_delete_requires_valid_csrf(api, csrf_header):
+    server, client, database = api
+    csrf = login(server, client)
+    database.event_images[7] = "received_frames/gallery/events/7.jpg"
+    headers = {} if csrf_header is None else {"X-CSRF-Token": csrf_header}
+
+    response = client.delete("/api/gallery/event/7", headers=headers)
+
+    assert response.status_code == 403
+    assert 7 not in database.deleted_event_images
+    assert csrf
+
+
+def test_gallery_delete_rejects_invalid_source(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    response = client.delete(
+        "/api/gallery/unknown/7",
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert response.status_code == 400
+
+
+def test_gallery_delete_event_soft_deletes_without_removing_file(api):
+    server, client, database = api
+    csrf = login(server, client)
+    image_path = "received_frames/gallery/events/event-7.jpg"
+    target = server.private_image_store.resolve(image_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"private-jpeg")
+    database.event_images[7] = image_path
+    database.gallery_rows = [
+        {
+            "source": "event",
+            "record_id": 7,
+            "event_id": 7,
+            "image_path": image_path,
+            "recorded_at": datetime(2026, 8, 24, 10),
+        }
+    ]
+
+    response = client.delete(
+        "/api/gallery/event/7",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "source": "event", "record_id": 7}
+    assert target.is_file()
+    assert server.private_image_store.deleted == []
+    assert client.get("/api/gallery").json() == []
+    assert client.get("/api/media/events/7").status_code == 404
+
+
+def test_gallery_delete_action_success(api):
+    server, client, database = api
+    csrf = login(server, client)
+    database.action_images[8] = "received_frames/gallery/actions/action-8.jpg"
+
+    response = client.delete(
+        "/api/gallery/action/8",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "source": "action", "record_id": 8}
+    assert 8 in database.deleted_action_images
+
+
+@pytest.mark.parametrize("record_id", [999, 10])
+def test_gallery_delete_missing_or_no_active_image_is_404(api, record_id):
+    server, client, database = api
+    csrf = login(server, client)
+    if record_id == 10:
+        database.event_images[record_id] = None
+
+    response = client.delete(
+        f"/api/gallery/event/{record_id}",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "error",
+    [DatabaseConfigurationError("offline"), DatabaseOperationError("failed")],
+)
+def test_gallery_delete_database_unavailable_is_503(api, error):
+    server, client, database = api
+    csrf = login(server, client)
+    database.event_images[7] = "received_frames/gallery/events/7.jpg"
+    database.soft_delete_error = error
+
+    response = client.delete(
+        "/api/gallery/event/7",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert response.status_code == 503
+
+
+def test_false_alarm_patch_requires_authentication(api):
+    _server, client, _database = api
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        json={"is_false_alarm": True},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("csrf_header", [None, "invalid"])
+def test_false_alarm_patch_requires_valid_csrf(api, csrf_header):
+    server, client, _database = api
+    csrf = login(server, client)
+    headers = {} if csrf_header is None else {"X-CSRF-Token": csrf_header}
+
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers=headers,
+        json={"is_false_alarm": True},
+    )
+
+    assert response.status_code == 403
+    assert csrf
+
+
+def test_false_alarm_patch_rejects_invalid_json(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers={"X-CSRF-Token": csrf, "Content-Type": "application/json"},
+        content="{",
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"is_false_alarm": "true"}, {"is_false_alarm": 1}],
+)
+def test_false_alarm_patch_requires_actual_boolean(api, payload):
+    server, client, _database = api
+    csrf = login(server, client)
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_false_alarm_patch_updates_true_and_false(api, value):
+    server, client, database = api
+    csrf = login(server, client)
+    database.false_alarm_events[7] = not value
+
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers={"X-CSRF-Token": csrf},
+        json={"is_false_alarm": value},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "event_id": 7,
+        "is_false_alarm": value,
+    }
+    assert database.false_alarm_events[7] is value
+
+
+def test_false_alarm_patch_missing_event_is_404(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    response = client.patch(
+        "/api/logs/events/999/false-alarm",
+        headers={"X-CSRF-Token": csrf},
+        json={"is_false_alarm": True},
+    )
+    assert response.status_code == 404
+
+
+def test_false_alarm_patch_same_value_is_idempotent_success(api):
+    server, client, database = api
+    csrf = login(server, client)
+    database.false_alarm_events[7] = True
+
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers={"X-CSRF-Token": csrf},
+        json={"is_false_alarm": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_false_alarm"] is True
+
+
+@pytest.mark.parametrize(
+    "error",
+    [DatabaseConfigurationError("offline"), DatabaseOperationError("failed")],
+)
+def test_false_alarm_patch_database_unavailable_is_503(api, error):
+    server, client, database = api
+    csrf = login(server, client)
+    database.false_alarm_error = error
+
+    response = client.patch(
+        "/api/logs/events/7/false-alarm",
+        headers={"X-CSRF-Token": csrf},
+        json={"is_false_alarm": True},
+    )
+
+    assert response.status_code == 503
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/logs/system-status", "/api/logs/events", "/api/logs/actions"],
+)
+def test_all_log_routes_forward_start_at_and_end_at(api, path):
+    server, client, database = api
+    login(server, client)
+    response = client.get(
+        path,
+        params={
+            "start_at": "2026-08-01T00:00:00Z",
+            "end_at": "2026-08-24T23:59:59Z",
+        },
+    )
+    assert response.status_code == 200
+    assert database.filters["start_at"] == datetime(2026, 8, 1)
+    assert database.filters["end_at"] == datetime(2026, 8, 24, 23, 59, 59)
 
 
 def test_existing_log_responses_hide_removed_and_private_path_fields(api):
