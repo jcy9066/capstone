@@ -41,25 +41,3 @@
 #navigation-goal-hint { color: #cbd5e1; font-weight: 500; }
 #navigation-control-feedback { min-height: 13px; color: #67e8f9; font-weight: 500; }
 #navigation-control-feedback.error { color: #fb7185; }
-.navigation-driving-modal { display: grid; gap: 13px; color: var(--text-dark); }
-.navigation-driving-modal section,
-.navigation-existing-maps { display: grid; gap: 7px; }
-.navigation-driving-modal label { display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; }
-.navigation-driving-modal input {
-    min-height: 34px;
-    box-sizing: border-box;
-    padding: 6px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 5px;
-    background: var(--input-bg);
-    color: var(--text-dark);
-}
-.navigation-existing-maps { max-height: 170px; overflow: auto; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; }
-.navigation-existing-maps label { display: flex; grid-template-columns: auto 1fr; flex-direction: row; align-items: center; gap: 8px; }
-.navigation-existing-maps input { min-height: auto; }
-.navigation-initial-pose { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.navigation-modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
-.navigation-modal-actions button { padding: 8px 11px; border: 1px solid var(--border-color); border-radius: 5px; background: transparent; color: var(--text-dark); cursor: pointer; }
-.navigation-modal-actions button.primary { border-color: var(--accent); color: var(--accent); }
-.navigation-modal-actions button.secondary { border-color: var(--primary-color); color: var(--primary-color); }
-@media (max-width: 640px) { .navigation-initial-pose { grid-template-columns: 1fr; } }

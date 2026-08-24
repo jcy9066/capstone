@@ -2742,7 +2742,7 @@ async def update_navigation_pose(request: Request):
         store_navigation_mode(navigation_mode, received_at)
         navigation_state["pose"] = received_payload(data, received_at)
         navigation_state["pose_updated_at"] = received_at
-    navigation_control_api.note_navigation_sample("pose", received_at)
+    navigation_control_api.note_navigation_sample("pose", received_at, data)
     return {"ok": True}
 
 

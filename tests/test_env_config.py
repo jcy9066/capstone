@@ -109,3 +109,14 @@ def test_shared_timeout_constraints_match_server_and_frontend():
         contract = f'env_float("{name}", minimum=0.1)'
         assert contract in server_source
         assert contract in frontend_source
+
+
+def test_dashboard_navigation_values_use_required_non_negative_float_contracts():
+    source = (ROOT_DIR / "server" / "navigation_control_api.py").read_text(
+        encoding="utf-8"
+    )
+    for name in (
+        "DASHBOARD_ESTOP_COOLDOWN_SEC",
+        "DASHBOARD_GOAL_REACHED_TOLERANCE_M",
+    ):
+        assert f'env_float("{name}", minimum=0.0)' in source
