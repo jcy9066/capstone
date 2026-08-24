@@ -1964,6 +1964,42 @@ async def read_gallery(request: Request):
     return [gallery_dto(row) for row in rows]
 
 
+@app.delete("/api/gallery/{source}/{record_id}")
+async def delete_gallery_image(request: Request, source: str, record_id: int):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    source = source.strip().lower()
+    if source not in {"event", "action"}:
+        return JSONResponse(
+            {"ok": False, "detail": "source must be one of: event, action"},
+            status_code=400,
+        )
+    if record_id <= 0:
+        return JSONResponse(
+            {"ok": False, "detail": "record_id must be a positive integer."},
+            status_code=400,
+        )
+    database_method = (
+        database.soft_delete_event_image
+        if source == "event"
+        else database.soft_delete_action_image
+    )
+    try:
+        deleted = await asyncio.to_thread(database_method, record_id)
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    if not deleted:
+        return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
+    return {"ok": True, "source": source, "record_id": record_id}
+
+
 async def authenticated_media(request, record_id, *, category, database_method):
     _, auth_error = authenticated_user(request)
     if auth_error:
@@ -2006,6 +2042,53 @@ async def read_action_image(request: Request, action_id: int):
         category="actions",
         database_method=database.get_action_image_path,
     )
+
+
+@app.patch("/api/logs/events/{event_id}/false-alarm")
+async def update_event_false_alarm(request: Request, event_id: int):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    if event_id <= 0:
+        return JSONResponse(
+            {"ok": False, "detail": "event_id must be a positive integer."},
+            status_code=400,
+        )
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    is_false_alarm = payload.get("is_false_alarm")
+    if not isinstance(is_false_alarm, bool):
+        return JSONResponse(
+            {"ok": False, "detail": "is_false_alarm must be a boolean."},
+            status_code=400,
+        )
+    try:
+        updated = await asyncio.to_thread(
+            database.set_event_false_alarm,
+            event_id,
+            is_false_alarm,
+        )
+        if not updated:
+            exists = await asyncio.to_thread(database.event_exists, event_id)
+            if not exists:
+                return JSONResponse(
+                    {"ok": False, "detail": "Event not found."},
+                    status_code=404,
+                )
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    return {
+        "ok": True,
+        "event_id": event_id,
+        "is_false_alarm": is_false_alarm,
+    }
 
 
 @app.post("/api/logs/actions")
