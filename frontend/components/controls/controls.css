@@ -32,12 +32,21 @@
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .dashboard-mode-button:hover,
 .dashboard-mode-button.active {
     border-color: var(--accent);
     color: var(--accent);
+    background: rgba(8, 145, 178, 0.08);
+}
+
+.dashboard-mode-button:focus-visible,
+.dpad-estop-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .dashboard-mode-button:disabled {
@@ -79,6 +88,8 @@
     font-weight: 800;
     line-height: 1.2;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .dpad-estop-button.active {

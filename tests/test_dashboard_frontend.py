@@ -154,7 +154,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("components.modal", modal_source)
         self.assertIn("initializeDashboardComponentFoundation", self.script_source)
 
-        record_entries = ('actionsModal', 'currentSituation', 'galleryModal', 'statusModal', 'patrolModal')
+        record_entries = ('patrolModal', 'galleryModal', 'currentSituation', 'actionsModal', 'statusModal')
         mount_start = self.template_source.index('id="records-toolbar-mount"')
         mount_end = self.template_source.index("\n            </div>\n        </div>", mount_start)
         mount_source = self.template_source[mount_start:mount_end]
@@ -208,16 +208,14 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertEqual(self.template_source.count('id="navigation-mode-driving"'), 1)
 
     def test_dashboard_layout_contract_is_compact_and_consistent(self):
-        toolbar_order = (
-            ('data-record-view="patrolModal"', "order: 1"),
-            ('data-record-view="galleryModal"', "order: 2"),
-            (".current-situation-record-btn", "order: 3"),
-            ('data-record-view="actionsModal"', "order: 4"),
-            ('data-record-view="statusModal"', "order: 5"),
-        )
-        for selector, order in toolbar_order:
-            selector_position = self.style_source.index(selector)
-            self.assertIn(order, self.style_source[selector_position:selector_position + 100])
+        toolbar_start = self.template_source.index('id="records-toolbar-mount"')
+        toolbar_end = self.template_source.index("\n            </div>\n        </div>", toolbar_start)
+        toolbar_source = self.template_source[toolbar_start:toolbar_end]
+        toolbar_order = ('patrolModal', 'galleryModal', 'currentSituation', 'actionsModal', 'statusModal')
+        positions = [toolbar_source.index(f'data-record-view="{view}"') for view in toolbar_order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('data-record-view="patrolModal"] { order:', self.style_source)
+        self.assertNotIn('.current-situation-record-btn { order:', self.style_source)
 
         for contract in (
             "grid-template-rows: repeat(2, minmax(0, 1fr))",

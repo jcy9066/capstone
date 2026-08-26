@@ -9,9 +9,9 @@
     <link rel="stylesheet" href="static/system_control.css?v=20260826-dashboard-followup">
     <link rel="stylesheet" href="static/navigation_map_control.css?v=20260826-dashboard-followup">
     <link rel="stylesheet" href="static/navigation_control.css?v=20260826-dashboard-followup">
-    <link rel="stylesheet" href="/components/modal/modal.css">
+    <link rel="stylesheet" href="/components/modal/modal.css?v=20260826-dashboard-orchestration-t3">
     <link rel="stylesheet" href="/components/records/records.css">
-    <link rel="stylesheet" href="/components/controls/controls.css">
+    <link rel="stylesheet" href="/components/controls/controls.css?v=20260826-dashboard-orchestration-t3">
 </head>
 <body>
 
@@ -258,10 +258,18 @@
             <div class="map-bookmark-panel" id="records-toolbar-mount" data-dashboard-mount="records-toolbar">
                 <button
                     class="mb-btn"
-                    data-record-view="actionsModal"
-                    onclick="openModal('actionsModal')"
+                    data-record-view="patrolModal"
+                    onclick="openModal('patrolModal')"
                 >
-                    관리자 조치 조회
+                    순찰 기록 조회
+                </button>
+
+                <button
+                    class="mb-btn"
+                    data-record-view="galleryModal"
+                    onclick="openModal('galleryModal')"
+                >
+                    이미지 갤러리
                 </button>
 
                 <span id="current-situation-mount" class="dashboard-component-mount" data-dashboard-mount="current-situation">
@@ -276,10 +284,10 @@
 
                 <button
                     class="mb-btn"
-                    data-record-view="galleryModal"
-                    onclick="openModal('galleryModal')"
+                    data-record-view="actionsModal"
+                    onclick="openModal('actionsModal')"
                 >
-                    이미지 갤러리
+                    관리자 조치 조회
                 </button>
 
                 <button
@@ -290,13 +298,6 @@
                     기기 상태 조회
                 </button>
 
-                <button
-                    class="mb-btn"
-                    data-record-view="patrolModal"
-                    onclick="openModal('patrolModal')"
-                >
-                    순찰 기록 조회
-                </button>
             </div>
         </div>
 
@@ -521,12 +522,14 @@
                     모달 제목
                 </h2>
 
-                <span
+                <button
+                    type="button"
                     class="close-btn"
-                    onclick="closeModal()"
+                    data-modal-close
+                    aria-label="전체 모달 닫기"
                 >
                     &times;
-                </span>
+                </button>
             </div>
 
             <div
@@ -538,7 +541,7 @@
         </div>
     </div>
 
-    <script src="/components/modal/modal_manager.js"></script>
+    <script src="/components/modal/modal_manager.js?v=20260826-dashboard-orchestration-t3"></script>
     <script src="/components/records/record_filters.js"></script>
     <script src="/components/records/record_table.js"></script>
     <script src="/components/records/pagination.js"></script>
@@ -546,8 +549,8 @@
     <script src="/components/controls/cycle_filter_button.js"></script>
     <script src="/components/controls/drive_mode_control.js"></script>
     <script src="/components/controls/navigation_mode_control.js"></script>
-    <script src="/components/gallery/image_detail.js"></script>
-    <script src="/components/current_situation/current_situation.js"></script>
+    <script src="/components/gallery/image_detail.js?v=20260826-dashboard-orchestration-t3"></script>
+    <script src="/components/current_situation/current_situation.js?v=20260826-dashboard-orchestration-t3"></script>
     <script src="static/script.js?v=20260826-dashboard-followup"></script>
     <script src="static/system_control.js?v=20260826-dashboard-followup"></script>
     <script src="static/navigation_map_control.js?v=20260826-dashboard-followup"></script>

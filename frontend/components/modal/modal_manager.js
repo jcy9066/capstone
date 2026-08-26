@@ -13,9 +13,21 @@
             this.root = resolveElement(options.root || '#commonModal');
             this.title = resolveElement(options.title || '#modalTitle');
             this.body = resolveElement(options.body || '#modalBody');
+            this.closeControl = resolveElement(options.close || this.root?.querySelector?.('[data-modal-close]'));
             this.views = new Map();
             this.stack = [];
             this.activeView = null;
+            this.bindDismissEvents();
+        }
+
+        bindDismissEvents() {
+            this.closeControl?.addEventListener?.('click', event => {
+                event.preventDefault();
+                this.close();
+            });
+            this.root?.addEventListener?.('click', event => {
+                if (event.target === this.root) this.close();
+            });
         }
 
         register(name, descriptor) {
