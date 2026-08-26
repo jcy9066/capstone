@@ -59,19 +59,22 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn('class="card d-pad-container disabled"', self.template_source)
         self.assertIn("applyServerPatrolMode(null)", self.script_source)
 
-    def test_state_module_uses_server_polling_and_optional_backend_contracts(self):
-        self.assertIn("robotState: '/api/robots/pi-01'", self.state_source)
-        self.assertIn("window.setInterval(pollRobotState, 1000)", self.state_source)
+    def test_state_module_uses_navigation_control_and_optional_backend_contracts(self):
+        self.assertIn("dabom:navigation-control-state", self.state_source)
+        self.assertIn("applyControlState(event.detail)", self.state_source)
+        self.assertNotIn("robotState: '/api/robots/pi-01'", self.state_source)
+        self.assertNotIn("pollRobotState", self.state_source)
         self.assertIn("window.DABOM_DASHBOARD_ENDPOINTS", self.state_source)
         self.assertIn("fetchLogRows", self.state_source)
         self.assertIn("state: 'unavailable'", self.state_source)
 
-    def test_disconnect_and_stale_state_fail_closed(self):
-        self.assertIn("ROBOT_STATUS_STALE_MS = 5000", self.script_source)
+    def test_control_state_disconnect_fails_closed(self):
+        navigation_source = (STATIC_DIR / "navigation_control.js").read_text(encoding="utf-8")
         self.assertIn("currentRobotConnected !== false", self.script_source)
         self.assertIn("stopAllLocalInputs(false)", self.script_source)
-        self.assertIn("clearRobotSnapshotState", self.state_source)
-        self.assertIn("setText('emergency-stop-status', 'UNAVAILABLE')", self.state_source)
+        self.assertIn("window.setDashboardRobotConnection?.(payload?.connected === true)", navigation_source)
+        self.assertIn("window.applyServerPatrolMode?.(payload?.robot_mode)", navigation_source)
+        self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
         version = "v=20260826-dashboard-followup"

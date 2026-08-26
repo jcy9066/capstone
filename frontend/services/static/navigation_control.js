@@ -14,6 +14,7 @@
         drivePending: false,
         navigationPending: false,
         estopPending: false,
+        warningPending: false,
         estopCooldownUntil: 0,
         controlWaiters: new Set(),
         previousConnected: null,
@@ -27,12 +28,40 @@
 
     const $ = id => document.getElementById(id);
 
+    function userMessageForError(code, fallback, status) {
+        const messages = {
+            PI_OFFLINE: 'Pi가 연결되지 않아 명령을 전달하지 못했습니다.',
+            PI_RESUME_FAILED: 'Pi가 정지 해제 명령을 수락하지 않았습니다.',
+            DRIVING_MODE_REQUIRED: 'Driving 모드에서만 실행할 수 있습니다.',
+            NAVIGATION_NOT_READY: 'Localization과 Nav2 준비 상태를 확인해주세요.',
+            NAVIGATION_STOP_CONFIRMATION_REQUIRED: '현재 주행을 중지한 뒤 Mapping 모드로 전환해야 합니다.',
+            AUTO_MODE_REQUIRED: '자동 모드 전환을 확인한 뒤 다시 시도해주세요.',
+            PI_DRIVING_MODE_REQUIRED: 'Pi의 Driving 모드 전환을 확인해주세요.',
+            EMERGENCY_STOP_ACTIVE: '먼저 긴급 정지를 해제해주세요.',
+            EMERGENCY_STOP_NOT_ACTIVE: '현재 긴급 정지 상태가 아닙니다.',
+            PATH_REQUIRED: 'Goal을 지정하고 경로를 먼저 계산해주세요.',
+            ACTIVE_MAP_REQUIRED: '저장 지도를 선택한 뒤 다시 시도해주세요.',
+            GOAL_OUT_OF_BOUNDS: '활성 지도 안쪽에 Goal을 지정해주세요.',
+            PATH_NOT_FOUND: '주행 가능한 경로를 찾지 못했습니다.',
+            WATCHDOG_NOT_READY: 'Navigation 안전 상태를 확인해주세요.',
+            NAV2_NOT_READY: 'Nav2 준비가 완료되지 않았습니다.',
+        };
+        return messages[String(code || '').toUpperCase()]
+            || fallback
+            || (status === 409 ? '현재 Navigation 상태와 요청이 충돌했습니다.' : `HTTP ${status}`);
+    }
+
     async function requestJson(url, options = {}) {
         const response = await fetch(url, { credentials: 'same-origin', ...options });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload.ok === false) {
-            const error = new Error(payload.error || payload.detail || `HTTP ${response.status}`);
+            const error = new Error(userMessageForError(
+                payload.error_code,
+                payload.error || payload.detail,
+                response.status,
+            ));
             error.code = payload.error_code;
+            error.status = response.status;
             throw error;
         }
         return payload;
@@ -214,6 +243,14 @@
             pending: state.estopPending,
             cooldownUntil: state.estopCooldownUntil,
         });
+        const warningButton = document.querySelector('.action-warning');
+        if (warningButton) {
+            warningButton.disabled = payload.connected !== true || state.warningPending;
+            warningButton.setAttribute('aria-busy', String(state.warningPending));
+            warningButton.title = payload.connected === true
+                ? 'Pi 스피커와 LED로 경고합니다.'
+                : 'Pi가 연결되어야 경고할 수 있습니다.';
+        }
     }
 
     function setFeedback(message, error = false) {
@@ -225,6 +262,8 @@
 
     function applyControlState(payload) {
         state.control = payload;
+        window.setDashboardRobotConnection?.(payload?.connected === true);
+        window.applyServerPatrolMode?.(payload?.robot_mode);
         const mode = payload?.navigation_mode || 'UNKNOWN';
         const navState = payload?.navigation_state || 'UNKNOWN';
         const modeLabel = $('navigation-mode-label');
@@ -377,26 +416,12 @@
     function drawGoalFlag(ctx, goal, worldToCanvas, layout) {
         if (!goal) return;
         const point = worldToCanvas(goal.x, goal.y, layout);
-        const height = Math.max(22, Math.min(38, 0.55 * layout.scale));
-        const width = Math.max(14, height * 0.62);
+        const size = Math.max(24, Math.min(40, 0.62 * layout.scale));
         ctx.save();
-        ctx.translate(point.x, point.y);
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#a855f7';
-        ctx.fillStyle = '#a855f7';
-        ctx.beginPath();
-        ctx.moveTo(0, 5);
-        ctx.lineTo(0, -height);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(2, -height);
-        ctx.lineTo(width, -height + height * 0.22);
-        ctx.lineTo(2, -height + height * 0.45);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(0, 5, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.font = `${size}px 'Noto Sans KR', 'Noto Sans', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('🚩', point.x, point.y + 5);
         ctx.restore();
     }
 
@@ -603,12 +628,30 @@
     }
 
     async function warning() {
+        if (state.warningPending) return false;
+        if (state.control?.connected !== true) {
+            setFeedback('Pi가 연결되지 않아 경고 명령을 전달하지 못했습니다.', true);
+            syncControlComponents();
+            return false;
+        }
+        state.warningPending = true;
+        syncControlComponents();
         try {
             await mutate('/api/navigation/control/warning', { led_duration_ms: 3000 });
             setFeedback('경고 방송과 LED 명령을 전송했습니다.');
+            return true;
         } catch (error) {
             setFeedback(`경고 명령 실패: ${error.message}`, true);
+            return false;
+        } finally {
+            state.warningPending = false;
+            syncControlComponents();
         }
+    }
+
+    function clearDisplayedAlerts() {
+        state.hazardEntries = [];
+        $('alertBox')?.querySelectorAll('[data-navigation-hazard]').forEach(element => element.remove());
     }
 
     function initialize() {
@@ -625,7 +668,10 @@
         controls?.mountNavigationMode(dashboardNavigation, { request: requestNavigationMode });
         controls?.mountNavigationMode($('navigation-control-panel'), { request: requestNavigationMode });
         controls?.mountEmergencyStop($('dpad-center-action-mount'), { request: requestEmergencyToggle });
+        const warningButton = document.querySelector('.action-warning');
+        if (warningButton) warningButton.disabled = true;
         document.addEventListener('dabom:navigation-hazard', renderNavigationHazard);
+        document.addEventListener('dabom:alerts-cleared', clearDisplayedAlerts);
         const alertBox = $('alertBox');
         if (alertBox && window.MutationObserver) {
             state.hazardObserver = new MutationObserver(scheduleHazardReconcile);

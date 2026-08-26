@@ -31,23 +31,6 @@ setInterval(() => {
 // ===================================================
 // 서버 상태 폴링
 // ===================================================
-const ROBOT_STATUS_STALE_MS = 5000;
-
-function parseStatusTimestamp(value) {
-    if (value === undefined || value === null || value === '') return null;
-    const numeric = Number(value);
-    const parsed = Number.isFinite(numeric)
-        ? new Date(numeric < 1e12 ? numeric * 1000 : numeric)
-        : new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function hasFreshRobotReport(data) {
-    if (!Object.prototype.hasOwnProperty.call(data, 'updated_at')) return true;
-    const updatedAt = parseStatusTimestamp(data.updated_at);
-    return Boolean(updatedAt && Date.now() - updatedAt.getTime() <= ROBOT_STATUS_STALE_MS);
-}
-
 function fetchRobotStatus() {
     fetch('/get_status')
         .then(response => {
@@ -76,34 +59,14 @@ function fetchRobotStatus() {
                 'sys-internet',
             ).innerText = data.internet;
 
-            const reportedMode = String(
-                data.mode || '',
-            )
-                .trim()
-                .toLowerCase();
-            const hasActualReport = hasFreshRobotReport(data);
-
-            if (
-                hasActualReport
-                && (
-                    reportedMode === 'auto'
-                    || reportedMode === 'manual'
-                )
-            ) {
-                applyServerPatrolMode(reportedMode);
-            } else {
-                applyServerPatrolMode(null);
-            }
-
             document.dispatchEvent(new CustomEvent(
-                'dabom:robot-status',
+                'dabom:telemetry-status',
                 { detail: { available: true, payload: data } },
             ));
         })
         .catch(error => {
-            applyServerPatrolMode(null);
             document.dispatchEvent(new CustomEvent(
-                'dabom:robot-status',
+                'dabom:telemetry-status',
                 { detail: { available: false, error: error.message } },
             ));
             console.error(
@@ -779,11 +742,16 @@ window.navigationMapView = {
 // 알림 지우기
 // ===================================================
 function clearAlerts() {
-    if (confirm("정말 모든 알림 내역을 삭제하시겠습니까?")) {
+    if (confirm('현재 표시된 알림을 지우시겠습니까?')) {
+        const clearedAt = Date.now();
+        document.dispatchEvent(new CustomEvent(
+            'dabom:alerts-cleared',
+            { detail: { clearedAt } },
+        ));
         document.getElementById('alertBox').innerHTML = `
             <div class="alert-entry alert-info">
                 <span class="alert-time">${getCurrentTime()}</span>
-                <span class="alert-message">알림 내역이 삭제되었습니다. 대기 중...</span>
+                <span class="alert-message">현재 표시 알림을 지웠습니다. 새 알림 대기 중...</span>
             </div>`;
     }
 }
@@ -800,35 +768,41 @@ function clearAlerts() {
 // ===================================================
 // 텔레그램 신고
 // ===================================================
+let reportPending = false;
+
 async function reportDanger(isAuto = false) {
     let confirmReport = true;
     if (!isAuto) confirmReport = confirm("신고? - Telegram");
-
-    if (confirmReport) {
-        fetch('/api/auth/csrf', { credentials: 'same-origin' })
-            .then(r => r.json())
-            .then(csrf => fetch('/send_telegram', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrf.csrf_token,
-                },
-                body: JSON.stringify({}),
-            }))
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    if (!isAuto) alert("긴급 알림이 전송되었습니다.");
-                    console.log("텔레그램 알림 전송 완료");
-                } else {
-                    if (!isAuto) alert("알림 전송에 실패했습니다.");
-                }
-            })
-            .catch(err => {
-                console.error("Error:", err);
-                if (!isAuto) alert("서버 통신 오류로 알림을 보내지 못했습니다.");
-            });
+    if (!confirmReport || reportPending) return false;
+    const button = document.querySelector('.action-report');
+    reportPending = true;
+    if (button) button.disabled = true;
+    try {
+        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+        const csrf = await csrfResponse.json().catch(() => ({}));
+        if (!csrfResponse.ok || !csrf.csrf_token) throw new Error('보안 토큰을 확인하지 못했습니다.');
+        const response = await fetch('/send_telegram', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrf.csrf_token,
+            },
+            body: JSON.stringify({}),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.detail || data.error || '알림 전송에 실패했습니다.');
+        }
+        if (!isAuto) alert('긴급 알림이 전송되었습니다.');
+        return true;
+    } catch (error) {
+        console.error('신고 요청 실패:', error);
+        if (!isAuto) alert(error.message || '서버 통신 오류로 알림을 보내지 못했습니다.');
+        return false;
+    } finally {
+        reportPending = false;
+        if (button) button.disabled = false;
     }
 }
 
@@ -883,10 +857,6 @@ const DRIVE_KEYS = [
     'ArrowDown',
     'ArrowLeft',
     'ArrowRight',
-    'w',
-    'a',
-    's',
-    'd',
 ];
 
 let pointerMoveInterval = null;
@@ -895,17 +865,42 @@ let activePointerButton = null;
 const pressedKeys = new Set();
 let keyMoveInterval = null;
 let robotCommandCsrfPromise = null;
+let lastRobotCommandErrorAt = 0;
+
+
+function robotCommandErrorMessage(data, status) {
+    const code = String(data?.error_code || '').toUpperCase();
+    if (['PI_OFFLINE', 'COMMAND_DELIVERY_FAILED', 'PI_COMMAND_FAILED'].includes(code) || status === 409) {
+        return 'Pi가 연결되지 않아 명령을 전달하지 못했습니다.';
+    }
+    return data?.detail || data?.error || `로봇 명령 요청에 실패했습니다. (HTTP ${status})`;
+}
+
+
+function showRobotCommandFailure(data, status) {
+    const feedback = document.getElementById('navigation-control-feedback');
+    const message = robotCommandErrorMessage(data, status);
+    if (feedback) {
+        feedback.textContent = message;
+        feedback.classList.add('error');
+    }
+    const now = Date.now();
+    if (now - lastRobotCommandErrorAt >= 2000) {
+        console.warn(message, data);
+        lastRobotCommandErrorAt = now;
+    }
+}
 
 
 function directionToCommand(direction) {
     const map = {
-        '↑': 'rotate_left',
-        '↓': 'rotate_right',
-        '←': 'backward',
-        '→': 'forward',
-        '↖': 'backward_left',
-        '↗': 'forward_left',
-        '↙': 'forward_right',
+        '↑': 'forward',
+        '↓': 'backward',
+        '←': 'rotate_left',
+        '→': 'rotate_right',
+        '↖': 'forward_left',
+        '↗': 'forward_right',
+        '↙': 'backward_left',
         '↘': 'backward_right',
     };
 
@@ -958,7 +953,7 @@ async function sendRobotCommand(
         const ok = response.ok && data.ok;
 
         if (!ok) {
-            console.warn('로봇 명령 전송 실패:', data);
+            showRobotCommandFailure(data, response.status);
         }
 
         return ok;
@@ -1057,14 +1052,17 @@ async function togglePatrolMode() {
         return;
     }
 
+    const requestDriveMode = window.navigationControl?.requestDriveMode;
+    if (!requestDriveMode) {
+        alert('Navigation Control 상태를 확인하지 못했습니다.');
+        return;
+    }
+
     stopAllLocalInputs(false);
     modeChangePending = true;
 
     try {
-        const ok = await sendRobotCommand({
-            type: 'mode',
-            mode: targetMode,
-        });
+        const ok = await requestDriveMode(targetMode.toUpperCase());
 
         if (!ok) {
             alert(
@@ -1075,17 +1073,6 @@ async function togglePatrolMode() {
             return;
         }
 
-        /*
-         * 여기서 currentPatrolMode와 UI를
-         * 직접 변경하지 않는다.
-         *
-         * Pi가 실제 모드를 서버에 보고하면
-         * fetchRobotStatus()가 화면에 반영한다.
-         */
-        setTimeout(
-            fetchRobotStatus,
-            300,
-        );
     } finally {
         modeChangePending = false;
     }
@@ -1244,41 +1231,15 @@ function stopPointerMove(
 
 
 function normalizeDriveKey(key) {
-    if (
-        [
-            'ArrowUp',
-            'ArrowDown',
-            'ArrowLeft',
-            'ArrowRight',
-        ].includes(key)
-    ) {
-        return key;
-    }
-
-    return String(key).toLowerCase();
+    return DRIVE_KEYS.includes(key) ? key : '';
 }
 
 
 function getDirectionFromKeys() {
-    const up = (
-        pressedKeys.has('ArrowUp')
-        || pressedKeys.has('w')
-    );
-
-    const down = (
-        pressedKeys.has('ArrowDown')
-        || pressedKeys.has('s')
-    );
-
-    const left = (
-        pressedKeys.has('ArrowLeft')
-        || pressedKeys.has('a')
-    );
-
-    const right = (
-        pressedKeys.has('ArrowRight')
-        || pressedKeys.has('d')
-    );
+    const up = pressedKeys.has('ArrowUp');
+    const down = pressedKeys.has('ArrowDown');
+    const left = pressedKeys.has('ArrowLeft');
+    const right = pressedKeys.has('ArrowRight');
 
     if (up && left) {
         return { direction: '↖' };
@@ -1331,8 +1292,33 @@ function highlightKeyboardButton(direction) {
 }
 
 
+function isKeyboardDrivingBlocked(target = document.activeElement) {
+    const element = target instanceof Element ? target : null;
+    if (
+        element?.matches('input, textarea, select')
+        || element?.isContentEditable
+        || element?.closest('[contenteditable]:not([contenteditable="false"])')
+    ) return true;
+    const modal = document.getElementById('commonModal');
+    if (
+        modal
+        && (
+            modal.dataset.modalView
+            || modal.style.display === 'flex'
+            || modal.classList.contains('open')
+        )
+    ) return true;
+    return document.getElementById('sidebar')?.classList.contains('open') === true;
+}
+
+
 function sendCurrentKeyDirection() {
     if (currentPatrolMode !== 'manual') {
+        return;
+    }
+
+    if (isKeyboardDrivingBlocked()) {
+        stopKeyMove(true, 'input_blocked');
         return;
     }
 
@@ -1412,11 +1398,15 @@ document.addEventListener(
             return;
         }
 
-        event.preventDefault();
+        if (isKeyboardDrivingBlocked(event.target)) {
+            return;
+        }
 
         if (currentPatrolMode !== 'manual') {
             return;
         }
+
+        event.preventDefault();
 
         if (pressedKeys.has(key)) {
             return;
