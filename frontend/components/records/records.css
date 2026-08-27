@@ -152,6 +152,69 @@
     cursor: not-allowed;
 }
 
+.record-delete-zone {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: min(100%, 680px);
+    margin: 2px auto 0;
+    padding: 10px 14px;
+    border: 1px solid color-mix(in srgb, var(--danger-color) 38%, var(--border-color));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--danger-color) 5%, var(--card-bg));
+    text-align: center;
+}
+
+.record-delete-zone[hidden] {
+    display: none;
+}
+
+.record-delete-selection {
+    color: var(--text-dark);
+    font-weight: 700;
+}
+
+.record-delete-impact {
+    display: grid;
+    gap: 3px;
+    color: var(--text-dark);
+}
+
+.record-delete-impact[hidden] {
+    display: none;
+}
+
+.record-delete-impact span,
+.record-delete-impact p,
+.record-delete-status {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.record-delete-status {
+    min-height: 16px;
+    color: var(--danger-color);
+}
+
+.record-delete-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.record-delete-actions .filter-btn {
+    min-width: 72px;
+}
+
+.record-delete-actions .filter-btn.danger {
+    border-color: var(--danger-color);
+    background: var(--danger-color);
+    color: #fff;
+}
+
 .gallery-view {
     display: flex;
     min-width: 0;

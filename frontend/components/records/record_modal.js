@@ -22,6 +22,65 @@
         actionsModal: 'created_at',
     });
     const SELECTABLE_TYPES = new Set(['patrolModal', 'actionsModal']);
+    const DELETE_PREVIEW_ENDPOINT = '/api/logs/delete/preview';
+    const DELETE_ENDPOINT = '/api/logs/delete';
+
+    function normalizedDeleteIds(values) {
+        return (values || [])
+            .map(value => Number(value))
+            .filter(value => Number.isInteger(value) && value > 0);
+    }
+
+    records.buildLogDeletePayload = function buildLogDeletePayload(type, selectedKeys) {
+        const ids = normalizedDeleteIds(selectedKeys);
+        return {
+            event_ids: type === 'patrolModal' ? ids : [],
+            action_ids: type === 'actionsModal' ? ids : [],
+        };
+    };
+
+    records.resolvePostDeletePage = function resolvePostDeletePage(requestedPage, totalPages) {
+        const page = Math.max(1, Number(requestedPage) || 1);
+        const lastPage = Math.max(1, Number(totalPages) || 1);
+        return Math.min(page, lastPage);
+    };
+
+    records.describeLogDeleteImpact = function describeLogDeleteImpact(type, rawCounts = {}) {
+        const counts = {
+            events: Math.max(0, Number(rawCounts.events) || 0),
+            actions: Math.max(0, Number(rawCounts.actions) || 0),
+            images: Math.max(0, Number(rawCounts.images) || 0),
+        };
+        const message = type === 'patrolModal'
+            ? `선택한 이벤트 삭제 시 연결된 관리자 조치 ${counts.actions}건도 함께 삭제됩니다. 원본 JPEG 파일은 보존됩니다.`
+            : '선택한 관리자 조치만 삭제됩니다. 관련 이벤트 원본은 유지되며 원본 JPEG 파일은 보존됩니다.';
+        return { counts, message };
+    };
+
+    async function postLogDelete(endpoint, payload) {
+        const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
+        const csrf = await csrfResponse.json().catch(() => ({}));
+        if (!csrfResponse.ok || !csrf.csrf_token) {
+            throw new Error('보안 토큰을 준비하지 못했습니다.');
+        }
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrf.csrf_token,
+            },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+            throw new Error(data.detail || data.error || `HTTP ${response.status}`);
+        }
+        return data;
+    }
+
+    records.previewLogDelete = payload => postLogDelete(DELETE_PREVIEW_ENDPOINT, payload);
+    records.executeLogDelete = payload => postLogDelete(DELETE_ENDPOINT, payload);
 
     function defaultSort(type) {
         return { by: DEFAULT_SORT[type], direction: 'desc', touched: false };
@@ -100,6 +159,10 @@
             this.message = '';
             this.metadata = { page: 1, page_size: 50, total: 0, total_pages: 0 };
             this.requestVersion = 0;
+            this.deleteRequestVersion = 0;
+            this.deletePreview = null;
+            this.deleteState = 'idle';
+            this.deleteMessage = '';
             this.cycleControllers = [];
             this.tableScrollTop = 0;
         }
@@ -114,6 +177,13 @@
                 loadState: this.loadState,
                 message: this.message,
                 metadata: { ...this.metadata },
+                deletePreview: this.deletePreview ? {
+                    payload: { ...this.deletePreview.payload },
+                    counts: { ...this.deletePreview.counts },
+                    message: this.deletePreview.message,
+                } : null,
+                deleteState: this.deletePreview ? 'ready' : 'idle',
+                deleteMessage: this.deletePreview ? '' : this.deleteMessage,
                 tableScrollTop: this.root()?.querySelector('.modal-table-wrapper')?.scrollTop || 0,
             };
         }
@@ -128,6 +198,7 @@
                 this.loadState = 'idle';
                 this.message = '';
                 this.metadata = { page: 1, page_size: 50, total: 0, total_pages: 0 };
+                this.resetDeletePreview();
                 this.tableScrollTop = 0;
                 return;
             }
@@ -139,6 +210,9 @@
             this.loadState = snapshot.loadState || 'ready';
             this.message = snapshot.message || '';
             this.metadata = { ...this.metadata, ...(snapshot.metadata || {}) };
+            this.deletePreview = snapshot.deletePreview || null;
+            this.deleteState = snapshot.deleteState || 'idle';
+            this.deleteMessage = snapshot.deleteMessage || '';
             this.tableScrollTop = Math.max(0, Number(snapshot.tableScrollTop) || 0);
         }
 
@@ -178,6 +252,15 @@
                     </table>
                 </div>
                 <nav class="records-pagination" data-record-pagination aria-label="기록 페이지" hidden></nav>
+                ${SELECTABLE_TYPES.has(this.type) ? `<div class="record-delete-zone" data-record-delete-zone hidden>
+                    <span class="record-delete-selection" data-record-delete-selection></span>
+                    <div class="record-delete-impact" data-record-delete-impact hidden></div>
+                    <p class="record-delete-status" data-record-delete-status role="status" aria-live="polite"></p>
+                    <div class="record-delete-actions">
+                        <button type="button" class="filter-btn secondary" data-action="delete-cancel">취소</button>
+                        <button type="button" class="filter-btn danger" data-action="delete">삭제</button>
+                    </div>
+                </div>` : ''}
             </section>`;
         }
 
@@ -223,6 +306,8 @@
             });
             root.querySelector('[data-action="query"]')?.addEventListener('click', () => this.query());
             root.querySelector('[data-action="reset"]')?.addEventListener('click', () => this.reset());
+            root.querySelector('[data-action="delete-cancel"]')?.addEventListener('click', () => this.clearSelection());
+            root.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.handleDeleteAction());
             root.querySelectorAll('[data-filter]').forEach(input => {
                 input.addEventListener('input', () => {
                     this.pagination.reset();
@@ -283,8 +368,16 @@
         }
 
         clearSelection() {
+            this.resetDeletePreview();
             this.selection.clear();
             this.syncSelectionControls();
+        }
+
+        resetDeletePreview() {
+            this.deleteRequestVersion += 1;
+            this.deletePreview = null;
+            this.deleteState = 'idle';
+            this.deleteMessage = '';
         }
 
         selectedRecordIds() {
@@ -295,8 +388,61 @@
             const requestedPage = this.pagination.page;
             this.clearSelection();
             await this.load();
-            if (this.pagination.page !== requestedPage || (this.loadState === 'ready' && !this.rows.length && requestedPage > 1)) {
+            if (this.loadState !== 'ready') return;
+            const fallbackPage = records.resolvePostDeletePage(requestedPage, this.metadata.total_pages);
+            if (fallbackPage !== requestedPage || (!this.rows.length && requestedPage > 1)) {
+                this.pagination.setPage(fallbackPage);
                 await this.load();
+            }
+        }
+
+        selectedDeletePayload() {
+            return records.buildLogDeletePayload(this.type, this.selectedRecordIds());
+        }
+
+        async handleDeleteAction() {
+            if (!this.selection.count || ['previewing', 'deleting'].includes(this.deleteState)) return;
+            if (this.deletePreview) await this.confirmDelete();
+            else await this.previewDelete();
+        }
+
+        async previewDelete() {
+            const payload = this.selectedDeletePayload();
+            const version = ++this.deleteRequestVersion;
+            this.deleteState = 'previewing';
+            this.deleteMessage = '삭제 영향을 확인 중입니다.';
+            this.syncDeleteActions();
+            try {
+                const result = await records.previewLogDelete(payload);
+                if (version !== this.deleteRequestVersion) return;
+                const impact = records.describeLogDeleteImpact(this.type, result.counts);
+                this.deletePreview = { payload, ...impact };
+                this.deleteState = 'ready';
+                this.deleteMessage = '삭제 영향을 확인한 뒤 삭제를 다시 눌러 주세요.';
+            } catch (error) {
+                if (version !== this.deleteRequestVersion) return;
+                this.deleteState = 'error';
+                this.deleteMessage = error.message || '삭제 영향을 확인하지 못했습니다.';
+            }
+            this.syncDeleteActions();
+        }
+
+        async confirmDelete() {
+            const payload = this.deletePreview?.payload;
+            if (!payload) return;
+            const version = ++this.deleteRequestVersion;
+            this.deleteState = 'deleting';
+            this.deleteMessage = '선택한 기록을 삭제 중입니다.';
+            this.syncDeleteActions();
+            try {
+                await records.executeLogDelete(payload);
+                if (version !== this.deleteRequestVersion) return;
+                await this.reloadAfterMutation();
+            } catch (error) {
+                if (version !== this.deleteRequestVersion) return;
+                this.deleteState = 'error';
+                this.deleteMessage = error.message || '선택한 기록을 삭제하지 못했습니다.';
+                this.syncDeleteActions();
             }
         }
 
@@ -409,6 +555,7 @@
             if (!SELECTABLE_TYPES.has(this.type)) return;
             const root = this.root();
             root?.querySelector('[data-record-select-all]')?.addEventListener('change', event => {
+                this.resetDeletePreview();
                 this.selection.setCurrentPage(this.rows, event.currentTarget.checked);
                 root.querySelectorAll('[data-record-select-row]').forEach(checkbox => {
                     checkbox.checked = event.currentTarget.checked;
@@ -417,6 +564,7 @@
             });
             root?.querySelectorAll('[data-record-select-row]').forEach(checkbox => {
                 checkbox.addEventListener('change', () => {
+                    this.resetDeletePreview();
                     this.selection.toggle(this.rows[Number(checkbox.dataset.recordSelectRow)], checkbox.checked);
                     this.syncSelectionControls();
                 });
@@ -437,6 +585,31 @@
                 bubbles: true,
                 detail: { type: this.type, selectedIds: this.selectedRecordIds() },
             }));
+            this.syncDeleteActions();
+        }
+
+        syncDeleteActions() {
+            if (!SELECTABLE_TYPES.has(this.type)) return;
+            const root = this.root();
+            const zone = root?.querySelector('[data-record-delete-zone]');
+            if (!zone) return;
+            const count = this.selection.count;
+            zone.hidden = count === 0;
+            const selection = zone.querySelector('[data-record-delete-selection]');
+            const impact = zone.querySelector('[data-record-delete-impact]');
+            const status = zone.querySelector('[data-record-delete-status]');
+            const cancel = zone.querySelector('[data-action="delete-cancel"]');
+            const remove = zone.querySelector('[data-action="delete"]');
+            if (selection) selection.textContent = `${count}건 선택됨`;
+            if (impact) {
+                impact.hidden = !this.deletePreview;
+                impact.innerHTML = this.deletePreview
+                    ? `<strong>삭제 영향</strong><span>이벤트 ${this.deletePreview.counts.events}건 · 관리자 조치 ${this.deletePreview.counts.actions}건 · 이미지 ${this.deletePreview.counts.images}건</span><p>${records.escapeHtml(this.deletePreview.message)}</p>`
+                    : '';
+            }
+            if (status) status.textContent = this.deleteMessage;
+            if (cancel) cancel.disabled = this.deleteState === 'deleting';
+            if (remove) remove.disabled = ['previewing', 'deleting'].includes(this.deleteState);
         }
 
         async toggleFalseAlarm(index, button) {
