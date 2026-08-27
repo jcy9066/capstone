@@ -20,9 +20,11 @@
 .system-control-normalize { border-color: var(--warning-color); color: var(--warning-color); }
 .system-control-manual { margin-top: 12px; border-color: var(--accent); color: var(--accent); }
 .system-control-manual:hover, .system-control-switch:hover { background: var(--primary-glow); }
+.system-control-manual:focus-visible, .system-control-switch:focus-visible, .system-control-normalize:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .system-control-guide { display: grid; gap: 16px; color: var(--text-dark); }
 .system-control-guide-section { min-width: 0; }
 .system-control-guide-heading { margin: 0 0 7px; color: var(--accent); font-size: 13px; }
 .system-control-guide-list { margin: 0; padding-left: 22px; color: var(--text-dark); font-size: 12px; line-height: 1.65; }
+.system-control-guide-list.is-source-list { list-style: disc; }
 .system-control-guide-list li { padding-left: 2px; }
 @media (max-width: 680px) { .sidebar { width: min(310px, 88vw); } }

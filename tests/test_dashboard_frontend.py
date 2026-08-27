@@ -77,7 +77,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260826-dashboard-followup"
+        version = "v=20260827-dashboard-visual-assets"
         assets = (
             "static/style.css",
             "static/system_control.css",
@@ -91,7 +91,10 @@ class DashboardFrontendContractTests(unittest.TestCase):
         )
         for asset in assets:
             self.assertIn(f'{asset}?{version}', self.template_source)
-        self.assertEqual(self.template_source.count(f"?{version}"), len(assets))
+        self.assertEqual(
+            sum(self.template_source.count(f'{asset}?{version}') for asset in assets),
+            len(assets),
+        )
         self.assertNotIn("v=20260823-records-followup", self.template_source)
 
     def test_robot_commands_include_session_csrf_contract(self):

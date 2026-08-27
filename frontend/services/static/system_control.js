@@ -168,10 +168,10 @@
         }
     }
 
-    function appendGuideSection(container, titleValue, items) {
+    function appendGuideSection(container, titleValue, items, ordered = true) {
         const section = make('section', 'system-control-guide-section');
         section.append(make('h3', 'system-control-guide-heading', titleValue));
-        const list = make('ol', 'system-control-guide-list');
+        const list = make(ordered ? 'ol' : 'ul', `system-control-guide-list${ordered ? '' : ' is-source-list'}`);
         for (const item of items) list.append(make('li', '', item));
         section.append(list);
         container.append(section);
@@ -195,6 +195,13 @@
 
     function renderGuide() {
         const guide = make('div', 'system-control-guide');
+        appendGuideSection(guide, '상태 정보 출처', [
+            '시스템 상태 — CPU / 온도 / RAM / Ping: Pi 상태 정보',
+            '카메라 상태 — LIVE / OFFLINE: Camera Stream 상태',
+            '로봇·주행 상태 — Pi 연결 / 자동·수동 / Mapping·Driving / Navigation / 긴급 정지 / Goal / Path / 활성 지도: Navigation Control 상태',
+            '프로세스 상태 — LiDAR ROS Bridge / Encoder ROS Bridge / Wheel Odometry / SLAM Mapping / Map Bridge: 시스템 제어 상태',
+            '기록 — 기기 상태 / 순찰 기록 / 관리자 조치: 서버 DB 기록',
+        ], false);
         appendGuideSection(guide, 'Mapping', [
             '[Mapping] \uc120\ud0dd',
             '[\uc218\ub3d9] \uc120\ud0dd',

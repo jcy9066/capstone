@@ -51,7 +51,9 @@
     padding: 5px 9px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
+    background: var(--card-bg2);
     white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .record-cycle-filter:hover,
@@ -61,6 +63,11 @@
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
+}
+
+.record-cycle-filter:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .record-sort-button {
@@ -237,13 +244,26 @@ body.dark-mode .record-type-unknown {
 }
 
 .records-pagination button {
+    min-height: 29px;
     min-width: 64px;
     padding: 6px 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    background: transparent;
+    background: var(--card-bg2);
     color: var(--text-dark);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
     cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.records-pagination button:hover:not(:disabled),
+.records-pagination button:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(8, 145, 178, 0.08);
+    outline: none;
 }
 
 .records-pagination button:disabled {
