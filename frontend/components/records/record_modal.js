@@ -21,13 +21,16 @@
         patrolModal: 'detected_at',
         actionsModal: 'created_at',
     });
+    const SELECTABLE_TYPES = new Set(['patrolModal', 'actionsModal']);
 
-    function initialFilters() {
-        return {
-            startAt: '', endAt: '', eventType: '', confidenceMin: '', confidenceMax: '',
-            isResolved: '', isReported: '', isAlerted: '', isFalseAlarm: '',
-            userName: '', actionType: '',
-        };
+    function defaultSort(type) {
+        return { by: DEFAULT_SORT[type], direction: 'desc', touched: false };
+    }
+
+    function recordKey(type, row) {
+        if (type === 'patrolModal') return row?.event_id;
+        if (type === 'actionsModal') return row?.action_id;
+        return null;
     }
 
     function valueClass(value, warn, danger) {
@@ -61,6 +64,7 @@
             { label: 'LiDAR (X/Y)' },
         ];
         if (type === 'patrolModal') return [
+            { selectAll: true },
             { label: '기록 시간', sort: 'detected_at' },
             { label: '유형', sort: 'event_type' },
             { label: '신뢰도', sort: 'confidence' },
@@ -73,6 +77,7 @@
             { label: '이미지' },
         ];
         return [
+            { selectAll: true },
             { label: '기록 시간', sort: 'created_at' },
             { label: '관리자', sort: 'user_name' },
             { label: '조치 유형', sort: 'action_type' },
@@ -86,9 +91,10 @@
         constructor(type, manager) {
             this.type = type;
             this.manager = manager;
-            this.filters = records.createFilterState(initialFilters());
+            this.filters = records.createRecordFilterState(type);
             this.pagination = records.createPaginationState();
-            this.sort = { by: DEFAULT_SORT[type], direction: 'desc', touched: false };
+            this.sort = defaultSort(type);
+            this.selection = records.createRowSelectionState(row => recordKey(type, row));
             this.rows = [];
             this.loadState = 'idle';
             this.message = '';
@@ -103,6 +109,7 @@
                 filters: this.filters.values,
                 pagination: this.pagination.snapshot(),
                 sort: { ...this.sort },
+                selectedKeys: this.selection.selectedKeys,
                 rows: this.rows.map(row => ({ ...row })),
                 loadState: this.loadState,
                 message: this.message,
@@ -115,7 +122,8 @@
             if (!snapshot) {
                 this.filters.reset();
                 this.pagination = records.createPaginationState();
-                this.sort = { by: DEFAULT_SORT[this.type], direction: 'desc', touched: false };
+                this.sort = defaultSort(this.type);
+                this.selection.clear();
                 this.rows = [];
                 this.loadState = 'idle';
                 this.message = '';
@@ -126,6 +134,7 @@
             this.filters.replace(snapshot.filters);
             this.pagination.update(snapshot.pagination || snapshot.metadata);
             this.sort = { ...this.sort, ...(snapshot.sort || {}) };
+            this.selection.replace(snapshot.selectedKeys);
             this.rows = Array.isArray(snapshot.rows) ? snapshot.rows.map(row => ({ ...row })) : [];
             this.loadState = snapshot.loadState || 'ready';
             this.message = snapshot.message || '';
@@ -208,13 +217,17 @@
                     onChange: value => {
                         this.filters.update({ [filterKey]: value });
                         this.pagination.reset();
+                        this.clearSelection();
                     },
                 }));
             });
             root.querySelector('[data-action="query"]')?.addEventListener('click', () => this.query());
             root.querySelector('[data-action="reset"]')?.addEventListener('click', () => this.reset());
             root.querySelectorAll('[data-filter]').forEach(input => {
-                input.addEventListener('input', () => this.pagination.reset());
+                input.addEventListener('input', () => {
+                    this.pagination.reset();
+                    this.clearSelection();
+                });
                 input.addEventListener('keydown', event => {
                     if (event.key === 'Enter') this.query();
                 });
@@ -244,6 +257,7 @@
             try {
                 this.collectFilters();
                 this.pagination.reset();
+                this.clearSelection();
                 this.setFilterError('');
                 await this.load();
             } catch (error) {
@@ -254,20 +268,36 @@
         async reset() {
             this.filters.reset();
             this.pagination.reset();
-            this.sort = { by: DEFAULT_SORT[this.type], direction: 'desc', touched: false };
+            this.sort = defaultSort(this.type);
+            this.clearSelection();
             this.manager.setBody(this.build());
             this.bind();
             await this.load();
         }
 
         async changeSort(sortBy) {
-            if (!this.sort.touched || this.sort.by !== sortBy) {
-                this.sort = { by: sortBy, direction: 'desc', touched: true };
-            } else {
-                this.sort.direction = this.sort.direction === 'desc' ? 'asc' : 'desc';
-            }
+            this.sort = records.nextSortState(this.sort, DEFAULT_SORT[this.type], sortBy);
             this.pagination.reset();
+            this.clearSelection();
             await this.load();
+        }
+
+        clearSelection() {
+            this.selection.clear();
+            this.syncSelectionControls();
+        }
+
+        selectedRecordIds() {
+            return this.selection.selectedKeys;
+        }
+
+        async reloadAfterMutation() {
+            const requestedPage = this.pagination.page;
+            this.clearSelection();
+            await this.load();
+            if (this.pagination.page !== requestedPage || (this.loadState === 'ready' && !this.rows.length && requestedPage > 1)) {
+                await this.load();
+            }
         }
 
         setFilterError(message) {
@@ -321,6 +351,7 @@
                 const confidence = Number.isFinite(Number(row.confidence)) ? `${(Number(row.confidence) * 100).toFixed(1)}%` : '-';
                 const eventId = Number(row.event_id);
                 return `<tr>
+                    <td class="record-selection-column"><input type="checkbox" data-record-select-row="${index}" aria-label="순찰 기록 선택" ${this.selection.has(row) ? 'checked' : ''}></td>
                     <td>${rowTimestamp(row)}</td>
                     <td><span class="status-badge status-patrol">${records.escapeHtml(row.event_type)}</span></td>
                     <td>${confidence}</td>
@@ -334,6 +365,7 @@
                 </tr>`;
             }
             return `<tr>
+                <td class="record-selection-column"><input type="checkbox" data-record-select-row="${index}" aria-label="관리자 조치 선택" ${this.selection.has(row) ? 'checked' : ''}></td>
                 <td>${rowTimestamp(row)}</td>
                 <td>${records.escapeHtml(row.administrator_name)}</td>
                 <td><span class="status-badge status-normal">${records.escapeHtml(ACTION_LABELS[row.action_type] || row.action_type)}</span></td>
@@ -358,6 +390,7 @@
             }
             root.querySelector('thead tr').innerHTML = records.tableHeaderHtml(columnsFor(this.type), this.sort);
             records.bindSortHeaders(root, sortBy => this.changeSort(sortBy));
+            this.bindSelectionControls();
             root.querySelectorAll('[data-image-row]').forEach(button => {
                 button.addEventListener('click', () => components.gallery?.openRecordDetail?.(this.rows[Number(button.dataset.imageRow)], this.type));
             });
@@ -365,10 +398,45 @@
                 button.addEventListener('click', () => this.toggleFalseAlarm(Number(button.dataset.falseAlarmRow), button));
             });
             records.renderPagination(root.querySelector('[data-record-pagination]'), this.metadata, page => {
+                this.clearSelection();
                 this.pagination.setPage(page);
                 this.load();
             });
             root.querySelector('.modal-table-wrapper').scrollTop = this.tableScrollTop;
+        }
+
+        bindSelectionControls() {
+            if (!SELECTABLE_TYPES.has(this.type)) return;
+            const root = this.root();
+            root?.querySelector('[data-record-select-all]')?.addEventListener('change', event => {
+                this.selection.setCurrentPage(this.rows, event.currentTarget.checked);
+                root.querySelectorAll('[data-record-select-row]').forEach(checkbox => {
+                    checkbox.checked = event.currentTarget.checked;
+                });
+                this.syncSelectionControls();
+            });
+            root?.querySelectorAll('[data-record-select-row]').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    this.selection.toggle(this.rows[Number(checkbox.dataset.recordSelectRow)], checkbox.checked);
+                    this.syncSelectionControls();
+                });
+            });
+            this.syncSelectionControls();
+        }
+
+        syncSelectionControls() {
+            if (!SELECTABLE_TYPES.has(this.type)) return;
+            const root = this.root();
+            const selectAll = root?.querySelector('[data-record-select-all]');
+            const state = this.selection.currentPageState(this.rows);
+            if (selectAll) {
+                selectAll.checked = state.checked;
+                selectAll.indeterminate = state.indeterminate;
+            }
+            root?.dispatchEvent(new CustomEvent('records:selectionchange', {
+                bubbles: true,
+                detail: { type: this.type, selectedIds: this.selectedRecordIds() },
+            }));
         }
 
         async toggleFalseAlarm(index, button) {

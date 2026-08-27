@@ -9,7 +9,7 @@
         let page = Math.max(1, Number(options.page) || 1);
         let total = Math.max(0, Number(options.total) || 0);
         let serverTotalPages = Math.max(0, Number(options.totalPages) || 0);
-        const pageSize = Math.max(1, Number(options.pageSize) || records.DEFAULT_PAGE_SIZE);
+        const pageSize = records.DEFAULT_PAGE_SIZE;
         return {
             get page() { return page; },
             get pageSize() { return pageSize; },
