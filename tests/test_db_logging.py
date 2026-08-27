@@ -40,6 +40,21 @@ class PageCursor(FakeCursor):
         return {"total": self.total}
 
 
+class SequenceCursor(FakeCursor):
+    def __init__(self, result_sets):
+        super().__init__()
+        self.result_sets = list(result_sets)
+        self.current_rows = []
+
+    def execute(self, sql, params):
+        super().execute(sql, params)
+        if sql.lstrip().upper().startswith("SELECT"):
+            self.current_rows = self.result_sets.pop(0)
+
+    def fetchall(self):
+        return self.current_rows
+
+
 class FakeConnection:
     def __init__(self, cursor):
         self._cursor = cursor
@@ -56,6 +71,108 @@ class DatabaseHarness(Database):
     @contextmanager
     def transaction(self):
         yield FakeConnection(self.cursor)
+
+
+def test_database_previews_mixed_log_soft_delete_without_double_counting():
+    cursor = SequenceCursor(
+        [
+            [
+                {
+                    "event_id": 7,
+                    "image_path": "received_frames/gallery/events/7.jpg",
+                    "image_deleted_at": None,
+                }
+            ],
+            [
+                {
+                    "action_id": 10,
+                    "event_id": 7,
+                    "image_path": "received_frames/gallery/actions/10.jpg",
+                    "image_deleted_at": None,
+                },
+                {
+                    "action_id": 11,
+                    "event_id": 9,
+                    "image_path": "received_frames/gallery/actions/11.jpg",
+                    "image_deleted_at": datetime(2026, 8, 25),
+                },
+            ],
+        ]
+    )
+    database = DatabaseHarness(cursor)
+
+    counts = database.preview_log_soft_delete(event_ids=[7], action_ids=[10, 11])
+
+    assert counts == {"events": 1, "actions": 2, "images": 2}
+    assert len(cursor.executions) == 2
+    event_sql, event_params = cursor.executions[0]
+    action_sql, action_params = cursor.executions[1]
+    assert "FROM event_log" in event_sql
+    assert "is_deleted = 0" in event_sql
+    assert "FOR UPDATE" not in event_sql
+    assert event_params == (7,)
+    assert "action_id IN (%s, %s) OR event_id IN (%s)" in action_sql
+    assert action_params == (10, 11, 7)
+    assert "UPDATE" not in " ".join(sql for sql, _ in cursor.executions)
+
+
+def test_database_soft_deletes_revalidated_event_and_cascaded_actions():
+    cursor = SequenceCursor(
+        [
+            [
+                {
+                    "event_id": 7,
+                    "image_path": None,
+                    "image_deleted_at": None,
+                }
+            ],
+            [
+                {
+                    "action_id": 10,
+                    "event_id": 7,
+                    "image_path": "received_frames/gallery/actions/10.jpg",
+                    "image_deleted_at": None,
+                }
+            ],
+        ]
+    )
+    database = DatabaseHarness(cursor)
+
+    counts = database.soft_delete_logs(event_ids=[7], action_ids=[10])
+
+    assert counts == {"events": 1, "actions": 1, "images": 1}
+    assert len(cursor.executions) == 4
+    assert "FOR UPDATE" in cursor.executions[0][0]
+    assert "FOR UPDATE" in cursor.executions[1][0]
+    action_update, action_params = cursor.executions[2]
+    event_update, event_params = cursor.executions[3]
+    assert "UPDATE action_log" in action_update
+    assert "SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP" in action_update
+    assert "image_deleted_at" not in action_update
+    assert action_params == (10,)
+    assert "UPDATE event_log" in event_update
+    assert "SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP" in event_update
+    assert "image_deleted_at" not in event_update
+    assert event_params == (7,)
+
+
+def test_database_rejects_invalid_log_soft_delete_ids():
+    database = DatabaseHarness(SequenceCursor([]))
+
+    for event_ids, action_ids in (
+        ([], []),
+        ([1, 1], []),
+        ([True], []),
+        ([], [0]),
+    ):
+        try:
+            database.preview_log_soft_delete(
+                event_ids=event_ids, action_ids=action_ids
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid soft-delete IDs were accepted")
 
 
 def test_database_writes_schema_columns_and_nulls_with_bound_parameters():
@@ -207,6 +324,7 @@ def test_database_filters_counts_sorts_and_pages_events():
     assert "COUNT(*) AS total" in count_sql
     assert "ORDER BY e.confidence ASC, e.event_id ASC LIMIT %s OFFSET %s" in select_sql
     assert "image_path" in select_sql
+    assert "CASE WHEN e.image_deleted_at IS NULL" in select_sql
     assert "video_path" not in select_sql
     assert "lidar_z" not in select_sql
     filter_params = (start, end, "ASSAULT", 0.5, 0.9, 1, 0, 1, 0)
@@ -248,7 +366,7 @@ def test_database_lists_system_status_and_actions_with_dashboard_fields():
     assert "COUNT(*) AS total" in action_count_sql
     assert "u.name AS user_name" in action_sql
     assert "u.email AS user_email" in action_sql
-    assert "a.image_path" in action_sql
+    assert "CASE WHEN a.image_deleted_at IS NULL" in action_sql
     assert "a.is_deleted = 0" in action_sql
     assert "INSTR(u.name, %s) > 0" in action_sql
     assert "a.action_type = %s" in action_sql
