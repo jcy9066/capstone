@@ -1919,6 +1919,57 @@ async def read_persisted_logs(request, method_name):
         )
 
 
+def parse_log_delete_selection(payload):
+    if not isinstance(payload, dict):
+        raise ValueError("Request body must be a JSON object.")
+
+    def parse_ids(name):
+        values = payload.get(name, [])
+        if not isinstance(values, list):
+            raise ValueError(f"{name} must be an array.")
+        if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in values):
+            raise ValueError(f"{name} must contain positive integers.")
+        if len(values) != len(set(values)):
+            raise ValueError(f"{name} must not contain duplicate IDs.")
+        return values
+
+    selection = {
+        "event_ids": parse_ids("event_ids"),
+        "action_ids": parse_ids("action_ids"),
+    }
+    if not selection["event_ids"] and not selection["action_ids"]:
+        raise ValueError("At least one event_id or action_id is required.")
+    return selection
+
+
+async def process_log_soft_delete(request, *, preview):
+    _, auth_error = authenticated_user(request)
+    if auth_error:
+        return auth_error
+    csrf_error = csrf_failure(request)
+    if csrf_error:
+        return csrf_error
+    payload, payload_error = await auth_payload(request)
+    if payload_error:
+        return payload_error
+    try:
+        selection = parse_log_delete_selection(payload)
+        method = (
+            database.preview_log_soft_delete
+            if preview
+            else database.soft_delete_logs
+        )
+        counts = await asyncio.to_thread(method, **selection)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "detail": str(exc)}, status_code=400)
+    except (DatabaseConfigurationError, DatabaseOperationError):
+        return JSONResponse(
+            {"ok": False, "detail": "Database is unavailable."},
+            status_code=503,
+        )
+    return {"ok": True, "selection": selection, "counts": counts}
+
+
 @app.get("/api/logs/system-status")
 async def read_system_status_logs(request: Request):
     return await read_persisted_logs(request, "list_system_status")
@@ -1932,6 +1983,16 @@ async def read_event_logs(request: Request):
 @app.get("/api/logs/actions")
 async def read_action_logs(request: Request):
     return await read_persisted_logs(request, "list_actions")
+
+
+@app.post("/api/logs/delete/preview")
+async def preview_log_soft_delete(request: Request):
+    return await process_log_soft_delete(request, preview=True)
+
+
+@app.post("/api/logs/delete")
+async def delete_logs(request: Request):
+    return await process_log_soft_delete(request, preview=False)
 
 
 @app.post("/api/logs/current-situation/preview")
