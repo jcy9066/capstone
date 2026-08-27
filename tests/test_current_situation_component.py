@@ -361,7 +361,7 @@ class CurrentSituationComponentTests(unittest.TestCase):
             })().catch(error => { console.error(error); process.exitCode = 1; });
         """)
 
-    def test_controller_reset_cancel_header_and_overlay_clear_manager_state(self):
+    def test_controller_reset_and_cancel_clear_without_dismiss_interception(self):
         self.run_scenario(r"""
             (async () => {
                 async function openReady(token) {
@@ -385,26 +385,8 @@ class CurrentSituationComponentTests(unittest.TestCase):
                 await currentForm.cancel.emit('click');
                 assertCleared();
 
-                await openReady('header');
-                const headerEvent = {
-                    preventDefault() { this.prevented = true; },
-                    stopImmediatePropagation() { this.stopped = true; },
-                };
-                await closeButton.emit('click', headerEvent);
-                assert.strictEqual(headerEvent.prevented, true);
-                assert.strictEqual(headerEvent.stopped, true);
-                assertCleared();
-
-                await openReady('overlay');
-                const overlayEvent = {
-                    target: modalRoot,
-                    preventDefault() { this.prevented = true; },
-                    stopImmediatePropagation() { this.stopped = true; },
-                };
-                await modalRoot.emit('click', overlayEvent);
-                assert.strictEqual(overlayEvent.prevented, true);
-                assert.strictEqual(overlayEvent.stopped, true);
-                assertCleared();
+                assert.strictEqual((closeButton.listeners.click || []).length, 0);
+                assert.strictEqual((modalRoot.listeners.click || []).length, 0);
             })().catch(error => { console.error(error); process.exitCode = 1; });
         """)
 
