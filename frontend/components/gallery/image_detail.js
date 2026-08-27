@@ -174,7 +174,7 @@
         const listLength = Number(context.listLength) || 1;
         const allowNavigation = context.origin === 'gallery';
         return `<section class="gallery-detail" data-dashboard-modal-view aria-label="이미지 상세">
-            <div class="gallery-detail-header"><strong>${escapeHtml(sourceLabel(item))} 이미지 상세</strong><button type="button" class="gallery-detail-close" data-detail-back aria-label="상세 닫기">&times;</button></div>
+            <div class="gallery-detail-header"><strong>${escapeHtml(sourceLabel(item))} 이미지 상세</strong><button type="button" class="gallery-detail-back" data-detail-back>← 이전 화면</button></div>
             <img class="gallery-detail-image" src="${escapeHtml(imageUrl(item))}" alt="${escapeHtml(sourceLabel(item))} 상세 이미지">
             <dl class="gallery-metadata"><div><dt>기록 시각</dt><dd>${escapeHtml(timestamp(item))}</dd></div>${metadata(item).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value ?? '-')}</dd></div>`).join('')}</dl>
             <div class="gallery-detail-actions">
@@ -284,7 +284,8 @@
     gallery.mountImageDetail = function mountImageDetail(handlers = {}) {
         const controller = {
             open(index) { return manager ? openDetail(Number(index)) : handlers.open?.(index); },
-            close() { return manager?.back() ?? handlers.close?.(); },
+            back() { return manager?.back() ?? handlers.back?.(); },
+            close() { return manager?.close() ?? handlers.close?.(); },
             change(offset) { return manager ? changeDetail(Number(offset)) : handlers.change?.(offset); },
         };
         gallery.imageDetail = controller;

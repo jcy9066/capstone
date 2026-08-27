@@ -47,6 +47,28 @@ class DashboardRecordsFrontendTests(unittest.TestCase):
         ):
             self.assertIn(f"{value}: '{label}'", source)
 
+    def test_patrol_and_action_type_badges_have_distinct_readable_classes(self):
+        modal = (COMPONENTS / "records" / "record_modal.js").read_text(encoding="utf-8")
+        style = (COMPONENTS / "records" / "records.css").read_text(encoding="utf-8")
+        expected = {
+            "INTRUSION": "record-event-intrusion",
+            "ASSAULT": "record-event-assault",
+            "SYSTEM_ERROR": "record-event-system-error",
+            "NETWORK_LOSS": "record-event-network-loss",
+            "SENSOR_ANOMALY": "record-event-sensor-anomaly",
+            "WARNING": "record-action-warning",
+            "MANUAL_MOVING": "record-action-manual-moving",
+            "REPORT": "record-action-report",
+            "COMMUNICATION": "record-action-communication",
+            "NOTE": "record-action-note",
+        }
+        for value, class_name in expected.items():
+            self.assertIn(f"{value}: '{class_name}'", modal)
+            self.assertIn(f".{class_name}", style)
+            self.assertIn(f"body.dark-mode .{class_name}", style)
+        self.assertIn("records.escapeHtml(row.event_type)", modal)
+        self.assertIn("ACTION_LABELS[row.action_type] || row.action_type", modal)
+
     def test_gallery_detail_back_restores_grid_scroll_position(self):
         source = (COMPONENTS / "gallery" / "image_detail.js").read_text(
             encoding="utf-8"

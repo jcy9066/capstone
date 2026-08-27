@@ -1,0 +1,69 @@
+import re
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE = (ROOT / "frontend/templates/index.html").read_text(encoding="utf-8")
+STYLE = (ROOT / "frontend/services/static/style.css").read_text(encoding="utf-8")
+SYSTEM_CONTROL = (ROOT / "frontend/services/static/system_control.js").read_text(encoding="utf-8")
+SYSTEM_CONTROL_STYLE = (ROOT / "frontend/services/static/system_control.css").read_text(encoding="utf-8")
+CONTROL_STYLE = (ROOT / "frontend/components/controls/controls.css").read_text(encoding="utf-8")
+RECORD_STYLE = (ROOT / "frontend/components/records/records.css").read_text(encoding="utf-8")
+
+
+def test_dashboard_guide_explains_state_information_sources():
+    expected = (
+        "상태 정보 출처",
+        "CPU / 온도 / RAM / Ping",
+        "Camera Stream 상태",
+        "Navigation Control 상태",
+        "LiDAR ROS Bridge / Encoder ROS Bridge / Wheel Odometry / SLAM Mapping / Map Bridge",
+        "서버 DB 기록",
+    )
+    for text in expected:
+        assert text in SYSTEM_CONTROL
+
+    for preserved_heading in ("'Mapping'", "'Driving'", "'\\uc704\\ud5d8 \\ub300\\uc751'", "'\\uae30\\uae30 \\uc0c1\\ud0dc'", "'\\ud504\\ub85c\\uc138\\uc2a4 \\uc2e4\\ud589 \\uc21c\\uc11c'"):
+        assert preserved_heading in SYSTEM_CONTROL
+
+
+def test_all_component_assets_share_cache_busting_key():
+    component_assets = re.findall(r'(?:href|src)="(/components/[^"]+)"', TEMPLATE)
+    assert component_assets
+    assert all(asset.endswith("?v=20260827-dashboard-visual-assets") for asset in component_assets)
+    assert len(component_assets) == 13
+
+
+def test_static_assets_use_same_cache_busting_strategy():
+    static_assets = re.findall(r'(?:href|src)="(static/[^"]+)"', TEMPLATE)
+    assert static_assets
+    assert all(asset.endswith("?v=20260827-dashboard-visual-assets") for asset in static_assets)
+
+
+def test_space_mono_is_not_requested_or_referenced():
+    combined = TEMPLATE + STYLE + SYSTEM_CONTROL_STYLE + CONTROL_STYLE + RECORD_STYLE
+    assert "Space Mono" not in combined
+    assert "Space+Mono" not in combined
+    assert "'Noto Sans KR', 'Noto Sans', sans-serif" in STYLE
+
+
+def test_toolbar_dom_and_tab_order_match_required_order_without_css_order():
+    start = TEMPLATE.index('id="records-toolbar-mount"')
+    end = TEMPLATE.index("\n            </div>\n        </div>", start)
+    toolbar = TEMPLATE[start:end]
+    views = ("patrolModal", "galleryModal", "currentSituation", "actionsModal", "statusModal")
+    positions = [toolbar.index(f'data-record-view="{view}"') for view in views]
+    assert positions == sorted(positions)
+    assert "tabindex" not in toolbar
+    assert 'data-record-view="patrolModal"] { order:' not in STYLE
+    assert ".current-situation-record-btn { order:" not in STYLE
+
+
+def test_component_buttons_follow_dashboard_visual_states():
+    assert "background: var(--card-bg2);" in CONTROL_STYLE
+    assert ".dashboard-mode-button:disabled" in CONTROL_STYLE
+    assert ".dpad-estop-button:hover:not(:disabled)" in CONTROL_STYLE
+    assert ".record-cycle-filter:disabled" in RECORD_STYLE
+    assert ".records-pagination button:hover:not(:disabled)" in RECORD_STYLE
+    assert ".system-control-manual:focus-visible" in SYSTEM_CONTROL_STYLE
+    assert ".dashboard-drive-mode-group" not in CONTROL_STYLE

@@ -324,7 +324,9 @@ class Database:
         )
         return self._select_page(
             select_sql=f"""
-                SELECT e.event_id, e.event_source, e.event_type, e.image_path,
+                SELECT e.event_id, e.event_source, e.event_type,
+                       CASE WHEN e.image_deleted_at IS NULL
+                            THEN e.image_path ELSE NULL END AS image_path,
                        e.confidence, e.gps_lat, e.gps_lng, e.gps_alt,
                        e.lidar_x, e.lidar_y, e.is_resolved, e.is_reported,
                        e.reported_at, e.is_alerted, e.is_mic_used,
@@ -383,7 +385,10 @@ class Database:
             select_sql=f"""
                 SELECT a.action_id, a.user_id, u.name AS user_name,
                        u.email AS user_email, a.event_id, a.action_type,
-                       a.description_content, a.image_path, a.created_at
+                       a.description_content,
+                       CASE WHEN a.image_deleted_at IS NULL
+                            THEN a.image_path ELSE NULL END AS image_path,
+                       a.created_at
                 {joins}{where}
             """,
             count_sql=f"SELECT COUNT(*) AS total {joins}{where}",
@@ -479,6 +484,24 @@ class Database:
 
     def soft_delete_action_image(self, action_id: int) -> bool:
         return self._soft_delete_image("action_log", "action_id", action_id)
+
+    def preview_log_soft_delete(
+        self, *, event_ids: list[int], action_ids: list[int]
+    ) -> dict[str, int]:
+        return self._log_soft_delete_counts(
+            event_ids=event_ids,
+            action_ids=action_ids,
+            apply_delete=False,
+        )
+
+    def soft_delete_logs(
+        self, *, event_ids: list[int], action_ids: list[int]
+    ) -> dict[str, int]:
+        return self._log_soft_delete_counts(
+            event_ids=event_ids,
+            action_ids=action_ids,
+            apply_delete=True,
+        )
 
     def _insert(self, sql: str, params: tuple[Any, ...]) -> int:
         try:
@@ -643,6 +666,121 @@ class Database:
             raise
         except Exception as exc:
             raise DatabaseOperationError("Unable to soft-delete the image.") from exc
+
+    def _log_soft_delete_counts(
+        self,
+        *,
+        event_ids: list[int],
+        action_ids: list[int],
+        apply_delete: bool,
+    ) -> dict[str, int]:
+        normalized_event_ids = self._validated_log_ids("event_ids", event_ids)
+        normalized_action_ids = self._validated_log_ids("action_ids", action_ids)
+        if not normalized_event_ids and not normalized_action_ids:
+            raise ValueError("At least one event_id or action_id is required.")
+
+        event_rows: list[dict[str, Any]] = []
+        action_rows: list[dict[str, Any]] = []
+        lock_clause = " FOR UPDATE" if apply_delete else ""
+        try:
+            with self.transaction() as connection:
+                with connection.cursor() as cursor:
+                    if normalized_event_ids:
+                        placeholders = ", ".join(["%s"] * len(normalized_event_ids))
+                        cursor.execute(
+                            f"""
+                            SELECT event_id, image_path, image_deleted_at
+                            FROM event_log
+                            WHERE is_deleted = 0
+                              AND event_id IN ({placeholders}){lock_clause}
+                            """,
+                            normalized_event_ids,
+                        )
+                        event_rows = list(cursor.fetchall())
+
+                    active_event_ids = tuple(
+                        int(row["event_id"]) for row in event_rows
+                    )
+                    action_conditions: list[str] = []
+                    action_params: list[int] = []
+                    if normalized_action_ids:
+                        placeholders = ", ".join(["%s"] * len(normalized_action_ids))
+                        action_conditions.append(f"action_id IN ({placeholders})")
+                        action_params.extend(normalized_action_ids)
+                    if active_event_ids:
+                        placeholders = ", ".join(["%s"] * len(active_event_ids))
+                        action_conditions.append(f"event_id IN ({placeholders})")
+                        action_params.extend(active_event_ids)
+                    if action_conditions:
+                        cursor.execute(
+                            f"""
+                            SELECT action_id, event_id, image_path, image_deleted_at
+                            FROM action_log
+                            WHERE is_deleted = 0
+                              AND ({" OR ".join(action_conditions)}){lock_clause}
+                            """,
+                            tuple(action_params),
+                        )
+                        action_rows = list(cursor.fetchall())
+
+                    if apply_delete and action_rows:
+                        affected_action_ids = tuple(
+                            int(row["action_id"]) for row in action_rows
+                        )
+                        placeholders = ", ".join(["%s"] * len(affected_action_ids))
+                        cursor.execute(
+                            f"""
+                            UPDATE action_log
+                            SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP
+                            WHERE is_deleted = 0
+                              AND action_id IN ({placeholders})
+                            """,
+                            affected_action_ids,
+                        )
+                    if apply_delete and event_rows:
+                        affected_event_ids = tuple(
+                            int(row["event_id"]) for row in event_rows
+                        )
+                        placeholders = ", ".join(["%s"] * len(affected_event_ids))
+                        cursor.execute(
+                            f"""
+                            UPDATE event_log
+                            SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP
+                            WHERE is_deleted = 0
+                              AND event_id IN ({placeholders})
+                            """,
+                            affected_event_ids,
+                        )
+        except DatabaseConfigurationError:
+            raise
+        except Exception as exc:
+            operation = "soft-delete" if apply_delete else "preview soft-deletion of"
+            raise DatabaseOperationError(
+                f"Unable to {operation} the selected logs."
+            ) from exc
+
+        newly_hidden_images = sum(
+            row.get("image_path") is not None and row.get("image_deleted_at") is None
+            for row in event_rows + action_rows
+        )
+        return {
+            "events": len(event_rows),
+            "actions": len(action_rows),
+            "images": newly_hidden_images,
+        }
+
+    @staticmethod
+    def _validated_log_ids(name: str, values: list[int]) -> tuple[int, ...]:
+        if not isinstance(values, list):
+            raise ValueError(f"{name} must be an array.")
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value <= 0
+            for value in values
+        ):
+            raise ValueError(f"{name} must contain only positive integers.")
+        if len(set(values)) != len(values):
+            raise ValueError(f"{name} must contain unique IDs.")
+        return tuple(values)
 
     @staticmethod
     def _relative_image_path(image_path: str | None) -> str | None:

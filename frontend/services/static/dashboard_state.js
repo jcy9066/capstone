@@ -2,7 +2,6 @@
     'use strict';
 
     const DEFAULT_ENDPOINTS = {
-        robotState: '/api/robots/pi-01',
         alertLog: '',
         deviceLogs: '/api/logs/system-status',
         patrolLogs: '/api/logs/events',
@@ -13,8 +12,7 @@
         ...(window.DABOM_DASHBOARD_ENDPOINTS || {})
     };
     const unavailableEndpoints = new Set();
-    const ROBOT_STATUS_STALE_MS = 5000;
-    let lastRobotConnected = null;
+    let alertClearCutoffMs = 0;
 
     const byId = id => document.getElementById(id);
     const asObject = value => value && typeof value === 'object' ? value : {};
@@ -27,12 +25,6 @@
             ? new Date(numeric < 1e12 ? numeric * 1000 : numeric)
             : new Date(value);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    function hasFreshStatus(source) {
-        if (!Object.prototype.hasOwnProperty.call(source, 'updated_at')) return true;
-        const updatedAt = parseDate(source.updated_at);
-        return Boolean(updatedAt && Date.now() - updatedAt.getTime() <= ROBOT_STATUS_STALE_MS);
     }
 
     function setText(id, value, stateClass = '') {
@@ -54,7 +46,6 @@
     function setPiState(value, available = true) {
         const element = byId('pi-connection-status');
         if (!element) return;
-        if (available && typeof value === 'boolean') lastRobotConnected = value;
         element.classList.remove('state-online', 'state-offline', 'state-unknown');
         if (!available || typeof value !== 'boolean') {
             element.textContent = 'UNKNOWN';
@@ -120,8 +111,15 @@
     function renderAlerts(items) {
         const target = byId('alertBox');
         if (!target || !Array.isArray(items)) return;
+        const visibleItems = items.filter(item => {
+            if (!alertClearCutoffMs) return true;
+            const source = asObject(item);
+            const timestamp = firstValue(source.timestamp, source.created_at, source.time);
+            const parsed = parseDate(timestamp);
+            return Boolean(parsed && parsed.getTime() > alertClearCutoffMs);
+        });
         target.replaceChildren();
-        if (!items.length) {
+        if (!visibleItems.length) {
             const empty = document.createElement('div');
             empty.className = 'alert-entry alert-info';
             const message = document.createElement('span');
@@ -131,7 +129,7 @@
             target.append(empty);
             return;
         }
-        for (const item of items.slice(-100).reverse()) {
+        for (const item of visibleItems.slice(-100).reverse()) {
             const alert = asObject(item);
             const level = String(firstValue(alert.level, alert.severity, alert.type, 'info')).toLowerCase();
             const row = document.createElement('div');
@@ -151,22 +149,6 @@
         }
     }
 
-    function renderAlertsUnavailable() {
-        const target = byId('alertBox');
-        if (!target) return;
-        target.replaceChildren();
-        const row = document.createElement('div');
-        row.className = 'alert-entry alert-info alert-unavailable';
-        const time = document.createElement('span');
-        time.className = 'alert-time';
-        time.textContent = '--:--:--';
-        const message = document.createElement('span');
-        message.className = 'alert-message';
-        message.textContent = '실시간 알림 상태를 확인할 수 없습니다.';
-        row.append(time, message);
-        target.append(row);
-    }
-
     function applyNavigation(payload) {
         const source = asObject(payload);
         setText('operation-mode-status', formatOperationMode(firstValue(source.operation_mode, source.mode)));
@@ -174,63 +156,29 @@
         markUpdated(firstValue(source.updated_at, source.timestamp));
     }
 
-    function applyActiveMap(payload) {
+    function applyControlState(payload) {
         const source = asObject(payload);
-        const active = asObject(source.active_map);
-        const state = String(source.state || '').toLowerCase();
-        if (active.map_name) {
-            setText('active-map-status', active.map_name, 'state-success');
-        } else if (['loading', 'resetting_pose', 'verifying'].includes(state)) {
-            setText('active-map-status', state.toUpperCase());
-        } else {
-            setText('active-map-status', state === 'unavailable' ? 'UNAVAILABLE' : 'NOT SELECTED');
-        }
-        markUpdated(firstValue(source.updated_at, source.timestamp));
-    }
-
-    function applyRobotSnapshot(payload) {
-        const source = asObject(payload);
-        const status = asObject(source.status);
-        const navigation = asObject(firstValue(source.navigation, status.navigation));
-        const connected = firstValue(source.connected, status.connected, status.pi_connected);
-        if (typeof connected === 'boolean') {
-            setPiState(connected, true);
-            window.setDashboardRobotConnection?.(connected);
-        }
-        const hasActualMode = (
-            connected !== false
-            && hasFreshStatus(status)
-        );
-        const reportedMode = hasActualMode
-            ? firstValue(status.mode, source.mode, source.robot_mode)
-            : null;
-        setRobotMode(reportedMode);
-        window.applyServerPatrolMode?.(reportedMode);
+        setPiState(source.connected, typeof source.connected === 'boolean');
+        setRobotMode(source.robot_mode);
         applyNavigation({
-            ...navigation,
-            operation_mode: firstValue(source.operation_mode, navigation.operation_mode, navigation.mode),
-            navigation_state: firstValue(source.navigation_state, navigation.navigation_state, navigation.state, navigation.status),
-            updated_at: firstValue(source.updated_at, status.updated_at, navigation.updated_at)
+            operation_mode: source.navigation_mode,
+            navigation_state: source.navigation_state,
+            updated_at: source.updated_at,
         });
-        const goal = firstValue(source.current_goal, navigation.current_goal, navigation.goal, status.current_goal);
-        const path = firstValue(source.planned_path, navigation.planned_path, navigation.path, status.planned_path);
-        const emergencyStop = firstValue(source.emergency_stop, source.estop, status.emergency_stop, navigation.emergency_stop);
-        setText('current-goal-status', summarizeGoal(goal));
-        setText('planned-path-status', summarizePath(path));
-        if (typeof emergencyStop === 'boolean') {
-            setText('emergency-stop-status', emergencyStop ? 'ACTIVE' : 'CLEAR', emergencyStop ? 'state-danger' : 'state-success');
+        setText('current-goal-status', summarizeGoal(source.active_goal));
+        setText('planned-path-status', summarizePath(source.planned_path));
+        if (typeof source.emergency_stop === 'boolean') {
+            setText(
+                'emergency-stop-status',
+                source.emergency_stop ? 'ACTIVE' : 'CLEAR',
+                source.emergency_stop ? 'state-danger' : 'state-success',
+            );
         } else {
             setText('emergency-stop-status', 'UNAVAILABLE');
         }
-        const alerts = firstValue(source.alerts, source.alert_log, status.alerts);
-        if (Array.isArray(alerts)) renderAlerts(alerts);
-    }
-
-    function clearRobotSnapshotState() {
-        setText('current-goal-status', 'UNAVAILABLE');
-        setText('planned-path-status', 'UNAVAILABLE');
-        setText('emergency-stop-status', 'UNAVAILABLE');
-        if (!endpoints.alertLog) renderAlertsUnavailable();
+        const activeMap = asObject(source.active_map);
+        if (activeMap.map_name) setText('active-map-status', activeMap.map_name, 'state-success');
+        else setText('active-map-status', 'NOT SELECTED');
     }
 
     async function requestJson(endpoint) {
@@ -332,19 +280,7 @@
         };
     }
 
-    async function fetchLogRows(type, filters = {}) {
-        const endpoint = type === 'statusModal'
-            ? endpoints.deviceLogs
-            : type === 'patrolModal'
-                ? endpoints.patrolLogs
-                : endpoints.actionLogs;
-        if (!endpoint) {
-            return {
-                state: 'unavailable',
-                rows: [],
-                message: '조회 API가 아직 연결되지 않았습니다.'
-            };
-        }
+    function buildLogQuery(type, filters = {}) {
         const query = new URLSearchParams();
         if (filters.startAt) query.set('start_at', filters.startAt);
         if (filters.endAt) query.set('end_at', filters.endAt);
@@ -365,9 +301,27 @@
             if (filters.isAlerted !== '' && filters.isAlerted != null) query.set('is_alerted', String(filters.isAlerted));
             if (filters.isFalseAlarm !== '' && filters.isFalseAlarm != null) query.set('is_false_alarm', String(filters.isFalseAlarm));
         } else if (type === 'actionsModal') {
-            if (filters.userName) query.set('user_name', filters.userName);
+            const userName = String(filters.userName || '').trim();
+            if (userName) query.set('user_name', userName);
             if (filters.actionType) query.set('action_type', filters.actionType);
         }
+        return query;
+    }
+
+    async function fetchLogRows(type, filters = {}) {
+        const endpoint = type === 'statusModal'
+            ? endpoints.deviceLogs
+            : type === 'patrolModal'
+                ? endpoints.patrolLogs
+                : endpoints.actionLogs;
+        if (!endpoint) {
+            return {
+                state: 'unavailable',
+                rows: [],
+                message: '조회 API가 아직 연결되지 않았습니다.'
+            };
+        }
+        const query = buildLogQuery(type, filters);
         const queryString = query.toString();
         const requestEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
         const result = await requestJson(requestEndpoint);
@@ -399,12 +353,6 @@
         };
     }
 
-    async function pollRobotState() {
-        const result = await requestJson(endpoints.robotState);
-        if (result.state === 'ready') applyRobotSnapshot(result.payload);
-        else clearRobotSnapshotState();
-    }
-
     async function pollAlerts() {
         if (!endpoints.alertLog) return;
         const result = await requestJson(endpoints.alertLog);
@@ -414,64 +362,27 @@
         }
     }
 
-    document.addEventListener('dabom:robot-status', event => {
-        const detail = asObject(event.detail);
-        if (detail.available) {
-            const payload = asObject(detail.payload);
-            const hasActualMode = hasFreshStatus(payload);
-            setRobotMode(hasActualMode && lastRobotConnected !== false ? payload.mode : null);
-            markUpdated(payload.updated_at);
-        } else {
-            setRobotMode(null);
-        }
+    document.addEventListener('dabom:navigation-control-state', event => {
+        applyControlState(event.detail);
     });
 
-    document.addEventListener('dabom:system-control-status', event => {
-        const detail = asObject(event.detail);
-        if (!detail.available) {
-            setPiState(null, false);
-            return;
-        }
-        const pi = Array.isArray(detail.payload?.pi) ? detail.payload.pi : [];
-        const reachableValues = pi
-            .map(component => component?.reachable)
-            .filter(value => typeof value === 'boolean');
-        const connected = reachableValues.length ? reachableValues.some(Boolean) : null;
-        setPiState(connected, reachableValues.length > 0);
-        if (typeof connected === 'boolean') window.setDashboardRobotConnection?.(connected);
-        markUpdated(detail.payload?.updated_at);
-    });
-
-    document.addEventListener('dabom:navigation-status', event => {
-        const detail = asObject(event.detail);
-        if (detail.available) applyNavigation(detail.payload);
-        else {
-            setText('operation-mode-status', 'UNKNOWN');
-            setText('navigation-state-status', 'UNKNOWN');
-        }
-    });
-
-    document.addEventListener('dabom:active-map-status', event => {
-        const detail = asObject(event.detail);
-        if (detail.available) applyActiveMap(detail.payload);
-        else setText('active-map-status', 'UNAVAILABLE');
+    document.addEventListener('dabom:alerts-cleared', event => {
+        const clearedAt = Number(event.detail?.clearedAt);
+        alertClearCutoffMs = Number.isFinite(clearedAt) ? clearedAt : Date.now();
     });
 
     window.DabomDashboardState = {
         fetchLogRows,
-        applyRobotSnapshot,
+        applyControlState,
         configure(nextEndpoints = {}) {
             Object.assign(endpoints, nextEndpoints);
             Object.values(nextEndpoints).forEach(endpoint => unavailableEndpoints.delete(endpoint));
         },
         refresh() {
-            pollRobotState();
             pollAlerts();
         }
     };
 
-    pollRobotState();
     pollAlerts();
-    window.setInterval(pollRobotState, 1000);
     window.setInterval(pollAlerts, 2000);
 })();

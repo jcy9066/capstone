@@ -10,16 +10,10 @@
     cursor: default !important;
 }
 
-.dashboard-drive-mode-group,
 .dashboard-navigation-mode-group {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-}
-
-.dashboard-drive-mode-group {
-    padding-right: 8px;
-    border-right: 1px solid var(--border-color);
 }
 
 .dashboard-mode-button {
@@ -32,12 +26,21 @@
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
-.dashboard-mode-button:hover,
+.dashboard-mode-button:hover:not(:disabled),
 .dashboard-mode-button.active {
     border-color: var(--accent);
     color: var(--accent);
+    background: rgba(8, 145, 178, 0.08);
+}
+
+.dashboard-mode-button:focus-visible,
+.dpad-estop-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .dashboard-mode-button:disabled {
@@ -79,12 +82,24 @@
     font-weight: 800;
     line-height: 1.2;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .dpad-estop-button.active {
     border-color: rgba(34, 197, 94, 0.75);
     background: rgba(22, 163, 74, 0.16);
     color: #15803d;
+}
+
+.dpad-estop-button:hover:not(:disabled) {
+    border-color: var(--danger-color);
+    background: rgba(190, 18, 60, 0.24);
+}
+
+.dpad-estop-button.active:hover:not(:disabled) {
+    border-color: var(--success-color);
+    background: rgba(22, 163, 74, 0.24);
 }
 
 .dpad-estop-button:disabled {

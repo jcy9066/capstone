@@ -257,20 +257,6 @@
             });
         }
 
-        const closeButton = modalRoot?.querySelector?.('.close-btn');
-        closeButton?.addEventListener('click', event => {
-            if (!manager || manager.activeView?.name !== VIEW_NAME) return;
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            controller.close();
-        }, true);
-        modalRoot?.addEventListener('click', event => {
-            if (event.target !== modalRoot || (!manager || manager.activeView?.name !== VIEW_NAME)) return;
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            controller.close();
-        }, true);
-
         currentSituation.controller = controller;
         currentSituation.autoGrowTextarea = autoGrowTextarea;
         return controller;

@@ -31,38 +31,15 @@
 
     function render(root, controller) {
         if (!canRender(root)) return;
-        let driveGroup = root.querySelector('.dashboard-drive-mode-group');
-        if (!driveGroup) {
-            driveGroup = root.ownerDocument.createElement('div');
-            driveGroup.className = 'dashboard-drive-mode-group';
-            driveGroup.setAttribute('role', 'group');
-            driveGroup.setAttribute('aria-label', '주행 제어 방식');
-            driveGroup.append(
-                createButton(root.ownerDocument, '자동', 'AUTO', 'dashboard-mode-button'),
-                createButton(root.ownerDocument, '수동', 'MANUAL', 'dashboard-mode-button'),
-            );
-            root.prepend(driveGroup);
-        }
-
+        root.querySelector('.dashboard-drive-mode-group')?.remove();
+        const lever = root.querySelector('[data-dashboard-control="drive-mode"]');
         const navigationMount = ensureNavigationMount(root);
-        Array.from(root.children).forEach(child => {
-            if (child === driveGroup || child === navigationMount) return;
-            child.hidden = true;
-            child.setAttribute?.('aria-hidden', 'true');
+        [lever, navigationMount].filter(Boolean).forEach(child => {
+            child.hidden = false;
+            child.removeAttribute?.('aria-hidden');
         });
         root.classList?.add('dashboard-mode-controls-upgraded');
-        root.removeAttribute?.('onclick');
-
-        controller.buttons = Array.from(driveGroup.querySelectorAll('[data-mode]'));
-        controller.buttons.forEach(button => {
-            if (button.dataset.driveModeBound === 'true') return;
-            button.dataset.driveModeBound = 'true';
-            button.addEventListener('click', event => {
-                event.preventDefault();
-                event.stopPropagation();
-                controller.request(button.dataset.mode);
-            });
-        });
+        controller.lever = lever;
         controls.mountNavigationMode?.(navigationMount);
     }
 
@@ -82,7 +59,7 @@
             mode: '',
             connected: null,
             pending: false,
-            buttons: [],
+            lever: null,
             request(mode) {
                 const normalized = String(mode || '').toUpperCase();
                 const request = this.handlers.request || global.navigationControl?.requestDriveMode;
@@ -94,12 +71,10 @@
                 if (Object.prototype.hasOwnProperty.call(options, 'pending')) this.pending = Boolean(options.pending);
                 root.dataset.driveMode = this.mode;
                 root.dataset.robotConnected = String(this.connected === true);
-                this.buttons.forEach(button => {
-                    const active = button.dataset.mode === this.mode;
-                    button.classList.toggle('active', active);
-                    button.setAttribute('aria-pressed', String(active));
-                    button.disabled = this.connected !== true || this.pending;
-                });
+                if (this.lever) {
+                    this.lever.disabled = this.connected !== true || this.pending;
+                    this.lever.setAttribute('aria-busy', String(this.pending));
+                }
                 this.handlers.sync?.(this.mode, options);
             },
         };

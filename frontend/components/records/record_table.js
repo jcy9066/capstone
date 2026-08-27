@@ -24,9 +24,22 @@
         return `${records.escapeHtml(value)}${suffix}`;
     };
 
+    records.nextSortState = function nextSortState(current, defaultBy, nextBy) {
+        if (!current?.touched || current.by !== nextBy) {
+            return { by: nextBy, direction: 'desc', touched: true };
+        }
+        if (current.direction === 'desc') {
+            return { by: nextBy, direction: 'asc', touched: true };
+        }
+        return { by: defaultBy, direction: 'desc', touched: false };
+    };
+
     records.tableHeaderHtml = function tableHeaderHtml(columns, sort) {
         return columns.map(column => {
-            const active = Boolean(column.sort && sort?.by === column.sort);
+            if (column.selectAll) {
+                return '<th class="record-selection-column"><input type="checkbox" data-record-select-all aria-label="현재 페이지 전체 선택"></th>';
+            }
+            const active = Boolean(column.sort && sort?.touched && sort.by === column.sort);
             const direction = active ? sort.direction : '';
             const indicator = active ? (direction === 'desc' ? ' ↓' : ' ↑') : '';
             const attributes = column.sort

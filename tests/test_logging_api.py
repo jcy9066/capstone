@@ -31,6 +31,10 @@ class FakeDatabase:
         self.deleted_event_images = set()
         self.deleted_action_images = set()
         self.soft_delete_error = None
+        self.log_soft_delete_error = None
+        self.log_soft_delete_preview = {"events": 2, "actions": 5, "images": 4}
+        self.log_soft_delete_result = {"events": 2, "actions": 5, "images": 4}
+        self.log_soft_delete_calls = []
         self.false_alarm_error = None
         self.false_alarm_events = {7: False}
         self.rows = {
@@ -113,6 +117,18 @@ class FakeDatabase:
             return False
         self.deleted_action_images.add(action_id)
         return True
+
+    def preview_log_soft_delete(self, **selection):
+        if self.log_soft_delete_error is not None:
+            raise self.log_soft_delete_error
+        self.log_soft_delete_calls.append(("preview", selection))
+        return dict(self.log_soft_delete_preview)
+
+    def soft_delete_logs(self, **selection):
+        if self.log_soft_delete_error is not None:
+            raise self.log_soft_delete_error
+        self.log_soft_delete_calls.append(("delete", selection))
+        return dict(self.log_soft_delete_result)
 
     def set_event_false_alarm(self, event_id, value):
         if self.false_alarm_error is not None:
@@ -306,6 +322,90 @@ def test_database_unavailable_is_clear_503(api):
     login(server, client)
     database.list_events = Mock(side_effect=DatabaseConfigurationError("offline"))
     response = client.get("/api/logs/events")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Database is unavailable."
+
+
+def test_log_soft_delete_preview_and_delete_require_auth_and_csrf(api):
+    server, client, database = api
+    payload = {"event_ids": [7], "action_ids": []}
+    assert client.post("/api/logs/delete/preview", json=payload).status_code == 401
+    csrf = login(server, client)
+    assert client.post("/api/logs/delete/preview", json=payload).status_code == 403
+
+    preview = client.post(
+        "/api/logs/delete/preview",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    )
+    deleted = client.post(
+        "/api/logs/delete",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    )
+
+    assert preview.status_code == 200
+    assert deleted.status_code == 200
+    assert database.log_soft_delete_calls == [
+        ("preview", payload),
+        ("delete", payload),
+    ]
+
+
+def test_log_soft_delete_exposes_stable_counts_and_preserves_files(api):
+    server, client, _database = api
+    csrf = login(server, client)
+    payload = {"event_ids": [7, 8], "action_ids": []}
+
+    preview = client.post(
+        "/api/logs/delete/preview",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    ).json()
+    deleted = client.post(
+        "/api/logs/delete",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    ).json()
+
+    expected = {"events": 2, "actions": 5, "images": 4}
+    assert preview == {"ok": True, "selection": payload, "counts": expected}
+    assert deleted == {"ok": True, "selection": payload, "counts": expected}
+    assert server.private_image_store.deleted == []
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"event_ids": [], "action_ids": []},
+        {"event_ids": [0], "action_ids": []},
+        {"event_ids": [7, 7], "action_ids": []},
+        {"event_ids": [], "action_ids": "11"},
+        {"event_ids": [True], "action_ids": []},
+    ],
+)
+def test_log_soft_delete_rejects_invalid_selection(api, payload):
+    server, client, database = api
+    csrf = login(server, client)
+    response = client.post(
+        "/api/logs/delete/preview",
+        headers={"X-CSRF-Token": csrf},
+        json=payload,
+    )
+    assert response.status_code == 400
+    assert database.log_soft_delete_calls == []
+
+
+def test_log_soft_delete_database_unavailable_is_503(api):
+    server, client, database = api
+    csrf = login(server, client)
+    database.log_soft_delete_error = DatabaseConfigurationError("offline")
+    response = client.post(
+        "/api/logs/delete",
+        headers={"X-CSRF-Token": csrf},
+        json={"event_ids": [], "action_ids": [10]},
+    )
     assert response.status_code == 503
     assert response.json()["detail"] == "Database is unavailable."
 

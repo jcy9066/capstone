@@ -5,24 +5,85 @@
     const records = components.records = components.records || {};
 
     const EMPTY_RANGE = Object.freeze({ startAt: '', endAt: '' });
+    const RECORD_FILTER_DEFAULTS = Object.freeze({
+        statusModal: Object.freeze({ startAt: '', endAt: '' }),
+        patrolModal: Object.freeze({
+            startAt: '', endAt: '', eventType: '', confidenceMin: '', confidenceMax: '',
+            isResolved: '', isReported: '', isAlerted: '', isFalseAlarm: '',
+        }),
+        actionsModal: Object.freeze({ startAt: '', endAt: '', userName: '', actionType: '' }),
+    });
+
+    records.RECORD_FILTER_DEFAULTS = RECORD_FILTER_DEFAULTS;
 
     records.createFilterState = function createFilterState(initialValues = {}) {
         const initial = { ...initialValues };
+        const allowedKeys = new Set(Object.keys(initial));
         let values = { ...initial };
+        const normalize = nextValues => Object.fromEntries(
+            Object.entries(nextValues || {}).filter(([key]) => allowedKeys.has(key)),
+        );
         return {
             get values() { return { ...values }; },
             update(nextValues = {}) {
-                values = { ...values, ...nextValues };
+                values = { ...values, ...normalize(nextValues) };
                 return this.values;
             },
             replace(nextValues = {}) {
-                values = { ...initial, ...nextValues };
+                values = { ...initial, ...normalize(nextValues) };
                 return this.values;
             },
             reset() {
                 values = { ...initial };
                 return this.values;
             },
+        };
+    };
+
+    records.createRecordFilterState = function createRecordFilterState(type) {
+        return records.createFilterState(RECORD_FILTER_DEFAULTS[type] || EMPTY_RANGE);
+    };
+
+    records.createRowSelectionState = function createRowSelectionState(keyForRow) {
+        const selected = new Set();
+        const keyOf = row => {
+            const value = keyForRow?.(row);
+            return value === undefined || value === null || value === '' ? '' : String(value);
+        };
+        return {
+            get count() { return selected.size; },
+            get selectedKeys() { return Array.from(selected); },
+            has(row) {
+                const key = keyOf(row);
+                return Boolean(key && selected.has(key));
+            },
+            toggle(row, checked) {
+                const key = keyOf(row);
+                if (!key) return false;
+                if (checked) selected.add(key);
+                else selected.delete(key);
+                return selected.has(key);
+            },
+            setCurrentPage(rows, checked) {
+                (rows || []).forEach(row => this.toggle(row, checked));
+                return this.currentPageState(rows);
+            },
+            currentPageState(rows) {
+                const keys = (rows || []).map(keyOf).filter(Boolean);
+                const selectedCount = keys.filter(key => selected.has(key)).length;
+                return {
+                    checked: keys.length > 0 && selectedCount === keys.length,
+                    indeterminate: selectedCount > 0 && selectedCount < keys.length,
+                };
+            },
+            replace(keys = []) {
+                selected.clear();
+                keys.forEach(key => {
+                    if (key !== undefined && key !== null && key !== '') selected.add(String(key));
+                });
+                return this.selectedKeys;
+            },
+            clear() { selected.clear(); },
         };
     };
 

@@ -18,6 +18,11 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.script_source = (STATIC_DIR / "script.js").read_text(encoding="utf-8")
         self.state_source = (STATIC_DIR / "dashboard_state.js").read_text(encoding="utf-8")
         self.style_source = (STATIC_DIR / "style.css").read_text(encoding="utf-8")
+        self.records_source = (COMPONENT_DIR / "records" / "record_modal.js").read_text(encoding="utf-8")
+        self.gallery_source = (COMPONENT_DIR / "gallery" / "image_detail.js").read_text(encoding="utf-8")
+        self.current_situation_source = (
+            COMPONENT_DIR / "current_situation" / "current_situation.js"
+        ).read_text(encoding="utf-8")
         self.app_source = (ROOT / "server" / "app.py").read_text(encoding="utf-8")
 
     def render_dashboard(self, user):
@@ -54,30 +59,43 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn('class="card d-pad-container disabled"', self.template_source)
         self.assertIn("applyServerPatrolMode(null)", self.script_source)
 
-    def test_state_module_uses_server_polling_and_optional_backend_contracts(self):
-        self.assertIn("robotState: '/api/robots/pi-01'", self.state_source)
-        self.assertIn("window.setInterval(pollRobotState, 1000)", self.state_source)
+    def test_state_module_uses_navigation_control_and_optional_backend_contracts(self):
+        self.assertIn("dabom:navigation-control-state", self.state_source)
+        self.assertIn("applyControlState(event.detail)", self.state_source)
+        self.assertNotIn("robotState: '/api/robots/pi-01'", self.state_source)
+        self.assertNotIn("pollRobotState", self.state_source)
         self.assertIn("window.DABOM_DASHBOARD_ENDPOINTS", self.state_source)
         self.assertIn("fetchLogRows", self.state_source)
         self.assertIn("state: 'unavailable'", self.state_source)
 
-    def test_disconnect_and_stale_state_fail_closed(self):
-        self.assertIn("ROBOT_STATUS_STALE_MS = 5000", self.script_source)
+    def test_control_state_disconnect_fails_closed(self):
+        navigation_source = (STATIC_DIR / "navigation_control.js").read_text(encoding="utf-8")
         self.assertIn("currentRobotConnected !== false", self.script_source)
         self.assertIn("stopAllLocalInputs(false)", self.script_source)
-        self.assertIn("clearRobotSnapshotState", self.state_source)
-        self.assertIn("setText('emergency-stop-status', 'UNAVAILABLE')", self.state_source)
+        self.assertIn("window.setDashboardRobotConnection?.(payload?.connected === true)", navigation_source)
+        self.assertIn("window.applyServerPatrolMode?.(payload?.robot_mode)", navigation_source)
+        self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260823-records-followup"
-        for asset in (
+        version = "v=20260827-dashboard-visual-assets"
+        assets = (
             "static/style.css",
+            "static/system_control.css",
+            "static/navigation_map_control.css",
+            "static/navigation_control.css",
             "static/script.js",
             "static/system_control.js",
             "static/navigation_map_control.js",
             "static/dashboard_state.js",
-        ):
+            "static/navigation_control.js",
+        )
+        for asset in assets:
             self.assertIn(f'{asset}?{version}', self.template_source)
+        self.assertEqual(
+            sum(self.template_source.count(f'{asset}?{version}') for asset in assets),
+            len(assets),
+        )
+        self.assertNotIn("v=20260823-records-followup", self.template_source)
 
     def test_robot_commands_include_session_csrf_contract(self):
         self.assertIn("function robotCommandCsrfToken()", self.script_source)
@@ -139,24 +157,36 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("components.modal", modal_source)
         self.assertIn("initializeDashboardComponentFoundation", self.script_source)
 
-        record_entries = (
-            ('actionsModal', "openModal('actionsModal')"),
-            ('currentSituation', "openCurrentSituationModal()"),
-            ('galleryModal', "openModal('galleryModal')"),
-            ('statusModal', "openModal('statusModal')"),
-            ('patrolModal', "openModal('patrolModal')"),
-        )
+        record_entries = ('patrolModal', 'galleryModal', 'currentSituation', 'actionsModal', 'statusModal')
         mount_start = self.template_source.index('id="records-toolbar-mount"')
         mount_end = self.template_source.index("\n            </div>\n        </div>", mount_start)
         mount_source = self.template_source[mount_start:mount_end]
         self.assertEqual(self.template_source.count("data-record-view="), len(record_entries))
         positions = []
-        for view, callback in record_entries:
+        for view in record_entries:
             marker = f'data-record-view="{view}"'
             self.assertIn(marker, mount_source)
             positions.append(mount_source.index(marker))
-            self.assertIn(callback, mount_source)
         self.assertEqual(positions, sorted(positions))
+        for component_mount in (
+            "components.records?.mount(components.mounts.recordsToolbar);",
+            "components.gallery?.mountImageDetail();",
+            "components.currentSituation?.mount(components.mounts.currentSituation);",
+        ):
+            self.assertIn(component_mount, self.script_source)
+
+    def test_legacy_record_gallery_and_current_situation_implementations_are_removed(self):
+        for legacy_contract in (
+            "const modalState =",
+            "function buildModalHTML(",
+            "function openCurrentSituationModal(",
+            "function openGalleryModal(",
+            "function openGalleryDetail(",
+        ):
+            self.assertNotIn(legacy_contract, self.script_source)
+        self.assertIn("records.mount = function mountRecords", self.records_source)
+        self.assertIn("gallery.registerModalViews = function registerModalViews", self.gallery_source)
+        self.assertIn("currentSituation.mount = function mountCurrentSituation", self.current_situation_source)
 
     def test_dashboard_mode_group_separates_drive_and_navigation_clicks(self):
         mount_start = self.template_source.index('id="dashboard-mode-controls-mount"')
@@ -181,16 +211,14 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertEqual(self.template_source.count('id="navigation-mode-driving"'), 1)
 
     def test_dashboard_layout_contract_is_compact_and_consistent(self):
-        toolbar_order = (
-            ('data-record-view="patrolModal"', "order: 1"),
-            ('data-record-view="galleryModal"', "order: 2"),
-            (".current-situation-record-btn", "order: 3"),
-            ('data-record-view="actionsModal"', "order: 4"),
-            ('data-record-view="statusModal"', "order: 5"),
-        )
-        for selector, order in toolbar_order:
-            selector_position = self.style_source.index(selector)
-            self.assertIn(order, self.style_source[selector_position:selector_position + 100])
+        toolbar_start = self.template_source.index('id="records-toolbar-mount"')
+        toolbar_end = self.template_source.index("\n            </div>\n        </div>", toolbar_start)
+        toolbar_source = self.template_source[toolbar_start:toolbar_end]
+        toolbar_order = ('patrolModal', 'galleryModal', 'currentSituation', 'actionsModal', 'statusModal')
+        positions = [toolbar_source.index(f'data-record-view="{view}"') for view in toolbar_order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('data-record-view="patrolModal"] { order:', self.style_source)
+        self.assertNotIn('.current-situation-record-btn { order:', self.style_source)
 
         for contract in (
             "grid-template-rows: repeat(2, minmax(0, 1fr))",
@@ -314,11 +342,21 @@ pagination.reset();
 assert.strictEqual(pagination.page, 1);
 
 let opened = null;
+const registeredViews = [];
+const modalManager = {
+    activeView: null,
+    stack: [],
+    register: name => { registeredViews.push(name); },
+    open: name => { opened = name; return name; },
+    close: () => { opened = null; },
+};
+components.modal = { getDefault: () => modalManager };
 const recordsRoot = { dataset: {} };
-const records = components.records.mount(recordsRoot, { open: view => { opened = view; } });
+const records = components.records.mount(recordsRoot);
 records.open('patrolModal');
 assert.strictEqual(opened, 'patrolModal');
 assert.strictEqual(recordsRoot.dataset.dashboardComponent, 'records-toolbar');
+assert.ok(registeredViews.includes('patrolModal'));
 
 let requestedDriveMode = null;
 const driveRoot = { dataset: {} };
@@ -369,24 +407,24 @@ assert.strictEqual(listeners.click, undefined);
             "X-Frame-Token",
             "description_content: description",
             "include_image: includeImage",
-            "frame_token: includeImage ? currentSituationState.frameToken : null",
+            "frame_token: includeImage ? state.frameToken : null",
             "JSON.stringify",
             "response.status === 503",
         ):
-            self.assertIn(contract, self.script_source)
+            self.assertIn(contract, self.current_situation_source)
         self.assertIn('@app.post("/api/logs/current-situation/preview")', self.app_source)
         self.assertIn('@app.post("/api/logs/current-situation")', self.app_source)
 
     def test_gallery_filters_and_media_urls_match_backend_contract(self):
         for contract in (
             "/api/gallery?source=",
-            "loadGallery('all')",
-            "loadGallery('event')",
-            "loadGallery('action')",
+            'data-source="all"',
+            'data-source="event"',
+            'data-source="action"',
             "/api/media/events/",
             "/api/media/actions/",
         ):
-            self.assertIn(contract, self.script_source)
+            self.assertIn(contract, self.gallery_source)
         for route in (
             '@app.get("/api/gallery")',
             '@app.get("/api/media/events/{event_id}")',
@@ -409,9 +447,12 @@ assert.strictEqual(listeners.click, undefined);
         for contract in (
             "query.set('start_at', filters.startAt)",
             "query.set('end_at', filters.endAt)",
-            "fetchLogRows(type, range)",
         ):
-            self.assertIn(contract, self.state_source + self.script_source)
+            self.assertIn(contract, self.state_source)
+        self.assertIn(
+            "fetchLogRows(this.type, this.requestFilters())",
+            self.records_source,
+        )
         self.assertNotIn("st.allRows.filter(row =>", self.script_source)
 
     def test_patrol_records_support_detected_time_false_alarm_and_gallery_detail(self):
@@ -421,13 +462,12 @@ assert.strictEqual(listeners.click, undefined);
         )
         self.assertIn("is_false_alarm: row.is_false_alarm === true", self.state_source)
         for contract in (
-            "/api/logs/events/${encodeURIComponent(eventId)}/false-alarm",
+            "/api/logs/events/${encodeURIComponent(row.event_id)}/false-alarm",
             "method: 'PATCH'",
-            "JSON.stringify({ is_false_alarm: Boolean(isFalseAlarm) })",
-            "openPatrolGalleryDetail(this.dataset.recordId)",
-            "findIndex(item => String(item.event_id ?? item.id) === String(eventId))",
+            "JSON.stringify({ is_false_alarm: nextValue })",
+            "components.gallery?.openRecordDetail?.",
         ):
-            self.assertIn(contract, self.script_source)
+            self.assertIn(contract, self.records_source)
 
     def test_header_is_compact_and_gallery_keeps_three_column_maximum(self):
         self.assertIn("min-height: 36px;", self.style_source)
@@ -435,36 +475,32 @@ assert.strictEqual(listeners.click, undefined);
         self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.style_source)
 
     def test_current_situation_has_no_browser_capture_or_binary_upload(self):
-        block = self.script_source.split("// 현재 상황 기록", 1)[1].split("// 갤러리", 1)[0]
         for forbidden in ("getUserMedia", "toDataURL", "FormData", "multipart", "canvas"):
-            self.assertNotIn(forbidden, block)
-        self.assertIn("'Content-Type': 'application/json'", block)
+            self.assertNotIn(forbidden, self.current_situation_source)
+        self.assertIn("'Content-Type': 'application/json'", self.current_situation_source)
 
     def test_gallery_delete_uses_frozen_contract_and_updates_detail_state(self):
-        block = self.script_source.split("// 갤러리", 1)[1].split("// 텔레그램 신고", 1)[0]
         for contract in (
             "confirm('이 이미지를 갤러리에서 삭제하시겠습니까?')",
             "`/api/gallery/${source}/${encodeURIComponent(recordId)}`",
             "method: 'DELETE'",
             "credentials: 'same-origin'",
-            "'X-CSRF-Token': csrfToken",
-            "galleryState.items.splice(removedIndex, 1)",
-            "openGalleryDetail(Math.min(removedIndex, galleryState.items.length - 1))",
-            "closeGalleryDetail()",
+            "'X-CSRF-Token': csrf.csrf_token",
+            "state.items.splice(removedIndex, 1)",
+            "state.selectedIndex = -1",
+            "await manager.back()",
         ):
-            self.assertIn(contract, block)
-        self.assertNotIn("loadGallery(galleryState.source)", block)
+            self.assertIn(contract, self.gallery_source)
+        self.assertNotIn("loadGallery(state.source)", self.gallery_source)
 
     def test_gallery_action_source_wins_over_related_event_id(self):
-        block = self.script_source.split("// 갤러리", 1)[1].split("// 텔레그램 신고", 1)[0]
-        explicit_source = "if (item.source === 'event' || item.source === 'action') return item.source;"
-        event_fallback = "if (item.event_id != null) return 'event';"
-        action_id = ": item.action_id ?? item.id;"
-        self.assertIn(explicit_source, block)
-        self.assertIn(event_fallback, block)
-        self.assertLess(block.index(explicit_source), block.index(event_fallback))
-        self.assertIn(action_id, block)
-        self.assertIn("`/api/gallery/${source}/${encodeURIComponent(recordId)}`", block)
+        explicit_source = "if (item?.source === 'event' || item?.source === 'action') return item.source;"
+        action_fallback = "if (item?.action_id != null) return 'action';"
+        self.assertIn(explicit_source, self.gallery_source)
+        self.assertIn(action_fallback, self.gallery_source)
+        self.assertLess(self.gallery_source.index(explicit_source), self.gallery_source.index(action_fallback))
+        self.assertIn("item?.action_id ?? item?.source_id ?? item?.id", self.gallery_source)
+        self.assertIn("`/api/gallery/${source}/${encodeURIComponent(recordId)}`", self.gallery_source)
 
 
 if __name__ == "__main__":
