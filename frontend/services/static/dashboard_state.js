@@ -280,19 +280,7 @@
         };
     }
 
-    async function fetchLogRows(type, filters = {}) {
-        const endpoint = type === 'statusModal'
-            ? endpoints.deviceLogs
-            : type === 'patrolModal'
-                ? endpoints.patrolLogs
-                : endpoints.actionLogs;
-        if (!endpoint) {
-            return {
-                state: 'unavailable',
-                rows: [],
-                message: '조회 API가 아직 연결되지 않았습니다.'
-            };
-        }
+    function buildLogQuery(type, filters = {}) {
         const query = new URLSearchParams();
         if (filters.startAt) query.set('start_at', filters.startAt);
         if (filters.endAt) query.set('end_at', filters.endAt);
@@ -313,9 +301,27 @@
             if (filters.isAlerted !== '' && filters.isAlerted != null) query.set('is_alerted', String(filters.isAlerted));
             if (filters.isFalseAlarm !== '' && filters.isFalseAlarm != null) query.set('is_false_alarm', String(filters.isFalseAlarm));
         } else if (type === 'actionsModal') {
-            if (filters.userName) query.set('user_name', filters.userName);
+            const userName = String(filters.userName || '').trim();
+            if (userName) query.set('user_name', userName);
             if (filters.actionType) query.set('action_type', filters.actionType);
         }
+        return query;
+    }
+
+    async function fetchLogRows(type, filters = {}) {
+        const endpoint = type === 'statusModal'
+            ? endpoints.deviceLogs
+            : type === 'patrolModal'
+                ? endpoints.patrolLogs
+                : endpoints.actionLogs;
+        if (!endpoint) {
+            return {
+                state: 'unavailable',
+                rows: [],
+                message: '조회 API가 아직 연결되지 않았습니다.'
+            };
+        }
+        const query = buildLogQuery(type, filters);
         const queryString = query.toString();
         const requestEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
         const result = await requestJson(requestEndpoint);
