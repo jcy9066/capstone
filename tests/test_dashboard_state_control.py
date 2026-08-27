@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 import unittest
 
 
@@ -65,6 +66,129 @@ class DashboardStateControlContractTests(unittest.TestCase):
         ):
             self.assertIn(selector, self.script)
         self.assertIn("isKeyboardDrivingBlocked(event.target)", self.script)
+
+    def test_keyboard_release_only_stops_an_active_keyboard_session(self):
+        result = subprocess.run(
+            ["node", "-e", r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const source = fs.readFileSync(
+    'frontend/services/static/script.js',
+    'utf8',
+);
+const declarations = source.slice(
+    source.indexOf('const DRIVE_KEYS'),
+    source.indexOf('let robotCommandCsrfPromise'),
+);
+const logicStart = source.indexOf('function normalizeDriveKey');
+const pointerListener = source.indexOf("'pointerup'", logicStart);
+const logic = source.slice(
+    logicStart,
+    source.lastIndexOf('document.addEventListener(', pointerListener),
+);
+
+class MockElement {
+    constructor(kind = 'div') {
+        this.kind = kind;
+        this.isContentEditable = kind === 'contenteditable';
+    }
+    matches() {
+        return ['input', 'textarea', 'select'].includes(this.kind);
+    }
+    closest() {
+        return this.kind === 'contenteditable' ? this : null;
+    }
+}
+
+function buildRuntime({ modalOpen = false, sidebarOpen = false } = {}) {
+    const listeners = {};
+    const moves = [];
+    const stops = [];
+    const modal = {
+        dataset: { modalView: modalOpen ? 'records' : '' },
+        style: { display: modalOpen ? 'flex' : 'none' },
+        classList: { contains: name => modalOpen && name === 'open' },
+    };
+    const sidebar = {
+        classList: { contains: name => sidebarOpen && name === 'open' },
+    };
+    const document = {
+        activeElement: new MockElement(),
+        addEventListener: (type, handler) => { listeners[type] = handler; },
+        getElementById: id => id === 'commonModal' ? modal : sidebar,
+        querySelectorAll: () => [],
+    };
+    const context = {
+        console,
+        document,
+        Element: MockElement,
+        currentPatrolMode: 'manual',
+        COMMAND_REPEAT_MS: 120,
+        moveRobot: direction => moves.push(direction),
+        stopRobot: reason => stops.push(reason),
+        stopPointerMove: () => {},
+        setInterval: () => 1,
+        clearInterval: () => {},
+    };
+    context.window = context;
+    vm.createContext(context);
+    vm.runInContext(`${declarations}\n${logic}`, context);
+    return { context, listeners, moves, stops };
+}
+
+function keyEvent(key, target = new MockElement()) {
+    return { key, target, preventDefault: () => {} };
+}
+
+for (const kind of ['input', 'textarea', 'select', 'contenteditable']) {
+    const runtime = buildRuntime();
+    runtime.listeners.keydown(keyEvent('ArrowUp', new MockElement(kind)));
+    runtime.listeners.keyup(keyEvent('ArrowUp', new MockElement(kind)));
+    assert.deepStrictEqual(runtime.moves, []);
+    assert.deepStrictEqual(runtime.stops, []);
+}
+for (const state of [{ modalOpen: true }, { sidebarOpen: true }]) {
+    const runtime = buildRuntime(state);
+    runtime.listeners.keydown(keyEvent('ArrowUp'));
+    runtime.listeners.keyup(keyEvent('ArrowUp'));
+    assert.deepStrictEqual(runtime.moves, []);
+    assert.deepStrictEqual(runtime.stops, []);
+}
+
+const wasd = buildRuntime();
+wasd.listeners.keydown(keyEvent('w'));
+wasd.listeners.keyup(keyEvent('w'));
+assert.deepStrictEqual(wasd.moves, []);
+assert.deepStrictEqual(wasd.stops, []);
+
+const active = buildRuntime();
+active.listeners.keydown(keyEvent('ArrowUp'));
+active.listeners.keyup(keyEvent('ArrowUp'));
+assert.deepStrictEqual(active.moves, ['\u2191']);
+assert.deepStrictEqual(active.stops, ['key_release']);
+
+const cancelled = buildRuntime();
+cancelled.listeners.keydown(keyEvent('ArrowUp'));
+cancelled.context.stopAllLocalInputs(true, 'test_cancel');
+cancelled.listeners.keyup(keyEvent('ArrowUp'));
+assert.deepStrictEqual(cancelled.moves, ['\u2191']);
+assert.deepStrictEqual(cancelled.stops, ['test_cancel']);
+
+const diagonal = buildRuntime();
+diagonal.listeners.keydown(keyEvent('ArrowUp'));
+diagonal.listeners.keydown(keyEvent('ArrowLeft'));
+diagonal.listeners.keyup(keyEvent('ArrowLeft'));
+diagonal.listeners.keyup(keyEvent('ArrowUp'));
+assert.deepStrictEqual(diagonal.moves, ['\u2191', '\u2196', '\u2191']);
+assert.deepStrictEqual(diagonal.stops, ['key_release']);
+"""],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_dpad_and_arrow_commands_follow_the_visible_direction(self):
         expected = {

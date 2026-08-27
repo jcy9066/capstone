@@ -1429,6 +1429,10 @@ document.addEventListener(
             return;
         }
 
+        if (!pressedKeys.has(key)) {
+            return;
+        }
+
         pressedKeys.delete(key);
 
         if (!getDirectionFromKeys()) {
