@@ -100,6 +100,105 @@
     max-width: none;
 }
 
+.record-type-badge {
+    border: 1px solid currentColor;
+    font-weight: 700;
+}
+
+.record-event-intrusion {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.record-event-assault {
+    background: #ffe4e6;
+    color: #9f1239;
+}
+
+.record-event-system-error,
+.record-action-warning {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.record-event-network-loss {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.record-event-sensor-anomaly {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.record-action-manual-moving {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.record-action-report {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.record-action-communication {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+.record-action-note,
+.record-type-unknown {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+body.dark-mode .record-event-intrusion {
+    background: rgba(127, 29, 29, 0.55);
+    color: #fecaca;
+}
+
+body.dark-mode .record-event-assault {
+    background: rgba(136, 19, 55, 0.55);
+    color: #fecdd3;
+}
+
+body.dark-mode .record-event-system-error,
+body.dark-mode .record-action-warning {
+    background: rgba(124, 45, 18, 0.55);
+    color: #fed7aa;
+}
+
+body.dark-mode .record-event-network-loss {
+    background: rgba(120, 53, 15, 0.55);
+    color: #fde68a;
+}
+
+body.dark-mode .record-event-sensor-anomaly {
+    background: rgba(88, 28, 135, 0.55);
+    color: #e9d5ff;
+}
+
+body.dark-mode .record-action-manual-moving {
+    background: rgba(30, 64, 175, 0.55);
+    color: #bfdbfe;
+}
+
+body.dark-mode .record-action-report {
+    background: rgba(127, 29, 29, 0.55);
+    color: #fecaca;
+}
+
+body.dark-mode .record-action-communication {
+    background: rgba(17, 94, 89, 0.55);
+    color: #99f6e4;
+}
+
+body.dark-mode .record-action-note,
+body.dark-mode .record-type-unknown {
+    background: rgba(55, 65, 81, 0.65);
+    color: #e5e7eb;
+}
+
 .record-data-table .record-selection-column {
     width: 34px;
     padding-right: 3px;

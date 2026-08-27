@@ -11,6 +11,20 @@
         COMMUNICATION: '직접 통신',
         NOTE: '상황 기록',
     });
+    const EVENT_BADGE_CLASSES = Object.freeze({
+        INTRUSION: 'record-event-intrusion',
+        ASSAULT: 'record-event-assault',
+        SYSTEM_ERROR: 'record-event-system-error',
+        NETWORK_LOSS: 'record-event-network-loss',
+        SENSOR_ANOMALY: 'record-event-sensor-anomaly',
+    });
+    const ACTION_BADGE_CLASSES = Object.freeze({
+        WARNING: 'record-action-warning',
+        MANUAL_MOVING: 'record-action-manual-moving',
+        REPORT: 'record-action-report',
+        COMMUNICATION: 'record-action-communication',
+        NOTE: 'record-action-note',
+    });
     const TITLES = Object.freeze({
         statusModal: '기기 상태 조회',
         patrolModal: '순찰 기록 조회',
@@ -81,6 +95,11 @@
 
     records.previewLogDelete = payload => postLogDelete(DELETE_PREVIEW_ENDPOINT, payload);
     records.executeLogDelete = payload => postLogDelete(DELETE_ENDPOINT, payload);
+
+    records.eventBadgeClass = value => EVENT_BADGE_CLASSES[String(value || '').toUpperCase()]
+        || 'record-type-unknown';
+    records.actionBadgeClass = value => ACTION_BADGE_CLASSES[String(value || '').toUpperCase()]
+        || 'record-type-unknown';
 
     function defaultSort(type) {
         return { by: DEFAULT_SORT[type], direction: 'desc', touched: false };
@@ -499,7 +518,7 @@
                 return `<tr>
                     <td class="record-selection-column"><input type="checkbox" data-record-select-row="${index}" aria-label="순찰 기록 선택" ${this.selection.has(row) ? 'checked' : ''}></td>
                     <td>${rowTimestamp(row)}</td>
-                    <td><span class="status-badge status-patrol">${records.escapeHtml(row.event_type)}</span></td>
+                    <td><span class="status-badge record-type-badge ${records.eventBadgeClass(row.event_type)}">${records.escapeHtml(row.event_type)}</span></td>
                     <td>${confidence}</td>
                     <td class="muted">${records.formatValue(row.lidar_x)} / ${records.formatValue(row.lidar_y)}</td>
                     <td class="muted">${records.formatValue(row.gps_lat)} / ${records.formatValue(row.gps_lng)} / ${records.formatValue(row.gps_alt)}</td>
@@ -514,7 +533,7 @@
                 <td class="record-selection-column"><input type="checkbox" data-record-select-row="${index}" aria-label="관리자 조치 선택" ${this.selection.has(row) ? 'checked' : ''}></td>
                 <td>${rowTimestamp(row)}</td>
                 <td>${records.escapeHtml(row.administrator_name)}</td>
-                <td><span class="status-badge status-normal">${records.escapeHtml(ACTION_LABELS[row.action_type] || row.action_type)}</span></td>
+                <td><span class="status-badge record-type-badge ${records.actionBadgeClass(row.action_type)}">${records.escapeHtml(ACTION_LABELS[row.action_type] || row.action_type)}</span></td>
                 <td>${row.event_id == null ? '-' : records.escapeHtml(row.event_id)}</td>
                 <td class="record-description">${records.escapeHtml(row.description_content)}</td>
                 <td>${imageCell(row, 'action', index)}</td>
@@ -680,9 +699,6 @@
                 return legacyOpen?.(type);
             },
             close() {
-                if (manager?.activeView?.name === 'recordImageDetail' && manager.stack.length) {
-                    return manager.back();
-                }
                 if (manager?.activeView) return manager.close();
                 return legacyClose?.();
             },

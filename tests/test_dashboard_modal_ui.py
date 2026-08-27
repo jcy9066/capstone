@@ -85,6 +85,11 @@ manager.register('detail', { title: 'detail', render: () => 'detail' });
         self.assertIn("close() { return manager?.close()", gallery)
         self.assertNotIn("stopImmediatePropagation", current)
 
+        records = (COMPONENTS / "records" / "record_modal.js").read_text(encoding="utf-8")
+        controller_close = records.split("            close() {", 1)[1].split("            },", 1)[0]
+        self.assertIn("manager.close()", controller_close)
+        self.assertNotIn("manager.back()", controller_close)
+
     def test_toolbar_dom_and_tab_order_matches_visible_order(self):
         toolbar_start = TEMPLATE.index('id="records-toolbar-mount"')
         toolbar_end = TEMPLATE.index("\n            </div>\n        </div>", toolbar_start)
