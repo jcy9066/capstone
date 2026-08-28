@@ -97,7 +97,8 @@ table {
 .system-status-bar {
     position: absolute;
     top: 10px; right: 20px;
-    display: flex; gap: 16px;
+    display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 16px;
+    max-width: calc(100% - 40px); box-sizing: border-box;
     font-size: 11px; font-weight: 500;
     font-family: var(--mono);
     color: var(--text-muted);
@@ -112,6 +113,7 @@ table {
     transition: background 0.3s, border-color 0.3s;
 }
 .system-status-bar span { color: var(--text-muted); }
+.system-status-bar > span { min-width: 0; overflow-wrap: anywhere; }
 .system-status-bar span span { color: var(--accent); font-weight: 700; }
 .system-status-bar .state-value { font-weight: 700; }
 .state-value.state-online { color: var(--success-color); }
@@ -692,21 +694,21 @@ body.dark-mode .no-camera-bg {
    하단 북마크/갤러리 패널 (요구사항 8)
 =================================================== */
 .map-bookmark-panel {
-    margin-top: 8px; display: flex; gap: 6px; flex-shrink: 0;
+    margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; flex-shrink: 0;
 }
 .mb-btn {
-    flex: 1 1 0; min-width: 0; min-height: 32px; background-color: transparent;
+    flex: 1 1 112px; min-width: 0; min-height: 32px; background-color: transparent;
     border: 1px solid var(--border-color);
     padding: 5px 6px; border-radius: var(--radius-sm);
     font-size: 11px; font-weight: 600;
     font-family: var(--mono); letter-spacing: 0.3px;
     color: var(--text-muted); cursor: pointer; transition: all 0.2s;
-    white-space: nowrap;
+    line-height: 1.25; overflow-wrap: anywhere; white-space: normal;
 }
 .mb-btn:hover { background-color: rgba(8, 145, 178, 0.07); border-color: var(--accent); color: var(--accent); }
 
 #current-situation-mount {
-    display: flex; flex: 1 1 0; min-width: 0;
+    display: flex; flex: 1 1 112px; min-width: 0;
 }
 #current-situation-mount .mb-btn { width: 100%; }
 
@@ -741,9 +743,9 @@ body.dark-mode .no-camera-bg {
     letter-spacing: 0.4px; text-transform: uppercase;
 }
 .server-state-field strong {
-    display: block; overflow: hidden; color: var(--text-dark);
+    display: block; min-width: 0; color: var(--text-dark);
     font-family: var(--mono); font-size: 10px; font-weight: 700;
-    text-overflow: ellipsis; white-space: nowrap;
+    line-height: 1.35; overflow-wrap: anywhere; white-space: normal;
 }
 .server-state-field strong.state-danger { color: var(--danger-color); }
 .server-state-field strong.state-success { color: var(--success-color); }
@@ -783,10 +785,11 @@ body.dark-mode .no-camera-bg {
 .action-btn {
     display: flex; justify-content: center; align-items: center;
     font-size: 12px; font-weight: 700; cursor: pointer;
-    color: var(--text-muted); transition: all 0.2s; padding: 0;
+    color: var(--text-muted); transition: all 0.2s; padding: 4px 8px;
     font-family: var(--mono); letter-spacing: 0.3px;
     border: 1px solid var(--border-color);
     background: var(--card-bg2);
+    line-height: 1.25; overflow-wrap: anywhere; text-align: center; white-space: normal;
 }
 .action-btn:hover { background-color: rgba(8, 145, 178, 0.06); border-color: var(--border-bright); color: var(--accent); }
 .action-btn:active { transform: scale(0.97); }
@@ -881,6 +884,7 @@ body.dark-mode .no-camera-bg {
     align-items: center;
     justify-content: center;
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 8px 10px;
 }
@@ -903,12 +907,15 @@ body.dark-mode .no-camera-bg {
 }
 .dashboard-navigation-mode-controls {
     min-width: 0;
+    flex: 1 1 168px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 4px;
 }
 .navigation-mode-option {
-    min-width: 0;
+    flex: 1 1 76px;
+    min-width: 76px;
     padding: 5px 7px;
     background: transparent;
     border: 1px solid var(--border-color);
@@ -1247,6 +1254,18 @@ body.dark-mode .no-camera-bg {
 }
 
 @media (max-width: 520px) {
+    .system-status-bar { max-width: none; margin-inline: 10px; align-items: flex-start; flex-direction: column; }
+    .map-bookmark-panel > *,
+    .map-bookmark-panel .mb-btn { flex-basis: 100%; }
+    .server-state-grid { grid-template-columns: minmax(0, 1fr); }
+    .server-state-field-wide { grid-column: auto; }
+    .control-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(88px, auto)); }
+    .split-btn-container { grid-column: 1; grid-row: 1; }
+    .dashboard-mode-controls { grid-column: 1; grid-row: 2; }
+    .d-pad-container { grid-column: 1; grid-row: 3; min-height: 190px; }
+    .dashboard-mode-controls { align-content: center; }
+    .mode-control-divider { flex-basis: 100%; width: auto; height: 1px; }
+    .dashboard-drive-mode-control { flex: 1 1 100%; }
     .gallery-grid { grid-template-columns: 1fr; }
 }
 

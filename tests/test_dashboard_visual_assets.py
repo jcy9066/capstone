@@ -67,3 +67,19 @@ def test_component_buttons_follow_dashboard_visual_states():
     assert ".records-pagination button:hover:not(:disabled)" in RECORD_STYLE
     assert ".system-control-manual:focus-visible" in SYSTEM_CONTROL_STYLE
     assert ".dashboard-drive-mode-group" not in CONTROL_STYLE
+
+
+def test_dashboard_controls_preserve_text_at_compact_widths():
+    assert "flex-wrap: wrap; gap: 6px; flex-shrink: 0;" in STYLE
+    assert "line-height: 1.25; overflow-wrap: anywhere; white-space: normal;" in STYLE
+    assert "flex: 1 1 168px;" in STYLE
+    assert "flex: 1 1 76px;" in STYLE
+    assert "max-width: calc(100% - 40px);" in STYLE
+    assert "@media (max-width: 520px)" in STYLE
+    assert ".control-grid { grid-template-columns: minmax(0, 1fr);" in STYLE
+    assert ".server-state-field-wide { grid-column: auto; }" in STYLE
+    report_button = re.search(
+        r'class="card action-btn action-report"[^>]*>\s*([^<]+?)\s*</button>',
+        TEMPLATE,
+    )
+    assert report_button and report_button.group(1) == "신고"
