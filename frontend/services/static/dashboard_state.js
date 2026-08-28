@@ -239,6 +239,7 @@
 
     function normalizePatrolRow(value) {
         const row = asObject(value);
+        const imageUrl = typeof row.image_url === 'string' && row.image_url ? row.image_url : null;
         return {
             ...splitTimestamp(row),
             event_id: row.event_id,
@@ -254,13 +255,14 @@
             is_reported: row.is_reported,
             is_alerted: row.is_alerted,
             is_false_alarm: row.is_false_alarm === true || row.is_false_alarm === 1 || row.is_false_alarm === '1',
-            has_image: Boolean(row.has_image || row.image_url || row.image_path),
-            image_url: firstValue(row.image_url, row.has_image ? `/api/media/events/${encodeURIComponent(row.event_id)}` : null),
+            has_image: row.has_image === true && Boolean(imageUrl),
+            image_url: row.has_image === true ? imageUrl : null,
         };
     }
 
     function normalizeActionRow(value) {
         const row = asObject(value);
+        const imageUrl = typeof row.image_url === 'string' && row.image_url ? row.image_url : null;
         const administratorName = firstValue(row.user_name, row.administrator_name, row.name, row.user_id, '-');
         const administratorEmail = firstValue(row.user_email, row.email);
         return {
@@ -275,8 +277,8 @@
             event_id: row.event_id,
             action_type: firstValue(row.action_type, '-'),
             description_content: firstValue(row.description_content, '-'),
-            has_image: Boolean(row.has_image || row.image_url || row.image_path),
-            image_url: firstValue(row.image_url, row.has_image ? `/api/media/actions/${encodeURIComponent(row.action_id)}` : null),
+            has_image: row.has_image === true && Boolean(imageUrl),
+            image_url: row.has_image === true ? imageUrl : null,
         };
     }
 

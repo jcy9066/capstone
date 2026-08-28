@@ -123,7 +123,7 @@
     function imageCell(row, source, index) {
         if (!row.has_image || !row.image_url) return '<span class="muted">-</span>';
         const label = source === 'event' ? '순찰 기록 이미지 상세 열기' : '관리자 조치 이미지 상세 열기';
-        return `<button type="button" class="record-thumbnail-button" data-image-row="${index}" aria-label="${label}"><img class="record-thumbnail" src="${records.escapeHtml(row.image_url)}" alt="${label}" loading="lazy"></button>`;
+        return `<button type="button" class="record-thumbnail-button" data-image-row="${index}" aria-label="${label}"><img class="record-thumbnail" data-thumbnail-image src="${records.escapeHtml(row.image_url)}" alt="${label}" loading="lazy"></button>`;
     }
 
     function rowTimestamp(row) {
@@ -582,6 +582,20 @@
             root.querySelector('thead tr').innerHTML = records.tableHeaderHtml(columnsFor(this.type), this.sort);
             records.bindSortHeaders(root, sortBy => this.changeSort(sortBy));
             this.bindSelectionControls();
+            root.querySelectorAll('[data-thumbnail-image]').forEach(image => {
+                image.addEventListener('error', () => {
+                    const button = image.closest('[data-image-row]');
+                    const index = Number(button?.dataset.imageRow);
+                    if (Number.isInteger(index) && this.rows[index]) {
+                        this.rows[index].has_image = false;
+                        this.rows[index].image_url = null;
+                    }
+                    const fallback = document.createElement('span');
+                    fallback.className = 'record-thumbnail-fallback muted';
+                    fallback.textContent = '-';
+                    button?.replaceWith(fallback);
+                }, { once: true });
+            });
             root.querySelectorAll('[data-image-row]').forEach(button => {
                 button.addEventListener('click', () => components.gallery?.openRecordDetail?.(this.rows[Number(button.dataset.imageRow)], this.type));
             });

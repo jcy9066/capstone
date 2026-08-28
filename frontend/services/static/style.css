@@ -1091,6 +1091,10 @@ body.dark-mode .no-camera-bg {
 }
 .record-thumbnail-button:hover,
 .record-thumbnail-button:focus-visible { border-color: var(--accent); outline: none; }
+.record-thumbnail-fallback {
+    display: inline-grid; place-items: center; width: 72px; height: 48px;
+    border: 1px solid var(--border-color); border-radius: 4px; background: var(--card-bg2);
+}
 .false-alarm-state {
     display: inline-block; min-width: 28px; margin-right: 5px; color: var(--text-muted);
     font-size: 10px; font-family: var(--mono);
@@ -1162,7 +1166,12 @@ body.dark-mode .no-camera-bg {
     background: var(--card-bg2); color: var(--text-dark); cursor: pointer;
 }
 .gallery-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-.gallery-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #0f172a; }
+.gallery-card-image { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #0f172a; }
+.gallery-media-fallback {
+    display: grid; place-items: center; min-height: 120px; padding: 16px;
+    box-sizing: border-box; color: var(--text-muted); text-align: center;
+    font-family: var(--mono); font-size: 11px;
+}
 .gallery-card strong,
 .gallery-card time { padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gallery-card strong { font-size: 12px; }
@@ -1193,6 +1202,7 @@ body.dark-mode .no-camera-bg {
     display: block; width: min(100%, 820px); max-height: 520px; margin: 0 auto;
     object-fit: contain; background: #0f172a; border-radius: var(--radius-sm);
 }
+.gallery-detail-image.gallery-media-fallback { display: grid; min-height: 260px; }
 .gallery-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .gallery-metadata div { padding: 8px; border-bottom: 1px solid var(--border-color); }
 .gallery-metadata dt { color: var(--text-muted); font-size: 10px; font-family: var(--mono); }

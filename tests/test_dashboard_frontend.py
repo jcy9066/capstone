@@ -77,7 +77,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260827-dashboard-visual-assets"
+        version = "v=20260828-media-availability"
         assets = (
             "static/style.css",
             "static/system_control.css",
@@ -421,8 +421,6 @@ assert.strictEqual(listeners.click, undefined);
             'data-source="all"',
             'data-source="event"',
             'data-source="action"',
-            "/api/media/events/",
-            "/api/media/actions/",
         ):
             self.assertIn(contract, self.gallery_source)
         for route in (
@@ -431,6 +429,25 @@ assert.strictEqual(listeners.click, undefined);
             '@app.get("/api/media/actions/{action_id}")',
         ):
             self.assertIn(route, self.app_source)
+
+    def test_media_rendering_trusts_availability_contract_and_has_fallbacks(self):
+        self.assertIn(
+            "return item?.has_image && item?.image_url ? String(item.image_url) : '';",
+            self.gallery_source,
+        )
+        self.assertNotIn("`/api/media/events/${encodeURIComponent(id)}`", self.gallery_source)
+        self.assertNotIn("`/api/media/actions/${encodeURIComponent(id)}`", self.gallery_source)
+        for contract in (
+            "data-gallery-image",
+            "gallery-media-fallback",
+            "image.addEventListener('error'",
+            "image.replaceWith(fallback)",
+        ):
+            self.assertIn(contract, self.gallery_source)
+        self.assertIn("data-thumbnail-image", self.records_source)
+        self.assertIn("button?.replaceWith(fallback)", self.records_source)
+        self.assertIn("has_image: row.has_image === true && Boolean(imageUrl)", self.state_source)
+        self.assertNotIn("row.image_path", self.state_source)
 
     def test_dashboard_log_panels_use_existing_backend_endpoints(self):
         self.assertIn("deviceLogs: '/api/logs/system-status'", self.state_source)

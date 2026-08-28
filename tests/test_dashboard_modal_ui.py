@@ -102,7 +102,7 @@ manager.register('detail', { title: 'detail', render: () => 'detail' });
         self.assertNotIn('.current-situation-record-btn { order:', STYLE)
 
     def test_scoped_component_assets_are_cache_busted_consistently(self):
-        version = "?v=20260827-dashboard-visual-assets"
+        version = "?v=20260828-media-availability"
         for asset in (
             "/components/modal/modal.css",
             "/components/controls/controls.css",
