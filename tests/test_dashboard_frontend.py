@@ -136,6 +136,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         component_assets = (
             "modal/modal_manager.js",
             "modal/modal.css",
+            "navigation/saved_map_modal.js",
             "records/record_modal.js",
             "records/record_filters.js",
             "records/record_table.js",
@@ -170,6 +171,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertEqual(positions, sorted(positions))
         for component_mount in (
             "components.records?.mount(components.mounts.recordsToolbar);",
+            "components.navigationMaps?.mount({",
             "components.gallery?.mountImageDetail();",
             "components.currentSituation?.mount(components.mounts.currentSituation);",
         ):

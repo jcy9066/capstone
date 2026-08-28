@@ -9,7 +9,9 @@ class NavigationFrontendContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.control = (ROOT / "frontend/services/static/navigation_control.js").read_text(encoding="utf-8")
-        cls.map_control = (ROOT / "frontend/services/static/navigation_map_control.js").read_text(encoding="utf-8")
+        cls.map_control = (ROOT / "frontend/components/navigation/saved_map_modal.js").read_text(encoding="utf-8")
+        cls.map_compatibility = (ROOT / "frontend/services/static/navigation_map_control.js").read_text(encoding="utf-8")
+        cls.map_control_css = (ROOT / "frontend/services/static/navigation_map_control.css").read_text(encoding="utf-8")
         cls.drive_component = (ROOT / "frontend/components/controls/drive_mode_control.js").read_text(encoding="utf-8")
         cls.navigation_component = (ROOT / "frontend/components/controls/navigation_mode_control.js").read_text(encoding="utf-8")
         cls.controls_css = (ROOT / "frontend/components/controls/controls.css").read_text(encoding="utf-8")
@@ -41,15 +43,47 @@ class NavigationFrontendContractTests(unittest.TestCase):
         self.assertIn("controls.syncNavigationMode", self.navigation_component)
         self.assertIn("controls?.syncNavigationMode?.(payload.navigation_mode", self.control)
         self.assertIn("dashboard-navigation-mode-controls-mount", self.drive_component)
-        self.assertIn("window.navigationControl?.applyState?.(payload)", self.map_control)
+        self.assertIn("global.navigationControl?.applyState?.(payload)", self.map_control)
 
     def test_saved_map_requires_explicit_or_server_active_selection(self):
         self.assertNotIn("maps[0]", self.map_control)
         self.assertNotIn("map === maps[0]", self.map_control)
-        self.assertIn("const selectedName = retainedSelection || activeName", self.map_control)
+        self.assertIn("const selectedName = snapshot?.selectedName || activeName", self.map_control)
         self.assertIn("radio.checked = map.map_name === selectedName", self.map_control)
         self.assertIn("load.disabled = !selectedMapName(container)", self.map_control)
         self.assertIn("labels.selectRequired", self.map_control)
+
+    def test_saved_map_modal_uses_shared_manager_without_direct_modal_dom_ownership(self):
+        template = (ROOT / "frontend/templates/index.html").read_text(encoding="utf-8")
+        dashboard = (ROOT / "frontend/services/static/script.js").read_text(encoding="utf-8")
+        self.assertIn("components.navigationMaps", self.map_control)
+        self.assertIn("manager.register(VIEW_NAME", self.map_control)
+        self.assertIn("manager.open(VIEW_NAME", self.map_control)
+        self.assertIn("manager.close()", self.map_control)
+        self.assertNotIn("getElementById('commonModal')", self.map_control)
+        self.assertNotIn("getElementById('modalTitle')", self.map_control)
+        self.assertNotIn("getElementById('modalBody')", self.map_control)
+        self.assertNotIn("getElementById('commonModal')", self.map_compatibility)
+        self.assertNotIn('onclick="openSavedMapModal()"', template)
+        self.assertIn("/components/navigation/saved_map_modal.js", template)
+        self.assertIn("components.navigationMaps?.mount({", dashboard)
+
+    def test_saved_map_contracts_and_pending_cursor_remain_scoped(self):
+        for contract in (
+            "'/api/navigation/maps'",
+            "'/api/navigation/maps/active'",
+            "'/api/navigation/maps/rename'",
+            "'/api/navigation/control/mode'",
+            "mode: 'DRIVING'",
+            "initial_pose: { x, y, yaw_degrees: yawDegrees }",
+            "global.navigationControl?.applyState?.(payload)",
+            "INITIAL_POSE_OUT_OF_BOUNDS",
+            "MAP_OPERATION_IN_PROGRESS",
+        ):
+            self.assertIn(contract, self.map_control)
+        self.assertIn(".saved-map-actions button:disabled { cursor: not-allowed;", self.map_control_css)
+        self.assertIn(".saved-map-modal.is-pending .saved-map-actions button:disabled { cursor: progress;", self.map_control_css)
+        self.assertNotIn("button:disabled { cursor: wait;", self.map_control_css)
 
     def test_estop_is_independent_from_directional_dpad_disable(self):
         self.assertIn(".d-pad-container.disabled .d-btn", self.controls_css)

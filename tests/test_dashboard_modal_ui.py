@@ -10,6 +10,118 @@ STYLE = (ROOT / "frontend" / "services" / "static" / "style.css").read_text(enco
 
 
 class DashboardModalUiTests(unittest.TestCase):
+    def test_saved_map_component_registers_and_renders_through_modal_manager(self):
+        source = r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+class FakeElement {
+    constructor(tag = 'div') {
+        this.tagName = tag.toUpperCase();
+        this.children = [];
+        this.listeners = {};
+        this.style = {};
+        this.className = '';
+        this.id = '';
+        this.name = '';
+        this.value = '';
+        this.checked = false;
+        this.disabled = false;
+        this.textContent = '';
+        this.classList = {
+            toggle: () => {},
+            remove: () => {},
+        };
+    }
+    append(...children) { this.children.push(...children); }
+    addEventListener(name, handler) { this.listeners[name] = handler; }
+    removeAttribute(name) { if (name === 'onclick') this.onclick = null; }
+    descendants() { return this.children.flatMap(child => [child, ...child.descendants()]); }
+    matches(selector) {
+        if (selector.startsWith('#')) return this.id === selector.slice(1);
+        if (selector.startsWith('.')) return this.className.split(/\s+/).includes(selector.slice(1));
+        if (selector === 'input[name="saved-navigation-map"]:checked') {
+            return this.tagName === 'INPUT' && this.name === 'saved-navigation-map' && this.checked;
+        }
+        if (selector === 'button, input') return this.tagName === 'BUTTON' || this.tagName === 'INPUT';
+        return false;
+    }
+    querySelector(selector) { return this.descendants().find(node => node.matches(selector)) || null; }
+    querySelectorAll(selector) { return this.descendants().filter(node => node.matches(selector)); }
+}
+
+const trigger = new FakeElement('button');
+trigger.onclick = () => {};
+const minimap = new FakeElement();
+minimap.id = 'minimap-overlay';
+const document = {
+    createElement: tag => new FakeElement(tag),
+    getElementById(id) {
+        if (id === 'lidarMapSelectBtn') return trigger;
+        if (id === 'minimap-overlay') return minimap;
+        return [minimap, ...minimap.descendants()].find(node => node.id === id) || null;
+    },
+    dispatchEvent() {},
+};
+const manager = {
+    views: new Map(),
+    activeView: null,
+    body: new FakeElement(),
+    register(name, descriptor) { this.views.set(name, descriptor); return this; },
+    setBody(content) { this.body = content; },
+    close() {
+        if (this.activeView) this.views.get(this.activeView.name)?.onClose?.();
+        this.activeView = null;
+    },
+    async open(name, context) {
+        this.activeView = { name, context, state: null };
+        this.body = await this.views.get(name).render(context, null);
+        return this.activeView;
+    },
+};
+const responses = {
+    '/api/navigation/maps/active': { ok: true, state: 'active', active_map: { map_name: 'alpha' } },
+    '/api/navigation/maps': {
+        ok: true,
+        maps: [{ map_name: 'alpha', saved_at: '2026-08-28T10:00:00Z', width: 10, height: 20, resolution: 0.05 }],
+    },
+};
+const context = {
+    console,
+    document,
+    CustomEvent: class { constructor(name, options) { this.type = name; this.detail = options.detail; } },
+    fetch: async url => ({ ok: true, status: 200, json: async () => responses[url] }),
+    setInterval: () => 1,
+    clearTimeout,
+    setTimeout,
+    confirm: () => true,
+    prompt: () => null,
+};
+context.window = context;
+context.DabomDashboardComponents = { modal: { getDefault: () => manager } };
+vm.createContext(context);
+vm.runInContext(fs.readFileSync('frontend/components/navigation/saved_map_modal.js', 'utf8'), context);
+
+(async () => {
+    const controller = context.DabomDashboardComponents.navigationMaps.mount({ manager, trigger });
+    assert.ok(controller);
+    assert.ok(manager.views.has('savedNavigationMaps'));
+    assert.strictEqual(trigger.onclick, null);
+    await controller.open();
+    assert.strictEqual(manager.activeView.name, 'savedNavigationMaps');
+    assert.strictEqual(manager.views.get('savedNavigationMaps').title, '\uc800\uc7a5 \uc9c0\ub3c4 \uc120\ud0dd');
+    assert.strictEqual(manager.body.querySelector('input[name="saved-navigation-map"]:checked').value, 'alpha');
+    assert.strictEqual(manager.body.querySelector('.saved-map-load').disabled, false);
+    assert.strictEqual(manager.body.querySelector('#saved-map-pose-x').value, '0');
+    assert.strictEqual(manager.body.querySelector('.saved-map-active').textContent, 'ACTIVE');
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+        completed = subprocess.run(
+            ["node", "-e", source], cwd=ROOT, capture_output=True, text=True, check=False
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+
     def test_header_and_backdrop_always_close_the_complete_modal_stack(self):
         source = r"""
 const fs = require('fs');
@@ -107,6 +219,7 @@ manager.register('detail', { title: 'detail', render: () => 'detail' });
             "/components/modal/modal.css",
             "/components/controls/controls.css",
             "/components/modal/modal_manager.js",
+            "/components/navigation/saved_map_modal.js",
             "/components/gallery/image_detail.js",
             "/components/current_situation/current_situation.js",
         ):

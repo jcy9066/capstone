@@ -1544,6 +1544,9 @@ function initializeDashboardComponentFoundation() {
     components.records?.mount(components.mounts.recordsToolbar);
     components.controls?.mountDriveMode(components.mounts.dashboardModeControls);
     components.controls?.mountNavigationMode(document.getElementById('navigation-control-panel'));
+    components.navigationMaps?.mount({
+        trigger: document.getElementById('lidarMapSelectBtn'),
+    });
     components.gallery?.mountImageDetail();
     components.currentSituation?.mount(components.mounts.currentSituation);
 }

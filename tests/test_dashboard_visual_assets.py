@@ -31,7 +31,7 @@ def test_all_component_assets_share_cache_busting_key():
     component_assets = re.findall(r'(?:href|src)="(/components/[^"]+)"', TEMPLATE)
     assert component_assets
     assert all(asset.endswith("?v=20260828-media-availability") for asset in component_assets)
-    assert len(component_assets) == 13
+    assert len(component_assets) == 14
 
 
 def test_static_assets_use_same_cache_busting_strategy():
