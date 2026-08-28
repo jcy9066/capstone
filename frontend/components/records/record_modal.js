@@ -38,6 +38,7 @@
     const SELECTABLE_TYPES = new Set(['patrolModal', 'actionsModal']);
     const DELETE_PREVIEW_ENDPOINT = '/api/logs/delete/preview';
     const DELETE_ENDPOINT = '/api/logs/delete';
+    const FILTER_QUERY_DEBOUNCE_MS = 300;
 
     function normalizedDeleteIds(values) {
         return (values || [])
@@ -183,6 +184,7 @@
             this.deleteState = 'idle';
             this.deleteMessage = '';
             this.cycleControllers = [];
+            this.filterQueryTimer = null;
             this.tableScrollTop = 0;
         }
 
@@ -259,7 +261,6 @@
             return `<section class="records-view records-view-${this.type}" data-dashboard-modal-view data-record-type="${this.type}">
                 <div class="modal-filter-bar record-filter-bar">
                     ${this.filterControls()}
-                    <button type="button" class="filter-btn" data-action="query">조회</button>
                     <button type="button" class="filter-btn secondary" data-action="reset">초기화</button>
                     <span class="filter-count" data-record-count>총 <span>${Number(this.metadata.total) || 0}</span> 건</span>
                 </div>
@@ -298,6 +299,21 @@
             });
         }
 
+        cancelScheduledFilterQuery() {
+            if (this.filterQueryTimer !== null) {
+                global.clearTimeout(this.filterQueryTimer);
+                this.filterQueryTimer = null;
+            }
+        }
+
+        scheduleFilterQuery() {
+            this.cancelScheduledFilterQuery();
+            this.filterQueryTimer = global.setTimeout(() => {
+                this.filterQueryTimer = null;
+                void this.query();
+            }, FILTER_QUERY_DEBOUNCE_MS);
+        }
+
         bind() {
             const root = this.root();
             if (!root) return;
@@ -320,10 +336,10 @@
                         this.filters.update({ [filterKey]: value });
                         this.pagination.reset();
                         this.clearSelection();
+                        void this.query();
                     },
                 }));
             });
-            root.querySelector('[data-action="query"]')?.addEventListener('click', () => this.query());
             root.querySelector('[data-action="reset"]')?.addEventListener('click', () => this.reset());
             root.querySelector('[data-action="delete-cancel"]')?.addEventListener('click', () => this.clearSelection());
             root.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.handleDeleteAction());
@@ -331,9 +347,17 @@
                 input.addEventListener('input', () => {
                     this.pagination.reset();
                     this.clearSelection();
+                    if (input.dataset.filter === 'startAt' || input.dataset.filter === 'endAt') {
+                        void this.query();
+                    } else {
+                        this.scheduleFilterQuery();
+                    }
                 });
                 input.addEventListener('keydown', event => {
-                    if (event.key === 'Enter') this.query();
+                    if (event.key === 'Enter') {
+                        this.cancelScheduledFilterQuery();
+                        void this.query();
+                    }
                 });
             });
             records.bindSortHeaders(root, sortBy => this.changeSort(sortBy));
@@ -359,6 +383,7 @@
 
         async query() {
             try {
+                this.cancelScheduledFilterQuery();
                 this.collectFilters();
                 this.pagination.reset();
                 this.clearSelection();
@@ -370,6 +395,7 @@
         }
 
         async reset() {
+            this.cancelScheduledFilterQuery();
             this.filters.reset();
             this.pagination.reset();
             this.sort = defaultSort(this.type);
