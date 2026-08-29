@@ -31,8 +31,43 @@ setInterval(() => {
 // ===================================================
 // 서버 상태 폴링
 // ===================================================
+const TELEMETRY_POLL_INTERVAL_MS = 2000;
+let telemetryPollTimer = null;
+let telemetryStatusRequest = null;
+let telemetryRefreshPending = false;
+
+function isDashboardDocumentVisible() {
+    return document.visibilityState !== 'hidden' && document.hidden !== true;
+}
+
+function clearTelemetryPollTimer() {
+    if (telemetryPollTimer !== null) {
+        clearTimeout(telemetryPollTimer);
+        telemetryPollTimer = null;
+    }
+}
+
+function scheduleTelemetryStatusPoll(delay = TELEMETRY_POLL_INTERVAL_MS) {
+    clearTelemetryPollTimer();
+    if (!isDashboardDocumentVisible()) return;
+    telemetryPollTimer = setTimeout(() => {
+        telemetryPollTimer = null;
+        fetchRobotStatus();
+    }, delay);
+}
+
 function fetchRobotStatus() {
-    fetch('/get_status')
+    if (!isDashboardDocumentVisible()) {
+        clearTelemetryPollTimer();
+        return Promise.resolve();
+    }
+    if (telemetryStatusRequest) {
+        telemetryRefreshPending = true;
+        return telemetryStatusRequest;
+    }
+
+    clearTelemetryPollTimer();
+    const request = fetch('/get_status')
         .then(response => {
             if (!response.ok) {
                 throw new Error(
@@ -74,12 +109,53 @@ function fetchRobotStatus() {
                 error,
             );
         });
+
+    telemetryStatusRequest = request.finally(() => {
+        telemetryStatusRequest = null;
+        const delay = telemetryRefreshPending
+            ? 0
+            : TELEMETRY_POLL_INTERVAL_MS;
+        telemetryRefreshPending = false;
+        scheduleTelemetryStatusPoll(delay);
+    });
+    return telemetryStatusRequest;
 }
-setInterval(fetchRobotStatus, 1000);
+
+function pauseTelemetryStatusPolling() {
+    telemetryRefreshPending = false;
+    clearTelemetryPollTimer();
+}
+
+function refreshTelemetryStatusPolling() {
+    clearTelemetryPollTimer();
+    if (!isDashboardDocumentVisible()) return Promise.resolve();
+    return fetchRobotStatus();
+}
 
 // ===================================================
 // 카메라 연결 상태 폴링
 // ===================================================
+const CAMERA_STATUS_POLL_INTERVAL_MS = 4000;
+let cameraStatusPollTimer = null;
+let cameraStatusRequest = null;
+let cameraStatusRefreshPending = false;
+
+function clearCameraStatusPollTimer() {
+    if (cameraStatusPollTimer !== null) {
+        clearTimeout(cameraStatusPollTimer);
+        cameraStatusPollTimer = null;
+    }
+}
+
+function scheduleCameraStatusPoll(delay = CAMERA_STATUS_POLL_INTERVAL_MS) {
+    clearCameraStatusPollTimer();
+    if (!isDashboardDocumentVisible()) return;
+    cameraStatusPollTimer = setTimeout(() => {
+        cameraStatusPollTimer = null;
+        fetchCameraStatus();
+    }, delay);
+}
+
 function setLiveBadge(isLive) {
     const badge = document.querySelector('.live-badge');
     if (!badge) return;
@@ -122,14 +198,44 @@ function updateCameraStatus(data) {
 }
 
 function fetchCameraStatus() {
-    fetch('/api/stream_status')
+    if (!isDashboardDocumentVisible()) {
+        clearCameraStatusPollTimer();
+        return Promise.resolve();
+    }
+    if (cameraStatusRequest) {
+        cameraStatusRefreshPending = true;
+        return cameraStatusRequest;
+    }
+
+    clearCameraStatusPollTimer();
+    const request = fetch('/api/stream_status')
         .then(response => response.json())
         .then(updateCameraStatus)
         .catch(() => showCameraDisconnected('서버와 연결이 끊겼습니다', true));
+
+    cameraStatusRequest = request.finally(() => {
+        cameraStatusRequest = null;
+        const delay = cameraStatusRefreshPending
+            ? 0
+            : CAMERA_STATUS_POLL_INTERVAL_MS;
+        cameraStatusRefreshPending = false;
+        scheduleCameraStatusPoll(delay);
+    });
+    return cameraStatusRequest;
 }
 
-setInterval(fetchCameraStatus, 1000);
-fetchCameraStatus();
+function pauseCameraStatusPolling() {
+    cameraStatusRefreshPending = false;
+    clearCameraStatusPollTimer();
+}
+
+function refreshCameraStatusPolling() {
+    clearCameraStatusPollTimer();
+    if (!isDashboardDocumentVisible()) return Promise.resolve();
+    return fetchCameraStatus();
+}
+
+refreshCameraStatusPolling();
 
 // ===================================================
 // 카메라 에러 처리
@@ -1480,6 +1586,14 @@ window.addEventListener(
 document.addEventListener(
     'visibilitychange',
     () => {
+        if (!isDashboardDocumentVisible()) {
+            pauseTelemetryStatusPolling();
+            pauseCameraStatusPolling();
+        } else {
+            refreshTelemetryStatusPolling();
+            refreshCameraStatusPolling();
+        }
+
         if (
             document.hidden
             && currentPatrolMode === 'manual'
@@ -1498,10 +1612,18 @@ document.addEventListener(
 function openSidebar() {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
+    document.dispatchEvent(new CustomEvent(
+        'dabom:sidebar-visibility',
+        { detail: { open: true } },
+    ));
 }
 function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
+    document.dispatchEvent(new CustomEvent(
+        'dabom:sidebar-visibility',
+        { detail: { open: false } },
+    ));
 }
 
 // ===================================================
@@ -1523,7 +1645,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (saved === '1') toggleDarkMode();
 
     // Pi가 보고한 실제 모드로 초기 UI 동기화
-    fetchRobotStatus();
+    refreshTelemetryStatusPolling();
 });
 
 function initializeDashboardComponentFoundation() {
