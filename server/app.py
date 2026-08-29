@@ -1683,6 +1683,18 @@ def encode_private_preview(frame):
     return encoded.tobytes()
 
 
+def resolve_available_media(image_path, category):
+    if not image_path:
+        return None
+    image_store = get_private_image_store()
+    try:
+        target = image_store.resolve(image_path)
+        target.relative_to((image_store.gallery_root / category).resolve())
+        return target if target.is_file() else None
+    except (UnsafeMediaPathError, ValueError, OSError):
+        return None
+
+
 def public_log_rows(rows, method_name):
     public_rows = []
     for row in rows:
@@ -1692,16 +1704,18 @@ def public_log_rows(rows, method_name):
         public.pop("lidar_z", None)
         if method_name == "list_events":
             event_id = public.get("event_id")
-            public["has_image"] = bool(image_path)
+            has_image = resolve_available_media(image_path, "events") is not None
+            public["has_image"] = has_image
             public["image_url"] = (
-                f"/api/media/events/{event_id}" if image_path and event_id is not None else None
+                f"/api/media/events/{event_id}" if has_image and event_id is not None else None
             )
         elif method_name == "list_actions":
             action_id = public.get("action_id")
-            public["has_image"] = bool(image_path)
+            has_image = resolve_available_media(image_path, "actions") is not None
+            public["has_image"] = has_image
             public["image_url"] = (
                 f"/api/media/actions/{action_id}"
-                if image_path and action_id is not None
+                if has_image and action_id is not None
                 else None
             )
         public_rows.append(public)
@@ -1710,14 +1724,20 @@ def public_log_rows(rows, method_name):
 
 def gallery_dto(row):
     source = str(row.get("source") or "").strip().lower()
+    if source not in {"event", "action"}:
+        return None
     source_type = source.upper()
     source_id = row.get("record_id")
     if source == "event":
         source_id = row.get("event_id", source_id)
         image_url = f"/api/media/events/{source_id}"
+        category = "events"
     else:
         source_id = row.get("action_id", source_id)
         image_url = f"/api/media/actions/{source_id}"
+        category = "actions"
+    if source_id is None or resolve_available_media(row.get("image_path"), category) is None:
+        return None
     public = {
         key: value
         for key, value in dict(row).items()
@@ -1728,6 +1748,7 @@ def gallery_dto(row):
             "source": source,
             "source_type": source_type,
             "source_id": source_id,
+            "has_image": True,
             "image_url": image_url,
             "created_at": row.get("recorded_at"),
         }
@@ -1894,7 +1915,9 @@ async def read_persisted_logs(request, method_name):
         method = getattr(database, method_name)
         result = await asyncio.to_thread(method, **filters)
         if isinstance(result, dict):
-            items = public_log_rows(result.get("items", []), method_name)
+            items = await asyncio.to_thread(
+                public_log_rows, result.get("items", []), method_name
+            )
             return {
                 "items": items,
                 "page": int(result.get("page", filters["page"])),
@@ -1902,7 +1925,7 @@ async def read_persisted_logs(request, method_name):
                 "total": int(result.get("total", len(items))),
                 "total_pages": int(result.get("total_pages", 0)),
             }
-        items = public_log_rows(result, method_name)
+        items = await asyncio.to_thread(public_log_rows, result, method_name)
         return {
             "items": items,
             "page": filters["page"],
@@ -2165,7 +2188,10 @@ async def read_gallery(request: Request):
             {"ok": False, "detail": "Database is unavailable."},
             status_code=503,
         )
-    return [gallery_dto(row) for row in rows]
+    gallery_rows = await asyncio.to_thread(
+        lambda: [dto for row in rows if (dto := gallery_dto(row)) is not None]
+    )
+    return gallery_rows
 
 
 @app.delete("/api/gallery/{source}/{record_id}")
@@ -2217,13 +2243,8 @@ async def authenticated_media(request, record_id, *, category, database_method):
         )
     if not image_path:
         return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
-    image_store = get_private_image_store()
-    try:
-        target = image_store.resolve(image_path)
-        target.relative_to((image_store.gallery_root / category).resolve())
-    except (UnsafeMediaPathError, ValueError, OSError):
-        return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
-    if not target.is_file():
+    target = resolve_available_media(image_path, category)
+    if target is None:
         return JSONResponse({"ok": False, "detail": "Image not found."}, status_code=404)
     return FileResponse(target, media_type="image/jpeg")
 

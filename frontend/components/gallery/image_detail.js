@@ -28,12 +28,29 @@
     }
 
     function imageUrl(item) {
-        if (item?.image_url) return item.image_url;
-        const id = itemId(item);
-        if (id == null) return '';
-        return itemSource(item) === 'event'
-            ? `/api/media/events/${encodeURIComponent(id)}`
-            : `/api/media/actions/${encodeURIComponent(id)}`;
+        return item?.has_image && item?.image_url ? String(item.image_url) : '';
+    }
+
+    function imageMarkup(item, className, alt) {
+        const url = imageUrl(item);
+        if (!url) {
+            return `<span class="${className} gallery-media-fallback" role="img" aria-label="${escapeHtml(alt)}">Image unavailable</span>`;
+        }
+        return `<img class="${className}" data-gallery-image src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy">`;
+    }
+
+    function bindImageFallback(root, onUnavailable) {
+        root?.querySelectorAll('[data-gallery-image]').forEach(image => {
+            image.addEventListener('error', () => {
+                onUnavailable?.(image);
+                const fallback = document.createElement('span');
+                fallback.className = `${image.className} gallery-media-fallback`;
+                fallback.setAttribute('role', 'img');
+                fallback.setAttribute('aria-label', image.alt || 'Image unavailable');
+                fallback.textContent = 'Image unavailable';
+                image.replaceWith(fallback);
+            }, { once: true });
+        });
     }
 
     function timestamp(item) {
@@ -129,10 +146,16 @@
             return;
         }
         grid.innerHTML = state.items.map((item, index) => `<button type="button" class="gallery-card" data-gallery-index="${index}">
-            <img src="${escapeHtml(imageUrl(item))}" alt="${escapeHtml(sourceLabel(item))} 이미지" loading="lazy">
+            ${imageMarkup(item, 'gallery-card-image', `${sourceLabel(item)} image`)}
             <span class="gallery-card-source source-${itemSource(item)}">${escapeHtml(sourceLabel(item))}</span>
             <strong>${escapeHtml(itemLabel(item))}</strong><time>${escapeHtml(timestamp(item))}</time>
         </button>`).join('');
+        bindImageFallback(grid, image => {
+            const index = Number(image.closest('[data-gallery-index]')?.dataset.galleryIndex);
+            if (!Number.isInteger(index) || !state.items[index]) return;
+            state.items[index].has_image = false;
+            state.items[index].image_url = null;
+        });
         grid.querySelectorAll('[data-gallery-index]').forEach(button => {
             button.addEventListener('click', () => openDetail(Number(button.dataset.galleryIndex)));
         });
@@ -175,7 +198,7 @@
         const allowNavigation = context.origin === 'gallery';
         return `<section class="gallery-detail" data-dashboard-modal-view aria-label="이미지 상세">
             <div class="gallery-detail-header"><strong>${escapeHtml(sourceLabel(item))} 이미지 상세</strong><button type="button" class="gallery-detail-back" data-detail-back>← 이전 화면</button></div>
-            <img class="gallery-detail-image" src="${escapeHtml(imageUrl(item))}" alt="${escapeHtml(sourceLabel(item))} 상세 이미지">
+            ${imageMarkup(item, 'gallery-detail-image', `${sourceLabel(item)} detail image`)}
             <dl class="gallery-metadata"><div><dt>기록 시각</dt><dd>${escapeHtml(timestamp(item))}</dd></div>${metadata(item).map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value ?? '-')}</dd></div>`).join('')}</dl>
             <div class="gallery-detail-actions">
                 ${allowNavigation ? `<button type="button" data-detail-change="-1" ${index <= 0 ? 'disabled' : ''}>← 이전</button>` : '<span></span>'}
@@ -187,6 +210,10 @@
 
     function bindDetail(context) {
         const root = manager?.body?.querySelector('.gallery-detail');
+        bindImageFallback(root, () => {
+            context.item.has_image = false;
+            context.item.image_url = null;
+        });
         root?.querySelector('[data-detail-back]')?.addEventListener('click', () => manager.back());
         root?.querySelectorAll('[data-detail-change]').forEach(button => {
             button.addEventListener('click', () => changeDetail(Number(button.dataset.detailChange)));

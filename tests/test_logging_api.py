@@ -703,6 +703,13 @@ def test_current_situation_success_invalidates_token(api):
 
 def test_gallery_requires_auth_filters_sources_and_hides_raw_paths(api):
     server, client, database = api
+    for relative_path in (
+        "received_frames/gallery/events/7.jpg",
+        "received_frames/gallery/actions/8.jpg",
+    ):
+        target = server.private_image_store.resolve(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"private-jpeg")
     database.gallery_rows = [
         {
             "source": "event",
@@ -736,11 +743,43 @@ def test_gallery_requires_auth_filters_sources_and_hides_raw_paths(api):
     assert len(event_rows.json()) == 1 and event_rows.json()[0]["source_type"] == "EVENT"
     assert len(action_rows.json()) == 1 and action_rows.json()[0]["source_type"] == "ACTION"
     assert all("image_path" not in row for row in all_rows.json())
+    assert all(row["has_image"] is True for row in all_rows.json())
     assert all_rows.json()[0]["image_url"] == "/api/media/events/7"
     assert all_rows.json()[1]["image_url"] == "/api/media/actions/8"
     assert all_rows.json()[0]["source_id"] == 7
     assert all_rows.json()[0]["created_at"] == "2026-08-23T10:00:00"
     assert client.get("/api/gallery?source=unknown").status_code == 400
+
+
+def test_gallery_omits_database_paths_without_physical_images(api):
+    server, client, database = api
+    existing_path = "received_frames/gallery/events/existing.jpg"
+    target = server.private_image_store.resolve(existing_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"private-jpeg")
+    database.gallery_rows = [
+        {
+            "source": "event",
+            "record_id": 3,
+            "event_id": 3,
+            "image_path": "received_frames/gallery/events/missing-3.jpg",
+            "recorded_at": datetime(2026, 8, 23, 9),
+        },
+        {
+            "source": "event",
+            "record_id": 5,
+            "event_id": 5,
+            "image_path": existing_path,
+            "recorded_at": datetime(2026, 8, 23, 10),
+        },
+    ]
+    login(server, client)
+
+    response = client.get("/api/gallery?source=event")
+
+    assert response.status_code == 200
+    assert [row["source_id"] for row in response.json()] == [5]
+    assert response.json()[0]["image_url"] == "/api/media/events/5"
 
 
 def test_authenticated_media_serves_event_and_action_private_images(api):
@@ -1022,6 +1061,13 @@ def test_all_log_routes_forward_start_at_and_end_at(api, path):
 
 def test_existing_log_responses_hide_removed_and_private_path_fields(api):
     server, client, database = api
+    for relative_path in (
+        "received_frames/gallery/events/7.jpg",
+        "received_frames/gallery/actions/8.jpg",
+    ):
+        target = server.private_image_store.resolve(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"private-jpeg")
     database.rows["system"] = [{"status_id": 1, "lidar_z": 3.5}]
     database.rows["events"] = [
         {
@@ -1049,6 +1095,37 @@ def test_existing_log_responses_hide_removed_and_private_path_fields(api):
     assert "image_path" not in action
     assert action["has_image"] is True
     assert action["image_url"] == "/api/media/actions/8"
+
+
+def test_log_responses_do_not_advertise_missing_physical_images(api):
+    server, client, database = api
+    database.rows["events"] = [
+        {
+            "event_id": 3,
+            "image_path": "received_frames/gallery/events/missing-3.jpg",
+        },
+        {
+            "event_id": 4,
+            "image_path": "received_frames/gallery/events/missing-4.jpg",
+        },
+    ]
+    database.rows["actions"] = [
+        {
+            "action_id": 4,
+            "image_path": "received_frames/gallery/actions/missing-4.jpg",
+        }
+    ]
+    login(server, client)
+
+    events = client.get("/api/logs/events").json()["items"]
+    actions = client.get("/api/logs/actions").json()["items"]
+
+    assert [(row["has_image"], row["image_url"]) for row in events] == [
+        (False, None),
+        (False, None),
+    ]
+    assert actions[0]["has_image"] is False
+    assert actions[0]["image_url"] is None
 
 
 def test_automatic_event_delegates_frame_and_uses_only_worker_cooldown(api):

@@ -33,6 +33,15 @@ class DashboardRecordsFrontendTests(unittest.TestCase):
         ):
             self.assertIn(f"query.set('{query_name}'", state)
 
+    def test_record_filters_auto_query_without_a_query_button(self):
+        modal = (COMPONENTS / "records" / "record_modal.js").read_text(encoding="utf-8")
+        self.assertNotIn('data-action="query"', modal)
+        self.assertIn('const FILTER_QUERY_DEBOUNCE_MS = 300;', modal)
+        self.assertIn('void this.query();', modal)
+        self.assertIn("input.dataset.filter === 'startAt' || input.dataset.filter === 'endAt'", modal)
+        self.assertIn('this.scheduleFilterQuery();', modal)
+        self.assertIn('this.cancelScheduledFilterQuery();', modal)
+
     def test_patrol_and_action_columns_follow_display_contract(self):
         source = (COMPONENTS / "records" / "record_modal.js").read_text(encoding="utf-8")
         patrol_columns = source.split("if (type === 'patrolModal') return [", 1)[1].split("];", 1)[0]
