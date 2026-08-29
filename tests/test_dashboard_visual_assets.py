@@ -63,7 +63,8 @@ def test_component_buttons_follow_dashboard_visual_states():
     assert "background: var(--card-bg2);" in CONTROL_STYLE
     assert ".dashboard-mode-button:disabled" in CONTROL_STYLE
     assert ".dpad-estop-button:hover:not(:disabled)" in CONTROL_STYLE
-    assert ".record-cycle-filter:disabled" in RECORD_STYLE
+    assert ".filter-btn.secondary:focus-visible" in STYLE
+    assert ".record-cycle-filter" not in RECORD_STYLE
     assert ".records-pagination button:hover:not(:disabled)" in RECORD_STYLE
     assert ".system-control-manual:focus-visible" in SYSTEM_CONTROL_STYLE
     assert ".dashboard-drive-mode-group" not in CONTROL_STYLE

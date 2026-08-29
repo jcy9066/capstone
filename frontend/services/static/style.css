@@ -1028,7 +1028,10 @@ body.dark-mode .no-camera-bg {
 .filter-btn.secondary {
     background: transparent; border-color: var(--border-color); color: var(--text-muted);
 }
-.filter-btn.secondary:hover { border-color: var(--border-bright); color: var(--text-dark); }
+.filter-btn.secondary:hover,
+.filter-btn.secondary:focus-visible {
+    border-color: var(--border-bright); color: var(--text-dark); outline: none;
+}
 .filter-count {
     margin-left: auto; font-size: 11px; font-family: var(--mono);
     color: var(--text-muted); white-space: nowrap;
