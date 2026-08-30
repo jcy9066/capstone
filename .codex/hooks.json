@@ -20,7 +20,7 @@
           {
             "type": "command",
             "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/validate_on_stop.py\"",
-            "commandWindows": "python \".codex\\hooks\\validate_on_stop.py\"",
+            "commandWindows": "python -X utf8 \".codex\\hooks\\validate_on_stop.py\"",
             "timeout": 30
           }
         ]
