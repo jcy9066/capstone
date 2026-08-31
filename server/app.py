@@ -2542,16 +2542,7 @@ def store_navigation_mode(mode, received_at):
 def build_navigation_status(now=None):
     now = now or time.time()
     decision = build_navigation_decision(now)
-    last_times = [
-        value
-        for value in (
-            navigation_state.get("map_updated_at"),
-            navigation_state.get("pose_updated_at"),
-            navigation_state.get("scan_updated_at"),
-        )
-        if value is not None
-    ]
-    last_update_at = max(last_times) if last_times else None
+    last_update_at = navigation_state.get("scan_updated_at")
     last_update_age_sec = (
         None
         if last_update_at is None

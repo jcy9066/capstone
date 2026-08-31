@@ -145,6 +145,50 @@ class NavigationSnapshotApiTests(unittest.TestCase):
         self.assertEqual(next_revision, body["map_revision"])
         self.assertEqual(next_map, body["map"])
 
+    def test_snapshot_status_uses_scan_freshness_when_map_and_pose_are_fresh(self):
+        now = time.time()
+        stale_scan_at = now - self.server.NAVIGATION_TIMEOUT_SEC - 1
+        with self.server.state_lock:
+            self.server.navigation_state.update(
+                {
+                    "map": {"width": 1, "height": 1, "data": [[0, 1]]},
+                    "pose": {"x": 1.0, "y": 2.0, "yaw": 0.5},
+                    "scan": {"ranges": [0.4], "received_at": stale_scan_at},
+                    "map_updated_at": now,
+                    "pose_updated_at": now,
+                    "scan_updated_at": stale_scan_at,
+                }
+            )
+
+        status = self.client.get("/api/navigation/snapshot").json()["status"]
+
+        self.assertEqual("stale", status["status"])
+        self.assertEqual(stale_scan_at, status["last_update_at"])
+        self.assertGreater(status["last_update_age_sec"], self.server.NAVIGATION_TIMEOUT_SEC)
+
+    def test_snapshot_status_is_offline_without_scan_despite_fresh_map_and_pose(self):
+        now = time.time()
+        with self.server.state_lock:
+            self.server.navigation_state.update(
+                {
+                    "map": {"width": 1, "height": 1, "data": [[0, 1]]},
+                    "pose": {"x": 1.0, "y": 2.0, "yaw": 0.5},
+                    "scan": None,
+                    "map_updated_at": now,
+                    "pose_updated_at": now,
+                    "scan_updated_at": None,
+                }
+            )
+
+        status = self.client.get("/api/navigation/snapshot").json()["status"]
+
+        self.assertEqual("offline", status["status"])
+        self.assertIsNone(status["last_update_at"])
+        self.assertIsNone(status["last_update_age_sec"])
+        self.assertTrue(status["has_map"])
+        self.assertTrue(status["has_pose"])
+        self.assertFalse(status["has_scan"])
+
 
 class NavigationPollingEfficiencyContractTests(unittest.TestCase):
     @classmethod
@@ -189,6 +233,155 @@ class NavigationPollingEfficiencyContractTests(unittest.TestCase):
         hidden_rate = 1000 / 2000 + 1000 / 2000
         self.assertAlmostEqual(3.333, visible_rate, places=3)
         self.assertAlmostEqual(1.000, hidden_rate, places=3)
+
+    def test_lidar_live_state_requires_an_actual_fresh_scan(self):
+        result = subprocess.run(
+            ["node", "-e", r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+const source = fs.readFileSync('frontend/services/static/script.js', 'utf8');
+const liveStateLogic = source.slice(
+    source.indexOf('function formatAgeSeconds'),
+    source.indexOf('function decodeRleMap'),
+);
+const context = {
+    performance,
+    lidarState: {
+        status: null,
+        statusObservedAtMs: performance.now(),
+        map: {},
+        pose: {},
+        scan: null,
+        lastScanSeenAtMs: 0,
+    },
+};
+vm.createContext(context);
+vm.runInContext(
+    `const LIDAR_STALE_SECONDS = 3;
+     const LIDAR_OFFLINE_SECONDS = 8;
+     ${liveStateLogic}`,
+    context,
+);
+
+context.lidarState.status = {
+    status: 'mapping',
+    has_scan: false,
+    last_update_age_sec: 0,
+};
+assert.strictEqual(context.getLidarLiveState().level, 'offline');
+
+context.lidarState.scan = { ranges: [0.4] };
+context.lidarState.status = {
+    status: 'mapping',
+    has_scan: true,
+    last_update_age_sec: 4,
+};
+assert.strictEqual(context.getLidarLiveState().level, 'stale');
+"""],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_foreground_resume_queues_one_immediate_snapshot_without_overlap(self):
+        result = subprocess.run(
+            ["node", "-e", r"""
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+const source = fs.readFileSync('frontend/services/static/script.js', 'utf8');
+const snapshotLogic = source.slice(
+    source.indexOf('let navigationSnapshotTimer'),
+    source.indexOf("window.addEventListener('resize'"),
+);
+
+async function verifyForegroundResume() {
+    let requests = 0;
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    let nextTimerId = 1;
+    const timers = new Map();
+    const visibilityListeners = [];
+    const requestResolvers = [];
+    const context = {
+        AbortController,
+        encodeURIComponent,
+        performance,
+        lidarState: {},
+        noteScanUpdate: () => {},
+        requestLidarRender: () => {},
+        fetchOptionalJson: () => new Promise(resolve => {
+            requests += 1;
+            activeRequests += 1;
+            maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+            requestResolvers.push(() => {
+                activeRequests -= 1;
+                resolve(null);
+            });
+        }),
+        document: {
+            hidden: true,
+            addEventListener: (name, callback) => {
+                if (name === 'visibilitychange') visibilityListeners.push(callback);
+            },
+        },
+    };
+    context.window = {
+        setTimeout: (callback, delay) => {
+            const id = nextTimerId++;
+            timers.set(id, { callback, delay });
+            return id;
+        },
+        clearTimeout: id => timers.delete(id),
+    };
+    vm.createContext(context);
+    vm.runInContext(
+        `const NAVIGATION_SNAPSHOT_VISIBLE_MS = 500;
+         const NAVIGATION_SNAPSHOT_HIDDEN_MS = 2000;
+         const NAVIGATION_SNAPSHOT_TIMEOUT_MS = 1000;
+         ${snapshotLogic}`,
+        context,
+    );
+
+    assert.strictEqual(requests, 1);
+    context.document.hidden = false;
+    visibilityListeners[0]();
+    visibilityListeners[0]();
+    assert.strictEqual(requests, 1);
+    assert.strictEqual(maxActiveRequests, 1);
+
+    requestResolvers.shift()();
+    await new Promise(resolve => setImmediate(resolve));
+    const immediateTimers = [...timers.entries()].filter(([, timer]) => timer.delay === 0);
+    assert.strictEqual(immediateTimers.length, 1);
+
+    const [immediateId, immediateTimer] = immediateTimers[0];
+    timers.delete(immediateId);
+    immediateTimer.callback();
+    assert.strictEqual(requests, 2);
+    assert.strictEqual(maxActiveRequests, 1);
+
+    requestResolvers.shift()();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.strictEqual([...timers.values()].filter(timer => timer.delay === 0).length, 0);
+}
+
+verifyForegroundResume().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});
+"""],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
 
     def test_hung_requests_abort_without_overlap_and_polling_can_resume(self):
         result = subprocess.run(

@@ -319,7 +319,8 @@ function getScanReceiveHz() {
     return avg > 0 ? 1000 / avg : null;
 }
 
-function getNavigationAgeSec() {
+function getScanAgeSec() {
+    if (lidarState.status?.has_scan === false) return null;
     const statusAge = lidarState.status?.last_update_age_sec;
     if (typeof statusAge === 'number' && Number.isFinite(statusAge)) {
         const observedAgoSec = lidarState.statusObservedAtMs > 0
@@ -333,10 +334,10 @@ function getNavigationAgeSec() {
 
 function getLidarLiveState() {
     const backendStatus = lidarState.status?.status;
-    const hasData = Boolean(lidarState.map || lidarState.scan || lidarState.pose);
-    const age = getNavigationAgeSec();
+    const hasScan = Boolean(lidarState.scan) && lidarState.status?.has_scan !== false;
+    const age = getScanAgeSec();
 
-    if (!hasData) {
+    if (!hasScan) {
         return { level: 'offline', label: 'OFFLINE', title: 'LiDAR OFFLINE', detail: 'NO SCAN DATA', age };
     }
     if (backendStatus === 'offline') {
@@ -724,6 +725,7 @@ function saveCurrentNavigationMap() {
 
 let navigationSnapshotTimer = null;
 let navigationSnapshotInFlight = false;
+let navigationSnapshotRefreshQueued = false;
 let navigationMapRevision = null;
 
 function navigationSnapshotDelayMs() {
@@ -796,14 +798,18 @@ async function fetchNavigationSnapshot() {
     } finally {
         window.clearTimeout(timeoutId);
         navigationSnapshotInFlight = false;
-        scheduleNavigationSnapshot();
+        const refreshImmediately = navigationSnapshotRefreshQueued;
+        navigationSnapshotRefreshQueued = false;
+        scheduleNavigationSnapshot(refreshImmediately ? 0 : navigationSnapshotDelayMs());
     }
 }
 
 document.addEventListener('visibilitychange', () => {
     if (navigationSnapshotTimer !== null) window.clearTimeout(navigationSnapshotTimer);
     navigationSnapshotTimer = null;
-    if (!navigationSnapshotInFlight) {
+    if (navigationSnapshotInFlight) {
+        navigationSnapshotRefreshQueued = !document.hidden;
+    } else {
         scheduleNavigationSnapshot(document.hidden ? navigationSnapshotDelayMs() : 0);
     }
 });

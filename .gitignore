@@ -2,6 +2,7 @@
 output/
 weights/
 received_frames/
+/debug.log
 
 # Python cache
 __pycache__/
