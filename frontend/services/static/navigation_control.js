@@ -2,6 +2,7 @@
     'use strict';
 
     const POLL_MS = 750;
+    const HIDDEN_POLL_MS = 2000;
     const CONTROL_REFRESH_TIMEOUT_MS = 700;
     const DRIVE_MODE_CONFIRM_TIMEOUT_MS = 5000;
     const MAX_HAZARD_ENTRIES = 50;
@@ -26,6 +27,7 @@
         hazardObserver: null,
         hazardReconcileScheduled: false,
         controlRefreshPromise: null,
+        controlPollTimer: null,
     };
 
     const $ = id => document.getElementById(id);
@@ -322,6 +324,31 @@
                 state.controlRefreshPromise = null;
             });
         return state.controlRefreshPromise;
+    }
+
+    function clearControlPollTimer() {
+        if (state.controlPollTimer !== null) {
+            window.clearTimeout(state.controlPollTimer);
+            state.controlPollTimer = null;
+        }
+    }
+
+    function controlPollDelayMs() {
+        return document.hidden ? HIDDEN_POLL_MS : POLL_MS;
+    }
+
+    function scheduleControlPoll(delay = controlPollDelayMs()) {
+        clearControlPollTimer();
+        state.controlPollTimer = window.setTimeout(() => {
+            state.controlPollTimer = null;
+            pollControlState();
+        }, delay);
+    }
+
+    async function pollControlState() {
+        clearControlPollTimer();
+        await refreshState();
+        scheduleControlPoll();
     }
 
     function canSetGoal() {
@@ -692,6 +719,11 @@
         if (warningButton) warningButton.disabled = true;
         document.addEventListener('dabom:navigation-hazard', renderNavigationHazard);
         document.addEventListener('dabom:alerts-cleared', clearDisplayedAlerts);
+        document.addEventListener('visibilitychange', () => {
+            clearControlPollTimer();
+            if (document.hidden) scheduleControlPoll();
+            else pollControlState();
+        });
         const alertBox = $('alertBox');
         if (alertBox && window.MutationObserver) {
             state.hazardObserver = new MutationObserver(scheduleHazardReconcile);
@@ -712,8 +744,7 @@
             warning,
         };
         csrfToken().catch(() => {});
-        refreshState();
-        window.setInterval(refreshState, POLL_MS);
+        pollControlState();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });

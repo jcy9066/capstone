@@ -77,7 +77,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260828-media-availability"
+        version = "v=20260831-dashboard-lightweight"
         assets = (
             "static/style.css",
             "static/system_control.css",

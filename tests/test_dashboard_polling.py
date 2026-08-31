@@ -22,7 +22,7 @@ class DashboardPollingRegressionTests(unittest.TestCase):
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
-const source = fs.readFileSync('frontend/services/static/script.js', 'utf8');
+const source = fs.readFileSync('frontend/services/static/script.js', 'utf8').replace(/\r\n/g, '\n');
 const polling = source.slice(
     source.indexOf('// 서버 상태 폴링'),
     source.indexOf('// 카메라 에러 처리'),

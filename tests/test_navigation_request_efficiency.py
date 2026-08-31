@@ -173,19 +173,22 @@ class NavigationPollingEfficiencyContractTests(unittest.TestCase):
 
     def test_authoritative_control_poll_remains_750ms_and_non_overlapping(self):
         self.assertIn("const POLL_MS = 750", self.control)
+        self.assertIn("const HIDDEN_POLL_MS = 2000", self.control)
         self.assertIn("const CONTROL_REFRESH_TIMEOUT_MS = 700", self.control)
         self.assertIn("'/api/navigation/control/state',", self.control)
         self.assertIn("{ signal: controller.signal }", self.control)
         self.assertIn("() => controller.abort()", self.control)
         self.assertIn("if (state.controlRefreshPromise)", self.control)
-        self.assertIn("window.setInterval(refreshState, POLL_MS)", self.control)
+        self.assertIn("document.addEventListener('visibilitychange'", self.control)
+        self.assertIn("else pollControlState()", self.control)
+        self.assertNotIn("window.setInterval(refreshState, POLL_MS)", self.control)
 
     def test_visible_and_hidden_request_rates_match_contract(self):
         control_rate = 1000 / 750
         visible_rate = control_rate + 1000 / 500
-        hidden_rate = control_rate + 1000 / 2000
+        hidden_rate = 1000 / 2000 + 1000 / 2000
         self.assertAlmostEqual(3.333, visible_rate, places=3)
-        self.assertAlmostEqual(1.833, hidden_rate, places=3)
+        self.assertAlmostEqual(1.000, hidden_rate, places=3)
 
     def test_hung_requests_abort_without_overlap_and_polling_can_resume(self):
         result = subprocess.run(
