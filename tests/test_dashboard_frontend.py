@@ -77,7 +77,7 @@ class DashboardFrontendContractTests(unittest.TestCase):
         self.assertIn("payload.connected !== true || state.warningPending", navigation_source)
 
     def test_changed_assets_have_matching_cache_busters(self):
-        version = "v=20260828-media-availability"
+        version = "v=20260831-dashboard-lightweight"
         assets = (
             "static/style.css",
             "static/system_control.css",
@@ -402,6 +402,9 @@ assert.strictEqual(cycle.value, '');
 cycle.destroy();
 assert.strictEqual(listeners.click, undefined);
 """)
+        self.assertEqual(self.records_source.count('class="filter-btn secondary" data-cycle='), 6)
+        self.assertIn('class="filter-btn secondary" data-cycle="actionType"', self.records_source)
+        self.assertNotIn('record-cycle-filter', self.records_source)
 
     def test_current_situation_frontend_matches_authenticated_json_api(self):
         for contract in (

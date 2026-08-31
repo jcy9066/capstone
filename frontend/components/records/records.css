@@ -37,7 +37,6 @@
 .record-filter-bar input[type="search"] { width: 150px; }
 .record-filter-bar .confidence-filter { width: 82px; }
 
-.record-cycle-filter,
 .record-sort-button {
     border: 0;
     background: transparent;
@@ -46,28 +45,11 @@
     cursor: pointer;
 }
 
-.record-cycle-filter {
-    min-height: 29px;
-    padding: 5px 9px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: var(--card-bg2);
-    white-space: nowrap;
-    transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.record-cycle-filter:hover,
-.record-cycle-filter:focus-visible,
 .record-sort-button:hover,
 .record-sort-button:focus-visible {
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
-}
-
-.record-cycle-filter:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
 }
 
 .record-sort-button {

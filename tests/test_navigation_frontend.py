@@ -117,7 +117,7 @@ class NavigationFrontendContractTests(unittest.TestCase):
         start = self.control.index("async function requestDriveMode")
         end = self.control.index("function navigationIsMoving", start)
         request = self.control[start:end]
-        state_read = request.index("requestJson('/api/navigation/control/state')")
+        state_read = request.index("await refreshState()")
         pause = request.index("mutate('/api/navigation/control/pause-for-manual')")
         mode_command = request.index("mutate('/api/robots/pi-01/command'")
         self.assertLess(state_read, pause)

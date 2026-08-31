@@ -243,16 +243,16 @@
                 <span class="filter-sep">~</span>
                 <label>종료 <input type="datetime-local" step="1" data-filter="endAt"></label>`;
             if (this.type === 'patrolModal') return `${dateRange}
-                <button type="button" class="record-cycle-filter" data-cycle="eventType"></button>
+                <button type="button" class="filter-btn secondary" data-cycle="eventType"></button>
                 <label>신뢰도 <input class="confidence-filter" type="number" min="0" max="100" step="1" data-filter="confidenceMin" placeholder="최소 %" aria-label="최소 신뢰도"></label>
                 <label><input class="confidence-filter" type="number" min="0" max="100" step="1" data-filter="confidenceMax" placeholder="최대 %" aria-label="최대 신뢰도"></label>
-                <button type="button" class="record-cycle-filter" data-cycle="resolved"></button>
-                <button type="button" class="record-cycle-filter" data-cycle="reported"></button>
-                <button type="button" class="record-cycle-filter" data-cycle="alerted"></button>
-                <button type="button" class="record-cycle-filter" data-cycle="falseAlarm"></button>`;
+                <button type="button" class="filter-btn secondary" data-cycle="resolved"></button>
+                <button type="button" class="filter-btn secondary" data-cycle="reported"></button>
+                <button type="button" class="filter-btn secondary" data-cycle="alerted"></button>
+                <button type="button" class="filter-btn secondary" data-cycle="falseAlarm"></button>`;
             if (this.type === 'actionsModal') return `${dateRange}
                 <label>관리자 <input type="search" data-filter="userName" placeholder="이름 일부 검색"></label>
-                <button type="button" class="record-cycle-filter" data-cycle="actionType"></button>`;
+                <button type="button" class="filter-btn secondary" data-cycle="actionType"></button>`;
             return dateRange;
         }
 

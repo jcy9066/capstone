@@ -1,6 +1,7 @@
 import asyncio
 from importlib.util import module_from_spec, spec_from_file_location
 import gc
+import hashlib
 import json
 import logging
 import os
@@ -448,6 +449,7 @@ navigation_state = {
     "scan": None,
     "decision": None,
     "map_updated_at": None,
+    "map_revision": None,
     "pose_updated_at": None,
     "scan_updated_at": None,
 }
@@ -2540,16 +2542,7 @@ def store_navigation_mode(mode, received_at):
 def build_navigation_status(now=None):
     now = now or time.time()
     decision = build_navigation_decision(now)
-    last_times = [
-        value
-        for value in (
-            navigation_state.get("map_updated_at"),
-            navigation_state.get("pose_updated_at"),
-            navigation_state.get("scan_updated_at"),
-        )
-        if value is not None
-    ]
-    last_update_at = max(last_times) if last_times else None
+    last_update_at = navigation_state.get("scan_updated_at")
     last_update_age_sec = (
         None
         if last_update_at is None
@@ -2610,6 +2603,29 @@ def received_payload(data, received_at):
     payload = dict(data)
     payload["received_at"] = received_at
     return payload
+
+
+def build_navigation_map_revision(data):
+    """Hash only map fields that affect dashboard rendering or coordinates."""
+    revision_payload = {
+        key: data.get(key)
+        for key in (
+            "frame_id",
+            "resolution",
+            "width",
+            "height",
+            "origin",
+            "data_encoding",
+            "data",
+        )
+    }
+    encoded = json.dumps(
+        revision_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def sanitize_map_name(name=None):
@@ -2785,6 +2801,7 @@ async def update_navigation_map(request: Request):
         return denied
 
     received_at = time.time()
+    map_revision = build_navigation_map_revision(data)
     with state_lock:
         navigation_state["robot_id"] = data.get(
             "robot_id",
@@ -2793,6 +2810,7 @@ async def update_navigation_map(request: Request):
         store_navigation_mode(navigation_mode, received_at)
         navigation_state["map"] = received_payload(data, received_at)
         navigation_state["map_updated_at"] = received_at
+        navigation_state["map_revision"] = map_revision
     return {"ok": True}
 
 
@@ -2864,6 +2882,40 @@ async def update_navigation_scan(request: Request):
 async def get_navigation_status():
     with state_lock:
         return build_navigation_status()
+
+
+@app.get("/api/navigation/snapshot")
+async def get_navigation_snapshot(map_revision: str | None = None):
+    """Return one atomic visual snapshot, including map data only when changed."""
+    with state_lock:
+        status = build_navigation_status()
+        current_map = navigation_state.get("map")
+        current_revision = navigation_state.get("map_revision")
+        pose = navigation_state.get("pose")
+        scan = navigation_state.get("scan")
+
+        if current_map is None:
+            map_changed = map_revision is not None
+        elif current_revision is None:
+            # A legacy/injected map without a revision must never be treated as cached.
+            map_changed = True
+        else:
+            map_changed = map_revision != current_revision
+
+        snapshot = {
+            "ok": True,
+            "status": status,
+            "map_available": current_map is not None,
+            "map_changed": map_changed,
+            "map_revision": current_revision,
+            "pose_available": pose is not None,
+            "pose": pose,
+            "scan_available": scan is not None,
+            "scan": scan,
+        }
+        if map_changed:
+            snapshot["map"] = current_map
+        return snapshot
 
 
 @app.get("/api/navigation/decision")

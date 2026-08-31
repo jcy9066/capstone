@@ -1,7 +1,16 @@
 (() => {
     'use strict';
 
-    const state = { status: null, pending: new Set() };
+    const SYSTEM_CONTROL_POLL_INTERVAL_MS = 5000;
+    const state = {
+        status: null,
+        pending: new Set(),
+        pollTimer: null,
+        statusRequest: null,
+        statusRefreshPending: false,
+        statusForceRefreshPending: false,
+        csrfPromise: null,
+    };
     const guideViewName = 'dashboard-usage-guide';
 
     const text = {
@@ -121,31 +130,113 @@
         if (updated) updated.textContent = status.updated_at ? `\ucd5c\uc885 \ud655\uc778 ${new Date(status.updated_at).toLocaleTimeString('ko-KR')}` : text.unavailable;
     }
 
-    async function fetchStatus() {
-        try {
-            const response = await fetch('/api/system-control/status', { credentials: 'same-origin' });
-            const payload = await response.json();
-            if (!response.ok || !payload.ok) throw new Error(payload.detail || text.unavailable);
-            render(payload);
-            document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
-                detail: { available: true, payload }
-            }));
-        } catch (error) {
-            render({ updated_at: null, gpu: [], pi: [{
-                id: 'lidar_ros', label: 'LiDAR ROS Service', description: '', state: 'unreachable',
-                instance_count: null, control_available: false, message: error.message
-            }] }, false);
-            document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
-                detail: { available: false, error: error.message }
-            }));
+    function isDocumentVisible() {
+        return document.visibilityState !== 'hidden' && document.hidden !== true;
+    }
+
+    function isSidebarOpen() {
+        return document.getElementById('sidebar')?.classList.contains('open') === true;
+    }
+
+    function shouldPollStatus() {
+        return isDocumentVisible() && isSidebarOpen();
+    }
+
+    function clearStatusPollTimer() {
+        if (state.pollTimer !== null) {
+            window.clearTimeout(state.pollTimer);
+            state.pollTimer = null;
         }
     }
 
-    async function csrfToken() {
-        const response = await fetch('/api/auth/csrf', { credentials: 'same-origin' });
-        const payload = await response.json();
-        if (!response.ok || !payload.csrf_token) throw new Error(text.unavailable);
-        return payload.csrf_token;
+    function scheduleStatusPoll(delay = SYSTEM_CONTROL_POLL_INTERVAL_MS) {
+        clearStatusPollTimer();
+        if (!shouldPollStatus()) return;
+        state.pollTimer = window.setTimeout(() => {
+            state.pollTimer = null;
+            fetchStatus();
+        }, delay);
+    }
+
+    function fetchStatus({ force = false } = {}) {
+        if (!force && !shouldPollStatus()) {
+            clearStatusPollTimer();
+            return Promise.resolve();
+        }
+        if (state.statusRequest) {
+            if (force) {
+                state.statusForceRefreshPending = true;
+            } else {
+                state.statusRefreshPending = true;
+            }
+            return state.statusRequest;
+        }
+
+        clearStatusPollTimer();
+        const request = (async () => {
+            try {
+                const response = await fetch('/api/system-control/status', { credentials: 'same-origin' });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) throw new Error(payload.detail || text.unavailable);
+                render(payload);
+                document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
+                    detail: { available: true, payload }
+                }));
+            } catch (error) {
+                render({ updated_at: null, gpu: [], pi: [{
+                    id: 'lidar_ros', label: 'LiDAR ROS Service', description: '', state: 'unreachable',
+                    instance_count: null, control_available: false, message: error.message
+                }] }, false);
+                document.dispatchEvent(new CustomEvent('dabom:system-control-status', {
+                    detail: { available: false, error: error.message }
+                }));
+            }
+        })();
+
+        state.statusRequest = request.finally(async () => {
+            state.statusRequest = null;
+            const refreshPending = state.statusRefreshPending;
+            const forceRefreshPending = state.statusForceRefreshPending;
+            state.statusRefreshPending = false;
+            state.statusForceRefreshPending = false;
+            if (forceRefreshPending) {
+                await fetchStatus({ force: true });
+                return;
+            }
+            if (refreshPending && shouldPollStatus()) {
+                await fetchStatus();
+                return;
+            }
+            scheduleStatusPoll();
+        });
+        return state.statusRequest;
+    }
+
+    function pauseStatusPolling() {
+        state.statusRefreshPending = false;
+        clearStatusPollTimer();
+    }
+
+    function refreshStatusPolling() {
+        clearStatusPollTimer();
+        if (!shouldPollStatus()) return Promise.resolve();
+        return fetchStatus();
+    }
+
+    function csrfToken() {
+        if (!state.csrfPromise) {
+            state.csrfPromise = fetch('/api/auth/csrf', { credentials: 'same-origin' })
+                .then(async response => {
+                    const payload = await response.json();
+                    if (!response.ok || !payload.csrf_token) throw new Error(text.unavailable);
+                    return payload.csrf_token;
+                })
+                .catch(error => {
+                    state.csrfPromise = null;
+                    throw error;
+                });
+        }
+        return state.csrfPromise;
     }
 
     async function control(group, componentId, action) {
@@ -158,13 +249,14 @@
             const response = await fetch(`/api/system-control/${group}/${encodeURIComponent(componentId)}/${action}`, {
                 method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': token }
             });
+            if (response.status === 403) state.csrfPromise = null;
             const payload = await response.json();
             if (!response.ok || !payload.ok) throw new Error(payload.detail || text.actionFailed);
         } catch (error) {
             window.alert(`${text.actionFailed}: ${error.message}`);
         } finally {
             state.pending.delete(key);
-            await fetchStatus();
+            await fetchStatus({ force: true });
         }
     }
 
@@ -250,8 +342,21 @@
 
     function initialize() {
         createPanel();
-        fetchStatus();
-        window.setInterval(fetchStatus, 1000);
+        document.addEventListener('dabom:sidebar-visibility', event => {
+            if (event.detail?.open === false) {
+                pauseStatusPolling();
+                return;
+            }
+            refreshStatusPolling();
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!isDocumentVisible()) {
+                pauseStatusPolling();
+                return;
+            }
+            refreshStatusPolling();
+        });
+        refreshStatusPolling();
     }
 
     if (document.readyState === 'loading') {

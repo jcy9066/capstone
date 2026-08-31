@@ -2,6 +2,8 @@
     'use strict';
 
     const POLL_MS = 750;
+    const HIDDEN_POLL_MS = 2000;
+    const CONTROL_REFRESH_TIMEOUT_MS = 700;
     const DRIVE_MODE_CONFIRM_TIMEOUT_MS = 5000;
     const MAX_HAZARD_ENTRIES = 50;
     const state = {
@@ -24,6 +26,8 @@
         hazardSequence: 0,
         hazardObserver: null,
         hazardReconcileScheduled: false,
+        controlRefreshPromise: null,
+        controlPollTimer: null,
     };
 
     const $ = id => document.getElementById(id);
@@ -296,12 +300,55 @@
         window.navigationMapView?.requestRender();
     }
 
-    async function refreshState() {
-        try {
-            applyControlState(await requestJson('/api/navigation/control/state'));
-        } catch (error) {
-            setFeedback(`상태 조회 실패: ${error.message}`, true);
+    function refreshState() {
+        if (state.controlRefreshPromise) return state.controlRefreshPromise;
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(
+            () => controller.abort(),
+            CONTROL_REFRESH_TIMEOUT_MS,
+        );
+        state.controlRefreshPromise = requestJson(
+            '/api/navigation/control/state',
+            { signal: controller.signal },
+        )
+            .then(payload => {
+                applyControlState(payload);
+                return payload;
+            })
+            .catch(error => {
+                setFeedback(`상태 조회 실패: ${error.message}`, true);
+                return null;
+            })
+            .finally(() => {
+                window.clearTimeout(timeoutId);
+                state.controlRefreshPromise = null;
+            });
+        return state.controlRefreshPromise;
+    }
+
+    function clearControlPollTimer() {
+        if (state.controlPollTimer !== null) {
+            window.clearTimeout(state.controlPollTimer);
+            state.controlPollTimer = null;
         }
+    }
+
+    function controlPollDelayMs() {
+        return document.hidden ? HIDDEN_POLL_MS : POLL_MS;
+    }
+
+    function scheduleControlPoll(delay = controlPollDelayMs()) {
+        clearControlPollTimer();
+        state.controlPollTimer = window.setTimeout(() => {
+            state.controlPollTimer = null;
+            pollControlState();
+        }, delay);
+    }
+
+    async function pollControlState() {
+        clearControlPollTimer();
+        await refreshState();
+        scheduleControlPoll();
     }
 
     function canSetGoal() {
@@ -464,8 +511,8 @@
         if (options.announce !== false) setFeedback(`${target === 'AUTO' ? '자동' : '수동'} 모드 전환 요청 중...`);
         try {
             if (target === 'MANUAL') {
-                const latest = await requestJson('/api/navigation/control/state');
-                applyControlState(latest);
+                const latest = await refreshState();
+                if (!latest) throw new Error('상태 조회 실패');
                 const retainedGoal = latest.active_goal ? JSON.stringify(latest.active_goal) : null;
                 const retainedPath = Array.isArray(latest.planned_path) && latest.planned_path.length
                     ? JSON.stringify(latest.planned_path)
@@ -672,6 +719,11 @@
         if (warningButton) warningButton.disabled = true;
         document.addEventListener('dabom:navigation-hazard', renderNavigationHazard);
         document.addEventListener('dabom:alerts-cleared', clearDisplayedAlerts);
+        document.addEventListener('visibilitychange', () => {
+            clearControlPollTimer();
+            if (document.hidden) scheduleControlPoll();
+            else pollControlState();
+        });
         const alertBox = $('alertBox');
         if (alertBox && window.MutationObserver) {
             state.hazardObserver = new MutationObserver(scheduleHazardReconcile);
@@ -692,8 +744,7 @@
             warning,
         };
         csrfToken().catch(() => {});
-        refreshState();
-        window.setInterval(refreshState, POLL_MS);
+        pollControlState();
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });

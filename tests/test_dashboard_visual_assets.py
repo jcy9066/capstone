@@ -30,14 +30,14 @@ def test_dashboard_guide_explains_state_information_sources():
 def test_all_component_assets_share_cache_busting_key():
     component_assets = re.findall(r'(?:href|src)="(/components/[^"]+)"', TEMPLATE)
     assert component_assets
-    assert all(asset.endswith("?v=20260828-media-availability") for asset in component_assets)
+    assert all(asset.endswith("?v=20260831-dashboard-lightweight") for asset in component_assets)
     assert len(component_assets) == 14
 
 
 def test_static_assets_use_same_cache_busting_strategy():
     static_assets = re.findall(r'(?:href|src)="(static/[^"]+)"', TEMPLATE)
     assert static_assets
-    assert all(asset.endswith("?v=20260828-media-availability") for asset in static_assets)
+    assert all(asset.endswith("?v=20260831-dashboard-lightweight") for asset in static_assets)
 
 
 def test_space_mono_is_not_requested_or_referenced():
@@ -63,7 +63,8 @@ def test_component_buttons_follow_dashboard_visual_states():
     assert "background: var(--card-bg2);" in CONTROL_STYLE
     assert ".dashboard-mode-button:disabled" in CONTROL_STYLE
     assert ".dpad-estop-button:hover:not(:disabled)" in CONTROL_STYLE
-    assert ".record-cycle-filter:disabled" in RECORD_STYLE
+    assert ".filter-btn.secondary:focus-visible" in STYLE
+    assert ".record-cycle-filter" not in RECORD_STYLE
     assert ".records-pagination button:hover:not(:disabled)" in RECORD_STYLE
     assert ".system-control-manual:focus-visible" in SYSTEM_CONTROL_STYLE
     assert ".dashboard-drive-mode-group" not in CONTROL_STYLE

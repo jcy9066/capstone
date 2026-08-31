@@ -52,6 +52,17 @@ PLAYWRIGHT_MARKERS = (
     "browser_",
 )
 
+VALIDATOR_COMMAND_MARKERS = {
+    "validate-server": ".agents/skills/validate-server/scripts/validate_server.py",
+    "validate-navigation": (
+        ".agents/skills/validate-navigation/scripts/validate_navigation.py"
+    ),
+    "validate-raspberry": (
+        ".agents/skills/validate-raspberry/scripts/validate_uart_protocol.py"
+    ),
+    "review-change": ".agents/skills/review-change/scripts/review_change.py",
+}
+
 
 def _read_payload() -> dict[str, Any]:
     try:
@@ -374,7 +385,7 @@ def _report_marks_pass(message: str, label: str) -> bool:
     if not message:
         return False
 
-    escaped = re.escape(label)
+    escaped = rf"[*_`~]*{re.escape(label)}[*_`~]*"
     separator = r"[ \t]*(?::|=|-)?[ \t]*"
     return bool(
         re.search(
@@ -392,9 +403,162 @@ def _validation_passes(message: str) -> set[str]:
     }
 
 
+def _transcript_events(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    transcript_path = _string_value(
+        payload,
+        "transcript_path",
+        "transcriptPath",
+    )
+    if not transcript_path:
+        return []
+
+    path = Path(transcript_path)
+    if not path.is_file():
+        return []
+
+    expected_turn = _turn_id(payload)
+    events: list[dict[str, Any]] = []
+
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as file_obj:
+            for line in file_obj:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if not isinstance(event, dict):
+                    continue
+
+                event_payload = event.get("payload")
+                if not isinstance(event_payload, dict):
+                    continue
+
+                metadata = event_payload.get(
+                    "internal_chat_message_metadata_passthrough"
+                )
+                metadata_turn = (
+                    metadata.get("turn_id")
+                    if isinstance(metadata, dict)
+                    else None
+                )
+                event_turn = event_payload.get("turn_id") or metadata_turn
+
+                if event_turn == expected_turn:
+                    events.append(event)
+    except OSError:
+        return []
+
+    return events
+
+
+def _event_payload(event: dict[str, Any]) -> dict[str, Any]:
+    value = event.get("payload")
+    return value if isinstance(value, dict) else {}
+
+
+def _successful_command_texts(
+    transcript_events: list[dict[str, Any]],
+) -> list[str]:
+    commands: list[str] = []
+
+    for event in transcript_events:
+        event_payload = _event_payload(event)
+        if event.get("type") != "event_msg":
+            continue
+        if event_payload.get("type") != "item_completed":
+            continue
+
+        item = event_payload.get("item")
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "CommandExecution":
+            continue
+        if item.get("status") != "completed" or item.get("exit_code") != 0:
+            continue
+
+        command = item.get("command")
+        if isinstance(command, list):
+            commands.append(" ".join(str(part) for part in command))
+        elif isinstance(command, str):
+            commands.append(command)
+
+        parsed_commands = item.get("parsed_cmd")
+        if isinstance(parsed_commands, list):
+            commands.extend(
+                str(parsed.get("cmd"))
+                for parsed in parsed_commands
+                if isinstance(parsed, dict) and parsed.get("cmd")
+            )
+
+    return commands
+
+
+def _dashboard_review_completed(
+    transcript_events: list[dict[str, Any]],
+) -> bool:
+    dashboard_paths: set[str] = set()
+    completed_paths: set[str] = set()
+
+    for event in transcript_events:
+        event_payload = _event_payload(event)
+
+        if (
+            event.get("type") == "response_item"
+            and event_payload.get("type") == "function_call"
+            and event_payload.get("namespace") == "collaboration"
+            and event_payload.get("name") == "spawn_agent"
+        ):
+            arguments = event_payload.get("arguments")
+            if not isinstance(arguments, str):
+                continue
+            try:
+                parsed = json.loads(arguments)
+            except json.JSONDecodeError:
+                continue
+            if parsed.get("agent_type") != "dashboard_reviewer":
+                continue
+            task_name = str(parsed.get("task_name") or "").strip("/")
+            if task_name:
+                dashboard_paths.add(f"/root/{task_name}")
+
+        if event.get("type") == "event_msg":
+            item = event_payload.get("item")
+            if not isinstance(item, dict):
+                continue
+            if (
+                item.get("type") == "SubAgentActivity"
+                and item.get("kind") == "completed"
+                and item.get("agent_path")
+            ):
+                completed_paths.add(str(item["agent_path"]))
+
+    return bool(dashboard_paths & completed_paths)
+
+
+def _transcript_validation_attempts(
+    transcript_events: list[dict[str, Any]],
+) -> set[str]:
+    attempts: set[str] = set()
+
+    for command in _successful_command_texts(transcript_events):
+        normalized = command.replace("\\", "/").lower()
+        attempts.update(
+            validator
+            for validator, marker in VALIDATOR_COMMAND_MARKERS.items()
+            if marker in normalized
+        )
+
+    if _dashboard_review_completed(transcript_events):
+        attempts.add("validate-dashboard")
+
+    return attempts
+
+
 def _validation_attempts(
     payload: dict[str, Any],
     state: dict[str, Any],
+    transcript_events: list[dict[str, Any]],
 ) -> set[str]:
     attempts: set[str] = set()
 
@@ -428,7 +592,7 @@ def _validation_attempts(
                 if validator.lower() in tool_text
             )
 
-    attempts.update(_validation_passes(_last_assistant_message(payload)))
+    attempts.update(_transcript_validation_attempts(transcript_events))
 
     return attempts
 
@@ -436,6 +600,7 @@ def _validation_attempts(
 def _playwright_used(
     payload: dict[str, Any],
     state: dict[str, Any],
+    transcript_events: list[dict[str, Any]],
 ) -> bool:
     for source in (state, payload):
         value = _first_value(
@@ -466,6 +631,20 @@ def _playwright_used(
     if any(_report_marks_pass(message, marker) for marker in PLAYWRIGHT_MARKERS):
         return True
 
+    for event in transcript_events:
+        event_payload = _event_payload(event)
+        if event.get("type") != "response_item":
+            continue
+        if event_payload.get("type") not in ("function_call", "custom_tool_call"):
+            continue
+
+        tool_text = " ".join(
+            str(event_payload.get(key) or "")
+            for key in ("namespace", "name", "input")
+        ).lower()
+        if any(marker in tool_text for marker in PLAYWRIGHT_MARKERS):
+            return True
+
     return False
 
 
@@ -492,19 +671,11 @@ def _decision_block(reason: str) -> dict[str, Any]:
     }
 
 
-def main() -> int:
-    payload = _read_payload()
-
+def _evaluate(payload: dict[str, Any]) -> dict[str, Any]:
     # 사람이 직접 `python validate_on_stop.py`를 실행한 경우.
     # stdin payload가 없다고 hook failure로 처리하지 않는다.
     if not payload:
-        print(
-            json.dumps(
-                _decision_allow(),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_allow()
 
     state_path = _state_path(payload)
     state = _load_state(state_path)
@@ -513,32 +684,21 @@ def main() -> int:
     required = _required_validators(changed_files)
 
     if not required:
-        print(
-            json.dumps(
-                _decision_allow(),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_allow()
 
     message = _last_assistant_message(payload)
-    attempted = _validation_attempts(payload, state)
+    transcript_events = _transcript_events(payload)
+    attempted = _validation_attempts(payload, state, transcript_events)
     missing = sorted(required - attempted)
 
-    # State가 없더라도 payload, tools_used, 마지막 보고에서 실행 근거를 찾는다.
+    # 실제 Stop payload의 transcript와 명시적으로 전파된 실행 상태에서 근거를 찾는다.
     # 어느 경로에서도 필수 validator를 확인할 수 없으면 fail-open하지 않는다.
     if missing:
         reason = (
             "변경 영역에 필요한 validator가 아직 실행되지 않았습니다: "
             + ", ".join(missing)
         )
-        print(
-            json.dumps(
-                _decision_block(reason),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_block(reason)
 
     missing_pass_reports = sorted(required - _validation_passes(message))
     if missing_pass_reports:
@@ -546,48 +706,41 @@ def main() -> int:
             "필수 validator별 PASS 보고가 누락되었습니다: "
             + ", ".join(missing_pass_reports)
         )
-        print(
-            json.dumps(
-                _decision_block(reason),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_block(reason)
 
     dashboard_required = "validate-dashboard" in required
 
     if (
         dashboard_required
         and "validate-dashboard" in attempted
-        and not _playwright_used(payload, state)
+        and not _playwright_used(payload, state, transcript_events)
     ):
         reason = (
             "dashboard 변경 검증에는 Playwright 사용 기록이 필요합니다."
         )
-        print(
-            json.dumps(
-                _decision_block(reason),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_block(reason)
 
     if not _has_validation_report(message):
         reason = (
             "validation을 수행했지만 마지막 assistant message에 "
             "PASS / FAIL / WARN 검증 결과가 보고되지 않았습니다."
         )
-        print(
-            json.dumps(
-                _decision_block(reason),
-                ensure_ascii=False,
-            )
-        )
-        return 0
+        return _decision_block(reason)
 
+    return _decision_allow()
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
+    decision = _evaluate(_read_payload())
     print(
         json.dumps(
-            _decision_allow(),
+            decision,
             ensure_ascii=False,
         )
     )

@@ -31,8 +31,43 @@ setInterval(() => {
 // ===================================================
 // 서버 상태 폴링
 // ===================================================
+const TELEMETRY_POLL_INTERVAL_MS = 2000;
+let telemetryPollTimer = null;
+let telemetryStatusRequest = null;
+let telemetryRefreshPending = false;
+
+function isDashboardDocumentVisible() {
+    return document.visibilityState !== 'hidden' && document.hidden !== true;
+}
+
+function clearTelemetryPollTimer() {
+    if (telemetryPollTimer !== null) {
+        clearTimeout(telemetryPollTimer);
+        telemetryPollTimer = null;
+    }
+}
+
+function scheduleTelemetryStatusPoll(delay = TELEMETRY_POLL_INTERVAL_MS) {
+    clearTelemetryPollTimer();
+    if (!isDashboardDocumentVisible()) return;
+    telemetryPollTimer = setTimeout(() => {
+        telemetryPollTimer = null;
+        fetchRobotStatus();
+    }, delay);
+}
+
 function fetchRobotStatus() {
-    fetch('/get_status')
+    if (!isDashboardDocumentVisible()) {
+        clearTelemetryPollTimer();
+        return Promise.resolve();
+    }
+    if (telemetryStatusRequest) {
+        telemetryRefreshPending = true;
+        return telemetryStatusRequest;
+    }
+
+    clearTelemetryPollTimer();
+    const request = fetch('/get_status')
         .then(response => {
             if (!response.ok) {
                 throw new Error(
@@ -74,12 +109,53 @@ function fetchRobotStatus() {
                 error,
             );
         });
+
+    telemetryStatusRequest = request.finally(() => {
+        telemetryStatusRequest = null;
+        const delay = telemetryRefreshPending
+            ? 0
+            : TELEMETRY_POLL_INTERVAL_MS;
+        telemetryRefreshPending = false;
+        scheduleTelemetryStatusPoll(delay);
+    });
+    return telemetryStatusRequest;
 }
-setInterval(fetchRobotStatus, 1000);
+
+function pauseTelemetryStatusPolling() {
+    telemetryRefreshPending = false;
+    clearTelemetryPollTimer();
+}
+
+function refreshTelemetryStatusPolling() {
+    clearTelemetryPollTimer();
+    if (!isDashboardDocumentVisible()) return Promise.resolve();
+    return fetchRobotStatus();
+}
 
 // ===================================================
 // 카메라 연결 상태 폴링
 // ===================================================
+const CAMERA_STATUS_POLL_INTERVAL_MS = 4000;
+let cameraStatusPollTimer = null;
+let cameraStatusRequest = null;
+let cameraStatusRefreshPending = false;
+
+function clearCameraStatusPollTimer() {
+    if (cameraStatusPollTimer !== null) {
+        clearTimeout(cameraStatusPollTimer);
+        cameraStatusPollTimer = null;
+    }
+}
+
+function scheduleCameraStatusPoll(delay = CAMERA_STATUS_POLL_INTERVAL_MS) {
+    clearCameraStatusPollTimer();
+    if (!isDashboardDocumentVisible()) return;
+    cameraStatusPollTimer = setTimeout(() => {
+        cameraStatusPollTimer = null;
+        fetchCameraStatus();
+    }, delay);
+}
+
 function setLiveBadge(isLive) {
     const badge = document.querySelector('.live-badge');
     if (!badge) return;
@@ -122,14 +198,44 @@ function updateCameraStatus(data) {
 }
 
 function fetchCameraStatus() {
-    fetch('/api/stream_status')
+    if (!isDashboardDocumentVisible()) {
+        clearCameraStatusPollTimer();
+        return Promise.resolve();
+    }
+    if (cameraStatusRequest) {
+        cameraStatusRefreshPending = true;
+        return cameraStatusRequest;
+    }
+
+    clearCameraStatusPollTimer();
+    const request = fetch('/api/stream_status')
         .then(response => response.json())
         .then(updateCameraStatus)
         .catch(() => showCameraDisconnected('서버와 연결이 끊겼습니다', true));
+
+    cameraStatusRequest = request.finally(() => {
+        cameraStatusRequest = null;
+        const delay = cameraStatusRefreshPending
+            ? 0
+            : CAMERA_STATUS_POLL_INTERVAL_MS;
+        cameraStatusRefreshPending = false;
+        scheduleCameraStatusPoll(delay);
+    });
+    return cameraStatusRequest;
 }
 
-setInterval(fetchCameraStatus, 1000);
-fetchCameraStatus();
+function pauseCameraStatusPolling() {
+    cameraStatusRefreshPending = false;
+    clearCameraStatusPollTimer();
+}
+
+function refreshCameraStatusPolling() {
+    clearCameraStatusPollTimer();
+    if (!isDashboardDocumentVisible()) return Promise.resolve();
+    return fetchCameraStatus();
+}
+
+refreshCameraStatusPolling();
 
 // ===================================================
 // 카메라 에러 처리
@@ -149,9 +255,13 @@ if (cameraStream) {
 const LIDAR_STALE_SECONDS = 3;
 const LIDAR_OFFLINE_SECONDS = 8;
 const SCAN_PULSE_DURATION_MS = 850;
+const NAVIGATION_SNAPSHOT_VISIBLE_MS = 500;
+const NAVIGATION_SNAPSHOT_HIDDEN_MS = 2000;
+const NAVIGATION_SNAPSHOT_TIMEOUT_MS = 1000;
 
 const lidarState = {
     status: null,
+    statusObservedAtMs: 0,
     map: null,
     pose: null,
     scan: null,
@@ -164,8 +274,8 @@ const lidarState = {
     scanIntervalsMs: [],
 };
 
-function fetchOptionalJson(url) {
-    return fetch(url)
+function fetchOptionalJson(url, options = {}) {
+    return fetch(url, options)
         .then(response => {
             if (!response.ok) return null;
             return response.json();
@@ -209,19 +319,25 @@ function getScanReceiveHz() {
     return avg > 0 ? 1000 / avg : null;
 }
 
-function getNavigationAgeSec() {
+function getScanAgeSec() {
+    if (lidarState.status?.has_scan === false) return null;
     const statusAge = lidarState.status?.last_update_age_sec;
-    if (typeof statusAge === 'number' && Number.isFinite(statusAge)) return statusAge;
+    if (typeof statusAge === 'number' && Number.isFinite(statusAge)) {
+        const observedAgoSec = lidarState.statusObservedAtMs > 0
+            ? (performance.now() - lidarState.statusObservedAtMs) / 1000
+            : 0;
+        return statusAge + Math.max(0, observedAgoSec);
+    }
     if (lidarState.lastScanSeenAtMs > 0) return (performance.now() - lidarState.lastScanSeenAtMs) / 1000;
     return null;
 }
 
 function getLidarLiveState() {
     const backendStatus = lidarState.status?.status;
-    const hasData = Boolean(lidarState.map || lidarState.scan || lidarState.pose);
-    const age = getNavigationAgeSec();
+    const hasScan = Boolean(lidarState.scan) && lidarState.status?.has_scan !== false;
+    const age = getScanAgeSec();
 
-    if (!hasData) {
+    if (!hasScan) {
         return { level: 'offline', label: 'OFFLINE', title: 'LiDAR OFFLINE', detail: 'NO SCAN DATA', age };
     }
     if (backendStatus === 'offline') {
@@ -607,59 +723,97 @@ function saveCurrentNavigationMap() {
         });
 }
 
-function fetchNavigationStatus() {
-    fetchOptionalJson('/api/navigation/status').then(data => {
-        if (data) lidarState.status = data;
-        document.dispatchEvent(new CustomEvent(
-            'dabom:navigation-status',
-            { detail: { available: Boolean(data), payload: data } },
-        ));
-        requestLidarRender();
-    });
+let navigationSnapshotTimer = null;
+let navigationSnapshotInFlight = false;
+let navigationSnapshotRefreshQueued = false;
+let navigationMapRevision = null;
+
+function navigationSnapshotDelayMs() {
+    return document.hidden
+        ? NAVIGATION_SNAPSHOT_HIDDEN_MS
+        : NAVIGATION_SNAPSHOT_VISIBLE_MS;
 }
 
-function fetchNavigationMap() {
-    fetchOptionalJson('/api/navigation/map').then(data => {
-        if (data?.ok) {
-            lidarState.map = data.available ? data.map : null;
-            if (!data.available) {
-                lidarState.mapImage = null;
-                lidarState.mapImageKey = null;
-            }
-        }
-        if (data?.status) lidarState.status = data.status;
-        requestLidarRender();
-    });
+function navigationSnapshotUrl() {
+    if (navigationMapRevision === null || navigationMapRevision === undefined) {
+        return '/api/navigation/snapshot';
+    }
+    return `/api/navigation/snapshot?map_revision=${encodeURIComponent(navigationMapRevision)}`;
 }
 
-function fetchNavigationPoseAndScan() {
-    Promise.all([
-        fetchOptionalJson('/api/navigation/pose'),
-        fetchOptionalJson('/api/navigation/scan'),
-    ]).then(([poseData, scanData]) => {
-        if (poseData?.ok) {
-            lidarState.pose = poseData.available ? poseData.pose : null;
-        }
-        if (poseData?.status) lidarState.status = poseData.status;
-        if (scanData?.ok) {
-            lidarState.scan = scanData.available ? scanData.scan : null;
-            if (scanData.available && scanData.scan) {
-                noteScanUpdate(scanData.scan);
-            } else {
-                lidarState.lastScanKey = null;
-                lidarState.lastScanSeenAtMs = 0;
-                lidarState.lastScanPulseAtMs = 0;
-                lidarState.scanIntervalsMs = [];
-            }
-        }
-        if (scanData?.status) lidarState.status = scanData.status;
-        requestLidarRender();
-    });
+function clearNavigationScan() {
+    lidarState.scan = null;
+    lidarState.lastScanKey = null;
+    lidarState.lastScanSeenAtMs = 0;
+    lidarState.lastScanPulseAtMs = 0;
+    lidarState.scanIntervalsMs = [];
 }
 
-setInterval(fetchNavigationStatus, 1000);
-setInterval(fetchNavigationMap, 1500);
-setInterval(fetchNavigationPoseAndScan, 500);
+function applyNavigationSnapshot(data) {
+    if (!data?.ok) return;
+
+    if (data.status) {
+        lidarState.status = data.status;
+        lidarState.statusObservedAtMs = performance.now();
+    }
+    lidarState.pose = data.pose_available ? data.pose : null;
+    if (data.scan_available && data.scan) {
+        lidarState.scan = data.scan;
+        noteScanUpdate(data.scan);
+    } else {
+        clearNavigationScan();
+    }
+
+    navigationMapRevision = data.map_revision ?? null;
+    if (!data.map_available) {
+        lidarState.map = null;
+        lidarState.mapImage = null;
+        lidarState.mapImageKey = null;
+    } else if (data.map_changed && data.map) {
+        lidarState.map = data.map;
+    }
+}
+
+function scheduleNavigationSnapshot(delayMs = navigationSnapshotDelayMs()) {
+    if (navigationSnapshotTimer !== null) window.clearTimeout(navigationSnapshotTimer);
+    navigationSnapshotTimer = window.setTimeout(fetchNavigationSnapshot, delayMs);
+}
+
+async function fetchNavigationSnapshot() {
+    if (navigationSnapshotInFlight) return;
+    navigationSnapshotTimer = null;
+    navigationSnapshotInFlight = true;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        NAVIGATION_SNAPSHOT_TIMEOUT_MS,
+    );
+    try {
+        const data = await fetchOptionalJson(
+            navigationSnapshotUrl(),
+            { signal: controller.signal },
+        );
+        applyNavigationSnapshot(data);
+        requestLidarRender();
+    } finally {
+        window.clearTimeout(timeoutId);
+        navigationSnapshotInFlight = false;
+        const refreshImmediately = navigationSnapshotRefreshQueued;
+        navigationSnapshotRefreshQueued = false;
+        scheduleNavigationSnapshot(refreshImmediately ? 0 : navigationSnapshotDelayMs());
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (navigationSnapshotTimer !== null) window.clearTimeout(navigationSnapshotTimer);
+    navigationSnapshotTimer = null;
+    if (navigationSnapshotInFlight) {
+        navigationSnapshotRefreshQueued = !document.hidden;
+    } else {
+        scheduleNavigationSnapshot(document.hidden ? navigationSnapshotDelayMs() : 0);
+    }
+});
+fetchNavigationSnapshot();
 window.addEventListener('resize', requestLidarRender);
 requestLidarRender();
 
@@ -1480,6 +1634,14 @@ window.addEventListener(
 document.addEventListener(
     'visibilitychange',
     () => {
+        if (!isDashboardDocumentVisible()) {
+            pauseTelemetryStatusPolling();
+            pauseCameraStatusPolling();
+        } else {
+            refreshTelemetryStatusPolling();
+            refreshCameraStatusPolling();
+        }
+
         if (
             document.hidden
             && currentPatrolMode === 'manual'
@@ -1498,10 +1660,18 @@ document.addEventListener(
 function openSidebar() {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
+    document.dispatchEvent(new CustomEvent(
+        'dabom:sidebar-visibility',
+        { detail: { open: true } },
+    ));
 }
 function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
+    document.dispatchEvent(new CustomEvent(
+        'dabom:sidebar-visibility',
+        { detail: { open: false } },
+    ));
 }
 
 // ===================================================
@@ -1523,7 +1693,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (saved === '1') toggleDarkMode();
 
     // Pi가 보고한 실제 모드로 초기 UI 동기화
-    fetchRobotStatus();
+    refreshTelemetryStatusPolling();
 });
 
 function initializeDashboardComponentFoundation() {
