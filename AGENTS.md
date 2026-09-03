@@ -7,10 +7,32 @@
 - Server: `server/app.py`
 - Frontend: `frontend/templates/`, `frontend/services/static/`
 - ROS 2: `navigation/ros/patrol_navigation/`
-- Raspberry Pi: `raspberry/robot_command_client.py`
+- Raspberry Pi target: **Raspberry Pi 3 Model B (1GB), Ubuntu Server 22.04 arm64**
+- Raspberry Pi client: `raspberry/robot_command_client.py`
+- Pi 3B setup: `raspberry/scripts/setup_pi3b.sh`
+- Pi 3B environment validation: `raspberry/scripts/validate_pi3b.sh`
 - Motor control: `raspberry/controllers/motor_controller.py`
 - Pico W: `raspberry/pico_w_sdk/main.c`
 - Tests: `tests/`
+
+Pi와 Server의 역할은 다음 기준을 유지한다.
+
+```text
+Raspberry Pi 3B
+- camera/LiDAR/encoder 수집
+- Pico W UART motor/LED control
+- H.264/WebSocket/HTTP 전송
+
+GPU Server
+- FastAPI/Web/DB
+- AI perception
+- SLAM/Localization/Nav2
+- ROS bridge/odometry
+```
+
+Pi 3B UART 기준은 `/dev/serial0`, 115200 8N1, GPIO14/15이며,
+`setup_pi3b.sh` 적용 후 PL011(`ttyAMA0`)을 primary UART로 사용한다.
+Pi 3B 내장 Wi-Fi는 2.4GHz를 사용한다.
 
 문서와 코드가 충돌하면 현재 실행 경로와 실제 참조 관계를 우선한다.
 과거 Flask/MicroPython/backup 구현은 현재 기준으로 간주하지 않는다.
@@ -41,6 +63,17 @@ Validation routing:
 - `navigation/` → `validate-navigation`
 - `raspberry/` → `validate-raspberry`
 - source/config 변경 → `review-change`
+
+Pi 3B 관련 파일이 변경되면 `validate-raspberry`는 최소한 다음을 확인한다.
+
+```text
+bash -n raspberry/scripts/setup_pi3b.sh
+bash -n raspberry/scripts/validate_pi3b.sh
+python .agents/skills/validate-raspberry/scripts/validate_uart_protocol.py
+```
+
+실제 Pi 3B가 없는 개발 환경에서는 위 정적 검증까지만 수행한다.
+`validate_pi3b.sh`의 실기기 실행 결과와 정적 검증 결과를 혼합해서 보고하지 않는다.
 
 ## 3. Orchestration / Worktree 규칙
 
@@ -80,6 +113,10 @@ T5 REVIEW      BLOCKED
 - 실제 하드웨어가 없으면 static/mock/build 결과와 실환경 결과를 구분한다.
 - 사용자의 명시적 요청 없이 실제 motor, GPIO, serial movement, firmware flash,
   `/cmd_vel`, Telegram 전송, 경고 방송, 지도/사용자/운영 DB 삭제를 실행하지 않는다.
+- `raspberry/scripts/setup_pi3b.sh`는 boot/UART/Bluetooth/Wi-Fi system 설정을 변경하므로
+  Agent가 개발 PC나 임의 환경에서 자동 실행하지 않는다. 기본 검증은 `bash -n`과 정적 검토만 수행한다.
+- `raspberry/scripts/validate_pi3b.sh`는 read-only 검증이지만 실제 Pi 3B 결과로 간주하려면
+  사용자가 해당 Pi에서 실행한 결과이거나 현재 세션이 명시적으로 Pi 3B 실기기 환경이어야 한다.
 - 운영 DB DDL/DML은 사용자가 현재 작업에서 명시적으로 승인한 범위만 수행한다.
 - 승인된 migration을 적용하기 전 현재 schema를 확인하고, 적용 후 다시 schema를 검증한다.
 - `DROP DATABASE`, `DROP TABLE`, `TRUNCATE`, 대량 `DELETE`는 명시적 별도 승인 없이는 금지한다.
@@ -134,7 +171,7 @@ Read-only reviewer:
 - `code_explorer`: 수정 전 실행 경로/영향 범위 조사
 - `dashboard_reviewer`: Playwright browser 검증
 - `ros_reviewer`: ROS/SLAM/AMCL/Nav2/TF 검토
-- `hardware_reviewer`: Pi/Pico/UART/failsafe 검토
+- `hardware_reviewer`: Pi 3B/Pico/UART/failsafe/runtime 설정 검토
 - `test_reviewer`: 최종 diff/regression/test gap 검토
 
 Implementation worker:
